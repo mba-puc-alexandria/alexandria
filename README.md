@@ -49,3 +49,6 @@ Essa stack é escolhida porque oferece:
 ---
 
 **Projeto Acadêmico** - MBA Engenharia de Software | PUC-SP
+
+
+Teste da regra
