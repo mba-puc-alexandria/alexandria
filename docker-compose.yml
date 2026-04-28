@@ -1,0 +1,60 @@
+services:
+  mysql:
+    image: mysql:8.0.32
+    container_name: alexandria-db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: alexandria123
+      MYSQL_DATABASE: alexandriadb
+      MYSQL_USER: alexandria
+      MYSQL_PASSWORD: alexandria123
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+
+  redis:
+    image: redis:7
+    container_name: alexandria-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    image: ${DOCKER_USERNAME}/alexandria-backend:${APP_TAG:-latest}
+    container_name: alexandria-backend
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/alexandriadb
+      SPRING_DATASOURCE_USERNAME: alexandria
+      SPRING_DATASOURCE_PASSWORD: alexandria123
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      JWT_SECRET: ${JWT_SECRET}
+    depends_on:
+      mysql:
+        condition: service_started
+      redis:
+        condition: service_healthy
+
+  frontend:
+    image: ${DOCKER_USERNAME}/angalexandria-frontend:${APP_TAG:-latest}
+    container_name: alexandria-frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      backend:
+        condition: service_started
+
+volumes:
+  mysql_data:

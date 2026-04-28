@@ -6,14 +6,39 @@ O Projeto Alexandria trata-se de uma Biblioteca Digital para gerenciamento de bi
 
 A arquitetura do projeto baseia-se no padrão monolítico, utilizando as seguintes tecnologias:
 
-- Java 17
-- Spring Boot 4.0.3
-- Spring Data JPA - Persistência de dados
-- Spring Web MVC - API REST
-- Spring Boot Actuator - Monitoramento e métricas
-- MySQL 8.0.32 - Banco de dados
-- Maven - Gerenciamento de dependências
-- Docker Compose - Containerização do banco de dados
+# Backend (Java + Spring)
+
+- Java 17: versão LTS, estável, segura e com bom desempenho.
+- Spring Boot 4: acelera o desenvolvimento com configuração automática e menor boilerplate.
+- Spring Data JPA: facilita o acesso ao banco com menos código SQL, aumentando produtividade.
+- Spring Web MVC: padrão sólido para criar APIs REST bem estruturadas.
+- Spring Boot Actuator: permite monitorar saúde, métricas e performance da aplicação facilmente.
+
+# Banco de dados
+
+- MySQL 8: confiável, amplamente utilizado e com ótimo suporte para aplicações web.
+
+# Cache
+
+- Redis: alta performance para sessões e cache
+
+# Infraestrutura e build
+
+- Maven: gerenciamento simples e padronizado de dependências e build.
+- Docker Compose: facilita subir o banco e serviços rapidamente, garantindo ambiente consistente.
+
+# Frontend
+
+- Next.js + TypeScript: frontend moderno com SSR/SSG, melhor performance e tipagem forte, reduzindo erros.
+
+# Porque dssa Stack
+
+Essa stack é escolhida porque oferece:
+
+- Alta produtividade no desenvolvimento
+- Escalabilidade e manutenção facilitada
+- Ferramentas maduras e bem suportadas
+- Integração eficiente entre backend e frontend
 
 
 ### Pré-requisitos
