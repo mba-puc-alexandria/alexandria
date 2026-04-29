@@ -9,6 +9,7 @@ import com.pucsp.alexandria.application.book.CreateBookUseCase;
 import com.pucsp.alexandria.application.book.DeleteBookUseCase;
 import com.pucsp.alexandria.application.book.GetBookUseCase;
 import com.pucsp.alexandria.application.book.ListBooksUseCase;
+import com.pucsp.alexandria.application.book.SearchBookByTitleUseCase;
 import com.pucsp.alexandria.application.book.UpdateBookUseCase;
 import com.pucsp.alexandria.application.publisher.CreatePublisherUseCase;
 import com.pucsp.alexandria.application.publisher.DeletePublisherUseCase;
@@ -17,16 +18,23 @@ import com.pucsp.alexandria.application.publisher.ListPublishersUseCase;
 import com.pucsp.alexandria.application.publisher.UpdatePublisherUseCase;
 import com.pucsp.alexandria.domain.author.AuthorRepository;
 import com.pucsp.alexandria.domain.book.BookRepository;
+import com.pucsp.alexandria.domain.book.external.BookApiClient;
 import com.pucsp.alexandria.domain.publisher.PublisherRepository;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.web.client.RestTemplate;
 
 @Configuration
 public class BeanConfiguration {
 
   @Bean
-  public CreateBookUseCase createBookUseCase(BookRepository bookRepository) {
-    return new CreateBookUseCase(bookRepository);
+  public RestTemplate restTemplate() {
+    return new RestTemplate();
+  }
+
+  @Bean
+  public CreateBookUseCase createBookUseCase(BookRepository bookRepository, BookApiClient bookApiClient) {
+    return new CreateBookUseCase(bookRepository, bookApiClient);
   }
 
   @Bean
@@ -47,6 +55,11 @@ public class BeanConfiguration {
   @Bean
   public DeleteBookUseCase deleteBookUseCase(BookRepository bookRepository) {
     return new DeleteBookUseCase(bookRepository);
+  }
+
+  @Bean
+  public SearchBookByTitleUseCase searchBookByTitleUseCase(BookApiClient bookApiClient) {
+    return new SearchBookByTitleUseCase(bookApiClient);
   }
 
   @Bean
@@ -99,6 +112,13 @@ public class BeanConfiguration {
     return new DeletePublisherUseCase(publisherRepository);
   }
 }
+
+
+
+
+
+
+
 
 
 

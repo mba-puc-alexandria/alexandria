@@ -16,7 +16,12 @@ public class BookMapper {
     return Book.restore(
         entity.getId(),
         entity.getTitle(),
-        entity.getGenre(),
+        entity.getGutenbergId(),
+        entity.getDownloadUrl(),
+        entity.getCoverUrl(),
+        entity.getLanguages(),
+        entity.getSubjects(),
+        entity.getDownloadCount(),
         entity.getPublisherId(),
         source
     );
@@ -29,7 +34,12 @@ public class BookMapper {
     return new BookEntity(
         book.getId() != null ? book.getId().getValue() : null,
         book.getTitle(),
-        book.getGenre(),
+        book.getGutenbergId(),
+        book.getDownloadUrl(),
+        book.getCoverUrl(),
+        book.getLanguages(),
+        book.getSubjects(),
+        book.getDownloadCount(),
         book.getPublisherId(),
         book.getSource().name()
     );

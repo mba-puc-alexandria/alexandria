@@ -15,13 +15,28 @@ public class BookEntity {
   @GeneratedValue(strategy = GenerationType.IDENTITY)
   private Long id;
 
-  @Column(nullable = false, unique = true, length = 255)
+  @Column(nullable = false, length = 255)
   private String title;
 
-  @Column(nullable = false, length = 100)
-  private String genre;
+  @Column(name = "gutenberg_id", unique = true, nullable = true)
+  private Long gutenbergId;
 
-  @Column(name = "publisher_id", nullable = false)
+  @Column(name = "download_url", nullable = true, columnDefinition = "LONGTEXT")
+  private String downloadUrl;
+
+  @Column(name = "cover_url", nullable = true, columnDefinition = "LONGTEXT")
+  private String coverUrl;
+
+  @Column(nullable = true, columnDefinition = "LONGTEXT")
+  private String languages;
+
+  @Column(nullable = true, columnDefinition = "LONGTEXT")
+  private String subjects;
+
+  @Column(name = "download_count", nullable = true)
+  private Integer downloadCount;
+
+  @Column(name = "publisher_id", nullable = true)
   private Long publisherId;
 
   @Column(nullable = false)
@@ -29,10 +44,17 @@ public class BookEntity {
 
   public BookEntity() {}
 
-  public BookEntity(Long id, String title, String genre, Long publisherId, String source) {
+  public BookEntity(Long id, String title, Long gutenbergId, String downloadUrl,
+                   String coverUrl, String languages, String subjects,
+                   Integer downloadCount, Long publisherId, String source) {
     this.id = id;
     this.title = title;
-    this.genre = genre;
+    this.gutenbergId = gutenbergId;
+    this.downloadUrl = downloadUrl;
+    this.coverUrl = coverUrl;
+    this.languages = languages;
+    this.subjects = subjects;
+    this.downloadCount = downloadCount;
     this.publisherId = publisherId;
     this.source = source;
   }
@@ -53,12 +75,52 @@ public class BookEntity {
     this.title = title;
   }
 
-  public String getGenre() {
-    return genre;
+  public Long getGutenbergId() {
+    return gutenbergId;
   }
 
-  public void setGenre(String genre) {
-    this.genre = genre;
+  public void setGutenbergId(Long gutenbergId) {
+    this.gutenbergId = gutenbergId;
+  }
+
+  public String getDownloadUrl() {
+    return downloadUrl;
+  }
+
+  public void setDownloadUrl(String downloadUrl) {
+    this.downloadUrl = downloadUrl;
+  }
+
+  public String getCoverUrl() {
+    return coverUrl;
+  }
+
+  public void setCoverUrl(String coverUrl) {
+    this.coverUrl = coverUrl;
+  }
+
+  public String getLanguages() {
+    return languages;
+  }
+
+  public void setLanguages(String languages) {
+    this.languages = languages;
+  }
+
+  public String getSubjects() {
+    return subjects;
+  }
+
+  public void setSubjects(String subjects) {
+    this.subjects = subjects;
+  }
+
+  public Integer getDownloadCount() {
+    return downloadCount;
+  }
+
+  public void setDownloadCount(Integer downloadCount) {
+    this.downloadCount = downloadCount;
   }
 
   public Long getPublisherId() {

@@ -10,10 +10,12 @@ public interface BookRepository {
 
   Optional<Book> findById(Long id);
 
+  Optional<Book> findByGutenbergId(Long gutenbergId);
+
   Page<Book> findAll(Pageable pageable);
 
   void delete(Book book);
 
-  boolean existsByTitle(String title);
+  boolean existsByGutenbergId(Long gutenbergId);
 }
 

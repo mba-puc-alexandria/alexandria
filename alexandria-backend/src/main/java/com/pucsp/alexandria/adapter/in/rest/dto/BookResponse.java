@@ -5,7 +5,12 @@ import com.pucsp.alexandria.application.book.dto.BookOutput;
 public record BookResponse(
     Long id,
     String title,
-    String genre,
+    Long gutenbergId,
+    String downloadUrl,
+    String coverUrl,
+    String languages,
+    String subjects,
+    Integer downloadCount,
     Long publisherId,
     String source
 ) {
@@ -14,7 +19,12 @@ public record BookResponse(
     return new BookResponse(
         output.id(),
         output.title(),
-        output.genre(),
+        output.gutenbergId(),
+        output.downloadUrl(),
+        output.coverUrl(),
+        output.languages(),
+        output.subjects(),
+        output.downloadCount(),
         output.publisherId(),
         output.source()
     );

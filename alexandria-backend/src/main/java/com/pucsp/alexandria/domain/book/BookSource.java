@@ -2,8 +2,7 @@ package com.pucsp.alexandria.domain.book;
 
 public enum BookSource {
   LOCAL("Local"),
-  OPEN_LIBRARY("Open Library"),
-  GOOGLE_BOOKS("Google Books");
+  GUTENDEX("Gutendex");
 
   private final String label;
 

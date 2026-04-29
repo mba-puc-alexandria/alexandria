@@ -1,8 +1,6 @@
 package com.pucsp.alexandria.adapter.in.rest.dto;
 
 public record CreateBookRequest(
-    String title,
-    String genre,
-    Long publisherId
+    String title
 ) {}
 

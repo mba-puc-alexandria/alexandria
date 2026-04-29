@@ -35,6 +35,12 @@ public class BookRepositoryImpl implements BookRepository {
   }
 
   @Override
+  public Optional<Book> findByGutenbergId(Long gutenbergId) {
+    return jpaRepository.findByGutenbergId(gutenbergId)
+        .map(mapper::toDomain);
+  }
+
+  @Override
   public Page<Book> findAll(Pageable pageable) {
     return jpaRepository.findAll(pageable)
         .map(mapper::toDomain);
@@ -47,8 +53,8 @@ public class BookRepositoryImpl implements BookRepository {
   }
 
   @Override
-  public boolean existsByTitle(String title) {
-    return jpaRepository.existsByTitle(title);
+  public boolean existsByGutenbergId(Long gutenbergId) {
+    return jpaRepository.existsByGutenbergId(gutenbergId);
   }
 }
 
