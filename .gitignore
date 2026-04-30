@@ -22,3 +22,39 @@
 # virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
 hs_err_pid*
 replay_pid*
+.idea/
+
+### Alexandria Backend Specific ###
+alexandria-backend/HELP.md
+alexandria-backend/target/
+alexandria-backend/.mvn/wrapper/maven-wrapper.jar
+!alexandria-backend/**/src/main/**/target/
+!alexandria-backend/**/src/test/**/target/
+
+### STS ###
+alexandria-backend/.apt_generated
+alexandria-backend/.classpath
+alexandria-backend/.factorypath
+alexandria-backend/.project
+alexandria-backend/.settings
+alexandria-backend/.springBeans
+alexandria-backend/.sts4-cache
+
+### IntelliJ IDEA ###
+alexandria-backend/.idea/
+alexandria-backend/*.iws
+alexandria-backend/*.iml
+alexandria-backend/*.ipr
+
+### NetBeans ###
+alexandria-backend/nbproject/private/
+alexandria-backend/nbbuild/
+alexandria-backend/dist/
+alexandria-backend/nbdist/
+alexandria-backend/.nb-gradle/
+alexandria-backend/build/
+!alexandria-backend/**/src/main/**/build/
+!alexandria-backend/**/src/test/**/build/
+
+### VS Code ###
+alexandria-backend/.vscode/
