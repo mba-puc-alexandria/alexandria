@@ -16,6 +16,7 @@ public class BookMapper {
     return Book.restore(
         entity.getId(),
         entity.getTitle(),
+        entity.getAuthor(),
         entity.getGutendexId(),
         entity.getDownloadUrl(),
         entity.getCoverUrl(),
@@ -34,6 +35,7 @@ public class BookMapper {
     return new BookEntity(
         book.getId() != null ? book.getId().getValue() : null,
         book.getTitle(),
+        book.getAuthor(),
         book.getGutendexId(),
         book.getDownloadUrl(),
         book.getCoverUrl(),

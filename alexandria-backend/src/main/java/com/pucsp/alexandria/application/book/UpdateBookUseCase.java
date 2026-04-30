@@ -7,12 +7,7 @@ import com.pucsp.alexandria.domain.book.BookRepository;
 import com.pucsp.alexandria.domain.book.exception.BookNotFoundException;
 import org.springframework.stereotype.Service;
 
-/**
- * @deprecated Gutendex books are immutable after import. Only LOCAL books can be updated.
- * This use case is kept for backward compatibility but recommend deprecating updates for GUTENDEX books.
- */
-@Deprecated(forRemoval = true, since = "1.0")
-@Service
+// melhorar método de update para atualização do livro na base
 public class UpdateBookUseCase {
 
   private final BookRepository bookRepository;
@@ -30,6 +25,7 @@ public class UpdateBookUseCase {
     Book updated = Book.restore(
         book.getId().getValue(),
         finalTitle,
+        book.getAuthor(),
         book.getGutendexId(),
         book.getDownloadUrl(),
         book.getCoverUrl(),

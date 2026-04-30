@@ -58,9 +58,7 @@ public class BookController {
   public ResponseEntity<Void> create(@RequestBody CreateBookRequest request) {
     CreateBookInput input = new CreateBookInput(request.page());
     var output = createBookUseCase.execute(input);
-    //var book = getBookUseCase.execute(output.ids());
     return ResponseEntity.noContent().build();
-        //.body(BookResponse.from(book));
   }
 
   @GetMapping("/{id}")

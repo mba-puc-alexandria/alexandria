@@ -1,16 +1,16 @@
 package com.pucsp.alexandria.application.book;
 
 import com.pucsp.alexandria.application.book.dto.SearchBookOutput;
-import com.pucsp.alexandria.domain.book.external.BookApiClient;
-import com.pucsp.alexandria.domain.book.external.BookData;
+import com.pucsp.alexandria.domain.book.Book;
+import com.pucsp.alexandria.domain.book.BookRepository;
 import java.util.List;
 
 public class SearchBookByTitleUseCase {
 
-  private final BookApiClient bookApiClient;
+  private final BookRepository bookRepository;
 
-  public SearchBookByTitleUseCase(BookApiClient bookApiClient) {
-    this.bookApiClient = bookApiClient;
+  public SearchBookByTitleUseCase(BookRepository bookRepository) {
+    this.bookRepository = bookRepository;
   }
 
   public List<SearchBookOutput> execute(String query) {
@@ -18,7 +18,7 @@ public class SearchBookByTitleUseCase {
       return List.of();
     }
 
-    List<BookData> booksData = bookApiClient.searchByTitle(query.trim());
+    List<Book> booksData = bookRepository.searchBookByQuery(query);
 
     return booksData.stream()
         .map(SearchBookOutput::from)

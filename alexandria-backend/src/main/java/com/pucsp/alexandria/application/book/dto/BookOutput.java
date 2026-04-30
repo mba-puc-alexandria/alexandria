@@ -1,10 +1,12 @@
 package com.pucsp.alexandria.application.book.dto;
 
 import com.pucsp.alexandria.domain.book.Book;
+import com.pucsp.alexandria.domain.book.BookId;
 
 public record BookOutput(
-    Long id,
+    BookId id,
     String title,
+    String author,
     Long gutendexId,
     String downloadUrl,
     String coverUrl,
@@ -17,8 +19,9 @@ public record BookOutput(
 
   public static BookOutput from(Book book) {
     return new BookOutput(
-        book.getId().getValue(),
+        book.getId(),
         book.getTitle(),
+        book.getAuthor(),
         book.getGutendexId(),
         book.getDownloadUrl(),
         book.getCoverUrl(),
