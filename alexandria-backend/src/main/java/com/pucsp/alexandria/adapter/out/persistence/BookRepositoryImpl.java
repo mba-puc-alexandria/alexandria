@@ -5,7 +5,9 @@ import com.pucsp.alexandria.adapter.out.persistence.jpa.BookJpaRepository;
 import com.pucsp.alexandria.adapter.out.persistence.mapper.BookMapper;
 import com.pucsp.alexandria.domain.book.Book;
 import com.pucsp.alexandria.domain.book.BookRepository;
+import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Repository;
@@ -44,6 +46,14 @@ public class BookRepositoryImpl implements BookRepository {
   public Page<Book> findAll(Pageable pageable) {
     return jpaRepository.findAll(pageable)
         .map(mapper::toDomain);
+  }
+
+  @Override
+  public List<Book> searchBookByQuery(String query) {
+    return jpaRepository.searchByTitleOrAuthor(query)
+        .stream()
+        .map(mapper::toDomain)
+        .collect(Collectors.toList());
   }
 
   @Override

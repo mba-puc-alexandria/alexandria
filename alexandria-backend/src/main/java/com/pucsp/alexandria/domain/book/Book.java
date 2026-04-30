@@ -6,6 +6,7 @@ public class Book {
 
   private final BookId id;
   private final String title;
+  private final String author;
   private final Long gutendexId;
   private final String downloadUrl;
   private final String coverUrl;
@@ -15,10 +16,11 @@ public class Book {
   private final Long publisherId;
   private final BookSource source;
 
-  private Book(BookId id, String title, Long gutendexId, String downloadUrl, String coverUrl,
+  private Book(BookId id, String title, String author, Long gutendexId, String downloadUrl, String coverUrl,
       String languages, String subjects, Integer downloadCount, Long publisherId, BookSource source) {
     this.id = id;
     this.title = title;
+    this.author = author;
     this.gutendexId = gutendexId;
     this.downloadUrl = downloadUrl;
     this.coverUrl = coverUrl;
@@ -32,18 +34,19 @@ public class Book {
   public static Book createLocal(String title, Long publisherId) {
     validateTitle(title);
     validatePublisherIdForLocal(publisherId);
-    return new Book(null, title, null, null, null, null, null, null, publisherId, BookSource.LOCAL);
+    return new Book(null, title, null, null, null, null, null, null, null, publisherId, BookSource.LOCAL);
   }
 
-  public static Book createFromGutendex(Long gutendexId, String title, String downloadUrl,
+  public static Book createFromGutendex(Long gutendexId, String title, String author, String downloadUrl,
       String coverUrl, String languages, String subjects, Integer downloadCount) {
     validateTitle(title);
+    validateAuthor(author);
     validateGutendexId(gutendexId);
-    return new Book(null, title, gutendexId, downloadUrl, coverUrl, languages, subjects,
+    return new Book(null, title, author, gutendexId, downloadUrl, coverUrl, languages, subjects,
         downloadCount, null, BookSource.GUTENDEX);
   }
 
-  public static Book restore(Long id, String title, Long gutendexId, String downloadUrl,
+  public static Book restore(Long id, String title, String author, Long gutendexId, String downloadUrl,
       String coverUrl, String languages, String subjects, Integer downloadCount, Long publisherId,
       BookSource source) {
     validateTitle(title);
@@ -51,7 +54,7 @@ public class Book {
       validatePublisherIdForLocal(publisherId);
     }
     BookId bookId = BookId.from(id);
-    return new Book(bookId, title, gutendexId, downloadUrl, coverUrl, languages, subjects,
+    return new Book(bookId, title, author, gutendexId, downloadUrl, coverUrl, languages, subjects,
         downloadCount, publisherId, source);
   }
 
@@ -61,6 +64,15 @@ public class Book {
     }
     if (title.length() > 255) {
       throw new InvalidBookException("Book title must not exceed 255 characters");
+    }
+  }
+
+  private static void validateAuthor(String author) {
+    if (author == null || author.isBlank()) {
+      throw new InvalidBookException("Book author is required");
+    }
+    if (author.length() > 255) {
+      throw new InvalidBookException("Book author must not exceed 255 characters");
     }
   }
 
@@ -82,6 +94,10 @@ public class Book {
 
   public String getTitle() {
     return title;
+  }
+
+  public String getAuthor() {
+    return author;
   }
 
   public Long getGutendexId() {
