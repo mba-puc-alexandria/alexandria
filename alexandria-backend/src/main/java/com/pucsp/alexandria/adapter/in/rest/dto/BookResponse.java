@@ -5,7 +5,7 @@ import com.pucsp.alexandria.application.book.dto.BookOutput;
 public record BookResponse(
     Long id,
     String title,
-    Long gutenbergId,
+    Long gutendexId,
     String downloadUrl,
     String coverUrl,
     String languages,
@@ -19,7 +19,7 @@ public record BookResponse(
     return new BookResponse(
         output.id(),
         output.title(),
-        output.gutenbergId(),
+        output.gutendexId(),
         output.downloadUrl(),
         output.coverUrl(),
         output.languages(),

@@ -5,7 +5,7 @@ import com.pucsp.alexandria.domain.book.Book;
 public record BookOutput(
     Long id,
     String title,
-    Long gutenbergId,
+    Long gutendexId,
     String downloadUrl,
     String coverUrl,
     String languages,
@@ -19,7 +19,7 @@ public record BookOutput(
     return new BookOutput(
         book.getId().getValue(),
         book.getTitle(),
-        book.getGutenbergId(),
+        book.getGutendexId(),
         book.getDownloadUrl(),
         book.getCoverUrl(),
         book.getLanguages(),

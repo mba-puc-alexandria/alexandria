@@ -55,12 +55,12 @@ public class BookController {
   }
 
   @PostMapping
-  public ResponseEntity<BookResponse> create(@RequestBody CreateBookRequest request) {
-    CreateBookInput input = new CreateBookInput(request.title());
+  public ResponseEntity<Void> create(@RequestBody CreateBookRequest request) {
+    CreateBookInput input = new CreateBookInput(request.page());
     var output = createBookUseCase.execute(input);
-    var book = getBookUseCase.execute(output.id());
-    return ResponseEntity.status(HttpStatus.CREATED)
-        .body(BookResponse.from(book));
+    //var book = getBookUseCase.execute(output.ids());
+    return ResponseEntity.noContent().build();
+        //.body(BookResponse.from(book));
   }
 
   @GetMapping("/{id}")
@@ -92,8 +92,8 @@ public class BookController {
   }
 
   @GetMapping("/search")
-  public ResponseEntity<List<SearchBookResponse>> search(@RequestParam String title) {
-    var output = searchBookByTitleUseCase.execute(title);
+  public ResponseEntity<List<SearchBookResponse>> search(@RequestParam String query) {
+    var output = searchBookByTitleUseCase.execute(query);
     return ResponseEntity.ok(output.stream()
         .map(SearchBookResponse::from)
         .toList());

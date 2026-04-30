@@ -8,8 +8,8 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface BookJpaRepository extends JpaRepository<BookEntity, Long> {
 
-  boolean existsByGutenbergId(Long gutenbergId);
+  boolean existsByGutendexId(Long gutendexId);
 
-  Optional<BookEntity> findByGutenbergId(Long gutenbergId);
+  Optional<BookEntity> findByGutendexId(Long gutendexId);
 }
 

@@ -3,7 +3,7 @@ package com.pucsp.alexandria.adapter.in.rest.dto;
 import com.pucsp.alexandria.application.book.dto.SearchBookOutput;
 
 public record SearchBookResponse(
-    Long gutenbergId,
+    Long gutendexId,
     String title,
     String authors,
     String downloadUrl,
@@ -15,7 +15,7 @@ public record SearchBookResponse(
 
   public static SearchBookResponse from(SearchBookOutput output) {
     return new SearchBookResponse(
-        output.gutenbergId(),
+        output.gutendexId(),
         output.title(),
         output.authors(),
         output.downloadUrl(),

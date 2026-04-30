@@ -18,8 +18,8 @@ public class BookEntity {
   @Column(nullable = false, length = 255)
   private String title;
 
-  @Column(name = "gutenberg_id", unique = true, nullable = true)
-  private Long gutenbergId;
+  @Column(name = "gutendex_id", unique = true, nullable = true)
+  private Long gutendexId;
 
   @Column(name = "download_url", nullable = true, columnDefinition = "LONGTEXT")
   private String downloadUrl;
@@ -44,12 +44,12 @@ public class BookEntity {
 
   public BookEntity() {}
 
-  public BookEntity(Long id, String title, Long gutenbergId, String downloadUrl,
+  public BookEntity(Long id, String title, Long gutendexId, String downloadUrl,
                    String coverUrl, String languages, String subjects,
                    Integer downloadCount, Long publisherId, String source) {
     this.id = id;
     this.title = title;
-    this.gutenbergId = gutenbergId;
+    this.gutendexId = gutendexId;
     this.downloadUrl = downloadUrl;
     this.coverUrl = coverUrl;
     this.languages = languages;
@@ -75,12 +75,12 @@ public class BookEntity {
     this.title = title;
   }
 
-  public Long getGutenbergId() {
-    return gutenbergId;
+  public Long getGutendexId() {
+    return gutendexId;
   }
 
-  public void setGutenbergId(Long gutenbergId) {
-    this.gutenbergId = gutenbergId;
+  public void setGutendexId(Long gutendexId) {
+    this.gutendexId = gutendexId;
   }
 
   public String getDownloadUrl() {

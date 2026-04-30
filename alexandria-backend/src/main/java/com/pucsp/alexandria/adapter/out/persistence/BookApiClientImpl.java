@@ -20,8 +20,21 @@ public class BookApiClientImpl implements BookApiClient {
   }
 
   @Override
-  public List<BookData> searchByTitle(String title) {
-    GutendexSearchResponse response = gutendexClient.searchByTitle(title);
+  public List<BookData> searchByTitle(String query) {
+    GutendexSearchResponse response = gutendexClient.searchByTitle(query);
+
+    if (response == null || response.results() == null || response.results().isEmpty()) {
+      return List.of();
+    }
+
+    return response.results().stream()
+        .map(gutendexMapper::toBookData)
+        .toList();
+  }
+
+  @Override
+  public List<BookData> getPage(int page) {
+    GutendexSearchResponse response = gutendexClient.getPage(page);
 
     if (response == null || response.results() == null || response.results().isEmpty()) {
       return List.of();

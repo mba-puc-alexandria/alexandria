@@ -7,6 +7,7 @@ import com.pucsp.alexandria.domain.book.BookRepository;
 import com.pucsp.alexandria.domain.book.exception.DuplicateBookException;
 import com.pucsp.alexandria.domain.book.external.BookApiClient;
 import com.pucsp.alexandria.domain.book.external.BookData;
+import java.util.ArrayList;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -21,29 +22,33 @@ public class CreateBookUseCase {
   }
 
   public CreateBookOutput execute(CreateBookInput input) {
-    var bookDataList = bookApiClient.searchByTitle(input.title());
+    var bookDataList = bookApiClient.getPage(input.page());
     if (bookDataList.isEmpty()) {
-      throw new RuntimeException("Book not found in Gutendex: " + input.title());
+      throw new RuntimeException("Page not found in Gutendex: " + input.page());
     }
 
-    BookData bookData = bookDataList.get(0);
+    ArrayList<Long> createdIds = new ArrayList<>();
+    for (BookData bookData: bookDataList) {
+//      if (bookRepository.existsByGutendexId(bookData.gutendexId())) {
+//        throw new DuplicateBookException("Book with Gutendex ID " + bookData.gutendexId() + " already exists");
+//      }
 
-    if (bookRepository.existsByGutenbergId(bookData.gutenbergId())) {
-      throw new DuplicateBookException("Book with Gutenberg ID " + bookData.gutenbergId() + " already exists");
+      Book newBook = Book.createFromGutendex(
+          bookData.gutendexId(),
+          bookData.title(),
+          bookData.downloadUrl(),
+          bookData.coverUrl(),
+          bookData.languages(),
+          bookData.subjects(),
+          bookData.downloadCount()
+      );
+
+      Book saved = bookRepository.save(newBook);
+      createdIds.add(saved.getId().getValue());
     }
 
-    Book book = Book.createFromGutendex(
-        bookData.gutenbergId(),
-        bookData.title(),
-        bookData.downloadUrl(),
-        bookData.coverUrl(),
-        bookData.languages(),
-        bookData.subjects(),
-        bookData.downloadCount()
-    );
 
-    Book saved = bookRepository.save(book);
 
-    return new CreateBookOutput(saved.getId().getValue());
+    return new CreateBookOutput(createdIds);
   }
 }

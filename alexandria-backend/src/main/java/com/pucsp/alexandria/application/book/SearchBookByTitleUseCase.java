@@ -13,12 +13,12 @@ public class SearchBookByTitleUseCase {
     this.bookApiClient = bookApiClient;
   }
 
-  public List<SearchBookOutput> execute(String title) {
-    if (title == null || title.isBlank()) {
+  public List<SearchBookOutput> execute(String query) {
+    if (query == null || query.isBlank()) {
       return List.of();
     }
 
-    List<BookData> booksData = bookApiClient.searchByTitle(title.trim());
+    List<BookData> booksData = bookApiClient.searchByTitle(query.trim());
 
     return booksData.stream()
         .map(SearchBookOutput::from)

@@ -3,7 +3,7 @@ package com.pucsp.alexandria.application.book.dto;
 import com.pucsp.alexandria.domain.book.external.BookData;
 
 public record SearchBookOutput(
-    Long gutenbergId,
+    Long gutendexId,
     String title,
     String authors,
     String downloadUrl,
@@ -15,7 +15,7 @@ public record SearchBookOutput(
 
   public static SearchBookOutput from(BookData bookData) {
     return new SearchBookOutput(
-        bookData.gutenbergId(),
+        bookData.gutendexId(),
         bookData.title(),
         bookData.authors(),
         bookData.downloadUrl(),

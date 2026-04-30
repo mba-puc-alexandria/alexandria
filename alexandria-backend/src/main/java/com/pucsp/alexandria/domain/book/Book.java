@@ -6,7 +6,7 @@ public class Book {
 
   private final BookId id;
   private final String title;
-  private final Long gutenbergId;
+  private final Long gutendexId;
   private final String downloadUrl;
   private final String coverUrl;
   private final String languages;
@@ -15,11 +15,11 @@ public class Book {
   private final Long publisherId;
   private final BookSource source;
 
-  private Book(BookId id, String title, Long gutenbergId, String downloadUrl, String coverUrl,
+  private Book(BookId id, String title, Long gutendexId, String downloadUrl, String coverUrl,
       String languages, String subjects, Integer downloadCount, Long publisherId, BookSource source) {
     this.id = id;
     this.title = title;
-    this.gutenbergId = gutenbergId;
+    this.gutendexId = gutendexId;
     this.downloadUrl = downloadUrl;
     this.coverUrl = coverUrl;
     this.languages = languages;
@@ -35,15 +35,15 @@ public class Book {
     return new Book(null, title, null, null, null, null, null, null, publisherId, BookSource.LOCAL);
   }
 
-  public static Book createFromGutendex(Long gutenbergId, String title, String downloadUrl,
+  public static Book createFromGutendex(Long gutendexId, String title, String downloadUrl,
       String coverUrl, String languages, String subjects, Integer downloadCount) {
     validateTitle(title);
-    validateGutenbergId(gutenbergId);
-    return new Book(null, title, gutenbergId, downloadUrl, coverUrl, languages, subjects,
+    validateGutendexId(gutendexId);
+    return new Book(null, title, gutendexId, downloadUrl, coverUrl, languages, subjects,
         downloadCount, null, BookSource.GUTENDEX);
   }
 
-  public static Book restore(Long id, String title, Long gutenbergId, String downloadUrl,
+  public static Book restore(Long id, String title, Long gutendexId, String downloadUrl,
       String coverUrl, String languages, String subjects, Integer downloadCount, Long publisherId,
       BookSource source) {
     validateTitle(title);
@@ -51,7 +51,7 @@ public class Book {
       validatePublisherIdForLocal(publisherId);
     }
     BookId bookId = BookId.from(id);
-    return new Book(bookId, title, gutenbergId, downloadUrl, coverUrl, languages, subjects,
+    return new Book(bookId, title, gutendexId, downloadUrl, coverUrl, languages, subjects,
         downloadCount, publisherId, source);
   }
 
@@ -64,9 +64,9 @@ public class Book {
     }
   }
 
-  private static void validateGutenbergId(Long gutenbergId) {
-    if (gutenbergId == null || gutenbergId <= 0) {
-      throw new InvalidBookException("Valid Gutenberg ID is required");
+  private static void validateGutendexId(Long gutendexId) {
+    if (gutendexId == null || gutendexId <= 0) {
+      throw new InvalidBookException("Valid Gutendex ID is required");
     }
   }
 
@@ -84,8 +84,8 @@ public class Book {
     return title;
   }
 
-  public Long getGutenbergId() {
-    return gutenbergId;
+  public Long getGutendexId() {
+    return gutendexId;
   }
 
   public String getDownloadUrl() {

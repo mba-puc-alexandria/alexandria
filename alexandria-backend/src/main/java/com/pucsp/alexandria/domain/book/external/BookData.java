@@ -1,7 +1,7 @@
 package com.pucsp.alexandria.domain.book.external;
 
 public record BookData(
-    Long gutenbergId,
+    Long gutendexId,
     String title,
     String authors,
     String downloadUrl,

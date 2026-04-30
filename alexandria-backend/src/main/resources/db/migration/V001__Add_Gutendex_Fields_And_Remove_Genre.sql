@@ -1,4 +1,4 @@
-ALTER TABLE books ADD COLUMN gutenberg_id BIGINT UNIQUE NULL;
+ALTER TABLE books ADD COLUMN gutendex_id BIGINT UNIQUE NULL;
 ALTER TABLE books ADD COLUMN download_url LONGTEXT NULL;
 ALTER TABLE books ADD COLUMN cover_url LONGTEXT NULL;
 ALTER TABLE books ADD COLUMN languages LONGTEXT NULL;
@@ -12,5 +12,5 @@ ALTER TABLE books MODIFY COLUMN title VARCHAR(255) NOT NULL;
 
 ALTER TABLE books DROP COLUMN genre;
 
-CREATE INDEX idx_gutenberg_id ON books(gutenberg_id);
+CREATE INDEX idx_gutendex_id ON books(gutendex_id);
 

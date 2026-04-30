@@ -25,15 +25,12 @@ public class UpdateBookUseCase {
     Book book = bookRepository.findById(id)
         .orElseThrow(() -> new BookNotFoundException(id));
 
-    // Only allow title updates for now
     String finalTitle = input.title() != null ? input.title() : book.getTitle();
 
-    // For LOCAL books, create a new updated instance
-    // For GUTENDEX books, consider them immutable
     Book updated = Book.restore(
         book.getId().getValue(),
         finalTitle,
-        book.getGutenbergId(),
+        book.getGutendexId(),
         book.getDownloadUrl(),
         book.getCoverUrl(),
         book.getLanguages(),
