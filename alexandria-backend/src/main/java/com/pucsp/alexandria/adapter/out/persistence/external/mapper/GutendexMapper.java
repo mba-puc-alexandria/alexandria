@@ -36,6 +36,7 @@ public class GutendexMapper {
         : null;
 
     return new BookData(
+        -1L,
         response.id(),
         response.title(),
         authors,
