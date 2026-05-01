@@ -14,7 +14,7 @@ public class GutendexMapper {
 
     String authors = response.authors() != null && !response.authors().isEmpty()
         ? response.authors().stream()
-            .map(author -> author.name())
+            .map(author -> formatAuthorName(author.name()))
             .reduce((a, b) -> a + ", " + b)
             .orElse("Unknown")
         : "Unknown";
@@ -46,5 +46,27 @@ public class GutendexMapper {
         subjects,
         response.downloadCount()
     );
+  }
+
+  private String formatAuthorName(String name) {
+    if (name == null || name.isBlank()) {
+      return name;
+    }
+
+    String trimmed = name.trim();
+
+    if (trimmed.contains(",")) {
+      String[] parts = trimmed.split(",", 2);
+      String lastName = parts[0].trim();
+      String firstName = parts.length > 1 ? parts[1].trim() : "";
+
+      if (firstName.isEmpty()) {
+        return lastName;
+      }
+
+      return firstName + " " + lastName;
+    }
+
+    return trimmed;
   }
 }
