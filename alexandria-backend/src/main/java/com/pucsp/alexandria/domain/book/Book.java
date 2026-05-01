@@ -62,8 +62,8 @@ public class Book {
     if (title == null || title.isBlank()) {
       throw new InvalidBookException("Book title is required");
     }
-    if (title.length() > 255) {
-      throw new InvalidBookException("Book title must not exceed 255 characters");
+    if (title.length() > 500) {
+      throw new InvalidBookException("Book title must not exceed 500 characters");
     }
   }
 
@@ -71,8 +71,8 @@ public class Book {
     if (author == null || author.isBlank()) {
       throw new InvalidBookException("Book author is required");
     }
-    if (author.length() > 255) {
-      throw new InvalidBookException("Book author must not exceed 255 characters");
+    if (author.length() > 500) {
+      throw new InvalidBookException("Book author must not exceed 500 characters");
     }
   }
 
@@ -145,4 +145,3 @@ public class Book {
     return id != null ? id.hashCode() : 0;
   }
 }
-
