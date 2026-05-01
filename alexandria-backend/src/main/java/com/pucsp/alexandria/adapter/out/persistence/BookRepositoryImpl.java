@@ -26,6 +26,10 @@ public class BookRepositoryImpl implements BookRepository {
   @Override
   public Book save(Book book) {
     BookEntity entity = mapper.toPersistence(book);
+    if (entity.getId() == null && book.getGutendexId() != null) {
+      jpaRepository.findByGutendexId(book.getGutendexId())
+          .ifPresent(existing -> entity.setId(existing.getId()));
+    }
     BookEntity saved = jpaRepository.save(entity);
     return mapper.toDomain(saved);
   }
@@ -67,4 +71,3 @@ public class BookRepositoryImpl implements BookRepository {
     return jpaRepository.existsByGutendexId(gutendexId);
   }
 }
-

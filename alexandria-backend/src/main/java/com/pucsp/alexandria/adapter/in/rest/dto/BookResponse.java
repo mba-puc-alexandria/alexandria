@@ -1,10 +1,9 @@
 package com.pucsp.alexandria.adapter.in.rest.dto;
 
 import com.pucsp.alexandria.application.book.dto.BookOutput;
-import com.pucsp.alexandria.domain.book.BookId;
 
 public record BookResponse(
-    BookId id,
+    Long id,
     String title,
     String author,
     Long gutendexId,
@@ -19,7 +18,7 @@ public record BookResponse(
 
   public static BookResponse from(BookOutput output) {
     return new BookResponse(
-        output.id(),
+        output.id().getValue(),
         output.title(),
         output.author(),
         output.gutendexId(),
