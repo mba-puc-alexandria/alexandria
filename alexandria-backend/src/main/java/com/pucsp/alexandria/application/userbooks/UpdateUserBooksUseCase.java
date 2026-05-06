@@ -34,7 +34,7 @@ public class UpdateUserBooksUseCase {
     UserBooks updated = userBooks.updateWith(newStatus, input.progress(), input.rating());
     UserBooks saved = userBooksRepository.save(updated);
 
-    var book = bookRepository.findById(saved.getBookId())
+    var book = bookRepository.findById(saved.getBookId().getValue())
         .orElseThrow(() -> new BookNotFoundException("Book not found with id: " + saved.getBookId()));
 
     return UserBooksOutput.from(saved, BookOutput.from(book));

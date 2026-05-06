@@ -7,6 +7,7 @@ import com.pucsp.alexandria.adapter.out.persistence.jpa.BookJpaRepository;
 import com.pucsp.alexandria.adapter.out.persistence.jpa.UserBooksJpaRepository;
 import com.pucsp.alexandria.adapter.out.persistence.jpa.UserJpaRepository;
 import com.pucsp.alexandria.adapter.out.persistence.mapper.UserBooksMapper;
+import com.pucsp.alexandria.domain.book.BookId;
 import com.pucsp.alexandria.domain.user.UserId;
 import com.pucsp.alexandria.domain.userbook.UserBooks;
 import com.pucsp.alexandria.domain.userbook.UserBooksRepository;
@@ -39,7 +40,7 @@ public class UserBooksRepositoryImpl implements UserBooksRepository {
   @Override
   public UserBooks save(UserBooks userBooks) {
     UserEntity userEntity = userJpaRepository.getReferenceById(userBooks.getUserId().getValue());
-    BookEntity bookEntity = bookJpaRepository.getReferenceById(userBooks.getBookId());
+    BookEntity bookEntity = bookJpaRepository.getReferenceById(userBooks.getBookId().getValue());
     UserBooksEntity entity = mapper.toPersistence(userBooks, userEntity, bookEntity);
 
     if (userBooks.getId() != null) {
@@ -68,14 +69,14 @@ public class UserBooksRepositoryImpl implements UserBooksRepository {
   }
 
   @Override
-  public Optional<UserBooks> findByUserIdAndBookId(UserId userId, Long bookId) {
-    return jpaRepository.findByUserIdAndBookId(userId.getValue(), bookId)
+  public Optional<UserBooks> findByUserIdAndBookId(UserId userId, BookId bookId) {
+    return jpaRepository.findByUserIdAndBookId(userId.getValue(), bookId.getValue())
         .map(mapper::toDomain);
   }
 
   @Override
-  public boolean existsByUserIdAndBookId(UserId userId, Long bookId) {
-    return jpaRepository.existsByUserIdAndBookId(userId.getValue(), bookId);
+  public boolean existsByUserIdAndBookId(UserId userId, BookId bookId) {
+    return jpaRepository.existsByUserIdAndBookId(userId.getValue(), bookId.getValue());
   }
 
   @Override

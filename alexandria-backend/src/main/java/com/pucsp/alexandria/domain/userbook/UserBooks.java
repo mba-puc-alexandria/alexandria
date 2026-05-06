@@ -1,5 +1,6 @@
 package com.pucsp.alexandria.domain.userbook;
 
+import com.pucsp.alexandria.domain.book.BookId;
 import com.pucsp.alexandria.domain.user.UserId;
 import com.pucsp.alexandria.domain.userbook.exception.InvalidUserBooksException;
 import java.time.LocalDateTime;
@@ -9,13 +10,13 @@ public class UserBooks {
 
     private final Long id;
     private final UserId userId;
-    private final Long bookId;
+    private final BookId bookId;
     private final UserBooksStatus status;
     private final Integer progress;
     private final Integer rating;
     private final LocalDateTime createdAt;
 
-    private UserBooks(Long id, UserId userId, Long bookId, UserBooksStatus status,
+    private UserBooks(Long id, UserId userId, BookId bookId, UserBooksStatus status,
                       Integer progress, Integer rating, LocalDateTime createdAt) {
         this.id = id;
         this.userId = userId;
@@ -26,7 +27,7 @@ public class UserBooks {
         this.createdAt = createdAt;
     }
 
-    public static UserBooks create(UserId userId, Long bookId, UserBooksStatus status) {
+    public static UserBooks create(UserId userId, BookId bookId, UserBooksStatus status) {
         Objects.requireNonNull(userId, "userId is required");
         Objects.requireNonNull(bookId, "bookId is required");
         UserBooksStatus finalStatus = status != null ? status : UserBooksStatus.TOREAD;
@@ -37,9 +38,10 @@ public class UserBooks {
     public static UserBooks restore(Long id, Long userId, Long bookId, String status,
                                     Integer progress, Integer rating, LocalDateTime createdAt) {
         UserId userIdVO = UserId.from(userId);
+        BookId bookIdVO = BookId.from(bookId);
         UserBooksStatus statusEnum = UserBooksStatus.fromString(status);
         validateByStatus(statusEnum, progress, rating);
-        return new UserBooks(id, userIdVO, bookId, statusEnum, progress, rating, createdAt);
+        return new UserBooks(id, userIdVO, bookIdVO, statusEnum, progress, rating, createdAt);
     }
 
     public UserBooks updateWith(UserBooksStatus newStatus, Integer newProgress, Integer newRating) {
@@ -73,7 +75,7 @@ public class UserBooks {
 
     public Long getId() { return id; }
     public UserId getUserId() { return userId; }
-    public Long getBookId() { return bookId; }
+    public BookId getBookId() { return bookId; }
     public UserBooksStatus getStatus() { return status; }
     public Integer getProgress() { return progress; }
     public Integer getRating() { return rating; }

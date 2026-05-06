@@ -31,7 +31,7 @@ public class ListUserBooksUseCase {
     }
 
     return userBooksPage.map(ub -> {
-      var book = bookRepository.findById(ub.getBookId())
+      var book = bookRepository.findById(ub.getBookId().getValue())
           .orElseThrow(() -> new RuntimeException("Book not found for user book: " + ub.getId()));
       return UserBooksOutput.from(ub, BookOutput.from(book));
     });

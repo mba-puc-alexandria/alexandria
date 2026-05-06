@@ -7,6 +7,7 @@ import com.pucsp.alexandria.domain.book.BookRepository;
 import com.pucsp.alexandria.domain.book.external.BookApiClient;
 import com.pucsp.alexandria.domain.book.external.BookData;
 import java.util.ArrayList;
+import org.springframework.transaction.annotation.Transactional;
 
 public class CreateBookUseCase {
 
@@ -18,6 +19,7 @@ public class CreateBookUseCase {
     this.bookApiClient = bookApiClient;
   }
 
+  @Transactional
   public CreateBookOutput execute(CreateBookInput input) {
     var bookDataList = bookApiClient.getPage(input.page());
     if (bookDataList.isEmpty()) {
@@ -26,6 +28,10 @@ public class CreateBookUseCase {
 
     ArrayList<Long> createdIds = new ArrayList<>();
     for (BookData bookData : bookDataList) {
+      if (bookRepository.existsByGutendexId(bookData.gutendexId())) {
+        continue;
+      }
+
       Book newBook = Book.createFromGutendex(
           bookData.gutendexId(),
           bookData.title(),

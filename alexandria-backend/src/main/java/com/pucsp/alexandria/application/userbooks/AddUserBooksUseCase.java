@@ -4,6 +4,7 @@ import com.pucsp.alexandria.application.book.dto.BookOutput;
 import com.pucsp.alexandria.application.userbooks.dto.AddUserBooksInput;
 import com.pucsp.alexandria.application.userbooks.dto.UserBooksOutput;
 import com.pucsp.alexandria.domain.book.BookRepository;
+import com.pucsp.alexandria.domain.book.BookId;
 import com.pucsp.alexandria.domain.book.exception.BookNotFoundException;
 import com.pucsp.alexandria.domain.user.UserId;
 import com.pucsp.alexandria.domain.userbook.UserBooks;
@@ -32,7 +33,7 @@ public class AddUserBooksUseCase {
     var book = bookRepository.findById(input.bookId())
         .orElseThrow(() -> new BookNotFoundException("Book not found with id: " + input.bookId()));
 
-    Long bookId = book.getId().getValue();
+    BookId bookId = book.getId();
 
     if (userBooksRepository.existsByUserIdAndBookId(userIdVO, bookId)) {
       throw new DuplicateUserBooksException("Book already in user's library");

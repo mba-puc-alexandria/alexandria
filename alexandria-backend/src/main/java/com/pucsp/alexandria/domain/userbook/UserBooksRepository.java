@@ -1,5 +1,6 @@
 package com.pucsp.alexandria.domain.userbook;
 
+import com.pucsp.alexandria.domain.book.BookId;
 import com.pucsp.alexandria.domain.user.UserId;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -15,9 +16,9 @@ public interface UserBooksRepository {
 
   Page<UserBooks> findByUserIdAndStatus(UserId userId, UserBooksStatus status, Pageable pageable);
 
-  Optional<UserBooks> findByUserIdAndBookId(UserId userId, Long bookId);
+  Optional<UserBooks> findByUserIdAndBookId(UserId userId, BookId bookId);
 
-  boolean existsByUserIdAndBookId(UserId userId, Long bookId);
+  boolean existsByUserIdAndBookId(UserId userId, BookId bookId);
 
   void delete(UserBooks userBooks);
 }

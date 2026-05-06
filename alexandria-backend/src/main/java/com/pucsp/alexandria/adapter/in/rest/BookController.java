@@ -24,7 +24,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import java.util.List;
 
 @RestController
 @RequestMapping("/books")
@@ -89,11 +88,11 @@ public class BookController {
   }
 
   @GetMapping("/search")
-  public ResponseEntity<List<SearchBookResponse>> search(@RequestParam String query) {
-    var output = searchBookByTitleUseCase.execute(query);
-    return ResponseEntity.ok(output.stream()
-        .map(SearchBookResponse::from)
-        .toList());
+  public ResponseEntity<Page<SearchBookResponse>> search(
+      @RequestParam String query,
+      Pageable pageable) {
+    var page = searchBookByTitleUseCase.execute(query, pageable);
+    return ResponseEntity.ok(page.map(SearchBookResponse::from));
   }
 }
 

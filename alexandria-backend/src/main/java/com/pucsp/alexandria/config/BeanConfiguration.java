@@ -18,6 +18,7 @@ import com.pucsp.alexandria.domain.user.UserRepository;
 import com.pucsp.alexandria.domain.userbook.UserBooksRepository;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.client.RestTemplate;
 
 @Configuration
@@ -91,7 +92,8 @@ public class BeanConfiguration {
   }
 
   @Bean
-  public AuthenticateUserUseCase authenticateUserUseCase(UserRepository userRepository) {
-    return new AuthenticateUserUseCase(userRepository);
+  public AuthenticateUserUseCase authenticateUserUseCase(UserRepository userRepository,
+                                                          PasswordEncoder passwordEncoder) {
+    return new AuthenticateUserUseCase(userRepository, passwordEncoder);
   }
 }
