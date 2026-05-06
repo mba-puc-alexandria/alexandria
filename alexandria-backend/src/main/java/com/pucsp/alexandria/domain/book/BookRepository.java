@@ -1,6 +1,5 @@
 package com.pucsp.alexandria.domain.book;
 
-import java.util.List;
 import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -15,7 +14,7 @@ public interface BookRepository {
 
   Page<Book> findAll(Pageable pageable);
 
-  List<Book> searchBookByQuery(String query);
+  Page<Book> searchBookByQuery(String query, Pageable pageable);
 
   void delete(Book book);
 

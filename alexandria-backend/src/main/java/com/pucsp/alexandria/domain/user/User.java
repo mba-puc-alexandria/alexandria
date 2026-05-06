@@ -86,6 +86,9 @@ public class User {
     if (password == null || password.isBlank()) {
       throw new InvalidUserException("Password is required");
     }
+    if (password.length() < 8) {
+      throw new InvalidUserException("Password must be at least 8 characters long");
+    }
     if (password.length() > 255) {
       throw new InvalidUserException("Password must not exceed 255 characters");
     }
