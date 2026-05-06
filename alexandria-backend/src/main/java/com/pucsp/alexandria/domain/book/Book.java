@@ -88,6 +88,14 @@ public class Book {
     }
   }
 
+  public Book updateWith(String title) {
+    String finalTitle = title != null ? title : this.title;
+    validateTitle(finalTitle);
+    return new Book(this.id, finalTitle, this.author, this.gutendexId,
+        this.downloadUrl, this.coverUrl, this.languages, this.subjects,
+        this.downloadCount, this.publisherId, this.source);
+  }
+
   public BookId getId() {
     return id;
   }
