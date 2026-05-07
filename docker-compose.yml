@@ -45,7 +45,7 @@ services:
         condition: service_started
       redis:
         condition: service_healthy
-
+        
   frontend:
     image: ${DOCKER_USERNAME}/angalexandria-frontend:${APP_TAG:-latest}
     container_name: alexandria-frontend
