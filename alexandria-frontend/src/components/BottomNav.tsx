@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, BookOpen, ArrowLeftRight, Compass } from "lucide-react";
+import { LayoutDashboard, BookOpen, ArrowLeftRight, Compass, LogOut } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 
 const navItems = [
   { href: "/dashboard", label: "Painel", icon: LayoutDashboard },
@@ -13,6 +14,7 @@ const navItems = [
 
 export default function BottomNav() {
   const pathname = usePathname();
+  const { logout } = useAuth();
 
   return (
     <nav className="md:hidden fixed bottom-0 left-0 right-0 z-30 bg-cream/95 backdrop-blur-sm border-t border-cream-border flex items-center justify-around px-2 pb-safe pt-2 h-[64px]">
@@ -33,6 +35,13 @@ export default function BottomNav() {
           </Link>
         );
       })}
+      <button
+        onClick={logout}
+        className="flex flex-col items-center gap-1 px-4 py-1 rounded-xl text-terra/70 transition-colors"
+      >
+        <LogOut size={20} strokeWidth={1.5} />
+        <span className="text-[9px] tracking-wide uppercase font-bold text-terra/50">Sair</span>
+      </button>
     </nav>
   );
 }
