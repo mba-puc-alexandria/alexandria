@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Manrope, Noto_Serif, Playfair_Display } from "next/font/google";
+import { AuthProvider } from "@/contexts/AuthContext";
 import "./globals.css";
 
 const manrope = Manrope({
@@ -36,7 +37,9 @@ export default function RootLayout({
       lang="pt-BR"
       className={`${manrope.variable} ${notoSerif.variable} ${playfair.variable} h-full`}
     >
-      <body className="h-full">{children}</body>
+      <body className="h-full">
+          <AuthProvider>{children}</AuthProvider>
+        </body>
     </html>
   );
 }
