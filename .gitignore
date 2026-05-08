@@ -60,3 +60,6 @@ alexandria-backend/build/
 alexandria-backend/.vscode/
 ### Scripts de deploy ###
 scripts/
+
+alexandria-frontend/docs/doc_backend.md
+.claude/settings.local.json
