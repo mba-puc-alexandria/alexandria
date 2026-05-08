@@ -58,3 +58,5 @@ alexandria-backend/build/
 
 ### VS Code ###
 alexandria-backend/.vscode/
+alexandria-frontend/docs/doc_backend.md
+.claude/settings.local.json
