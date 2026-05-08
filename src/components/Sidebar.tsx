@@ -10,7 +10,9 @@ import {
   Settings,
   HelpCircle,
   BookMarked,
+  LogOut,
 } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 
 const navLinks = [
   { href: "/dashboard", label: "Painel", icon: LayoutDashboard },
@@ -26,6 +28,7 @@ const bottomLinks = [
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const { logout, user } = useAuth();
 
   return (
     <aside className="flex flex-col w-64 shrink-0 h-full bg-cream px-6 py-6 border-r border-cream-border">
@@ -74,6 +77,21 @@ export default function Sidebar() {
             {label}
           </Link>
         ))}
+
+        {user && (
+          <div className="mt-4 pt-4 border-t border-cream-border">
+            <p className="px-4 text-[11px] text-slate/50 uppercase tracking-widest font-bold mb-2">
+              {user.username}
+            </p>
+            <button
+              onClick={logout}
+              className="flex items-center gap-3 px-4 py-2 w-full text-terra text-sm font-medium hover:bg-terra/10 rounded transition-colors"
+            >
+              <LogOut size={18} />
+              Sair
+            </button>
+          </div>
+        )}
       </div>
     </aside>
   );
