@@ -47,11 +47,11 @@ services:
         condition: service_healthy
 
   frontend:
-    image: ${DOCKER_USERNAME}/angalexandria-frontend:${APP_TAG:-latest}
+    image: ${DOCKER_USERNAME}/alexandria-frontend:${APP_TAG:-latest}
     container_name: alexandria-frontend
     restart: unless-stopped
     ports:
-      - "80:80"
+      - "80:3000"
     depends_on:
       backend:
         condition: service_started

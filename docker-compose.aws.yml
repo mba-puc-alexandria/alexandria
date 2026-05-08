@@ -1,0 +1,36 @@
+services:
+  backend:
+    build:
+      context: ./alexandria-backend
+      dockerfile: Dockerfile
+    container_name: alexandria-backend
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_PROFILES_ACTIVE: rds
+      DB_HOST: alexandria-db.c9qs2asg26uk.us-east-2.rds.amazonaws.com
+      DB_PORT: 3306
+      DB_NAME: alexandriadb
+      DB_USER: admin
+      DB_PASSWORD: ${DB_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  frontend:
+    build:
+      context: ./alexandria-frontend
+      dockerfile: Dockerfile
+    container_name: alexandria-frontend
+    restart: unless-stopped
+    ports:
+      - "80:3000"
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8080
+    depends_on:
+      backend:
+        condition: service_started

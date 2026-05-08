@@ -1,0 +1,52 @@
+name: Deploy AWS
+
+on:
+  push:
+    branches: [ develop, main ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy na EC2 via SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            set -e
+            cd ~/app/alexandria
+            git checkout ${{ github.ref_name }}
+            git pull origin ${{ github.ref_name }}
+
+            cd alexandria-backend
+            docker build -t alexandria-backend .
+            docker rm -f alexandria-backend 2>/dev/null || true
+            docker run -d \
+              --name alexandria-backend \
+              --restart unless-stopped \
+              -p 8080:8080 \
+              -e SPRING_PROFILES_ACTIVE=rds \
+              -e DB_HOST=alexandria-db.c9qs2asg26uk.us-east-2.rds.amazonaws.com \
+              -e DB_PORT=3306 \
+              -e DB_NAME=alexandriadb \
+              -e DB_USER=admin \
+              -e DB_PASSWORD=${{ secrets.DB_PASSWORD }} \
+              -e JWT_SECRET=${{ secrets.JWT_SECRET }} \
+              alexandria-backend
+
+            echo "⏳ Aguardando aplicação subir..."
+            for i in $(seq 1 12); do
+              sleep 5
+              if curl -sf http://localhost:8080/actuator/health > /dev/null 2>&1; then
+                echo "✅ Deploy concluído com sucesso!"
+                exit 0
+              fi
+              echo "Tentativa $i/12 - aguardando aplicação..."
+            done
+            echo "❌ Falha no healthcheck após 60 segundos - verifique os logs do container"
+            exit 1
