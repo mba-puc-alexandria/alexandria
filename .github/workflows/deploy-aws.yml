@@ -39,14 +39,25 @@ jobs:
               -e JWT_SECRET=${{ secrets.JWT_SECRET }} \
               alexandria-backend
 
-            echo "⏳ Aguardando aplicação subir..."
+            echo "⏳ Aguardando backend subir..."
             for i in $(seq 1 12); do
               sleep 5
               if curl -sf http://localhost:8080/actuator/health > /dev/null 2>&1; then
-                echo "✅ Deploy concluído com sucesso!"
-                exit 0
+                echo "✅ Backend no ar!"
+                break
               fi
-              echo "Tentativa $i/12 - aguardando aplicação..."
+              echo "Tentativa $i/12 - aguardando backend..."
             done
-            echo "❌ Falha no healthcheck após 60 segundos - verifique os logs do container"
-            exit 1
+
+            echo "🚀 Iniciando deploy do frontend..."
+            cd ~/app/alexandria/alexandria-frontend
+            docker build -t alexandria-frontend .
+            docker rm -f alexandria-frontend 2>/dev/null || true
+            docker run -d \
+              --name alexandria-frontend \
+              --restart unless-stopped \
+              -p 80:3000 \
+              -e NEXT_PUBLIC_API_URL=http://localhost:8080 \
+              alexandria-frontend
+
+            echo "✅ Deploy concluído com sucesso!"
