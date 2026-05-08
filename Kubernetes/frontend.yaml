@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
         - name: frontend
-          image: SEU_DOCKER_USERNAME/angalexandria-frontend:latest
+          image: SEU_DOCKER_USERNAME/alexandria-frontend:latest
           ports:
             - containerPort: 80
 ---
