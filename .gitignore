@@ -58,3 +58,5 @@ alexandria-backend/build/
 
 ### VS Code ###
 alexandria-backend/.vscode/
+### Scripts de deploy ###
+scripts/
