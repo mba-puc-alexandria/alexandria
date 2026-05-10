@@ -105,5 +105,6 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 /src/aulas
-/alexandria-backend/docs
-.gitignore
+alexandria-frontend/.gitignore
+/alexandria-backend
+/docs

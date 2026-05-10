@@ -1,4 +1,4 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://ec2-18-225-37-127.us-east-2.compute.amazonaws.com:8080';
+const API_URL = process.env.NEXT_PUBLIC_API_URL!;
 
 export interface LoginRequest {
   username: string;
@@ -52,6 +52,44 @@ export async function register(data: RegisterRequest): Promise<RegisterResponse>
     throw new Error((error as { message?: string }).message || 'Erro ao criar conta');
   }
 
+  return res.json();
+}
+
+export interface BookApiResponse {
+  id: number;
+  title: string;
+  author: string;
+  coverUrl: string | null;
+  downloadUrl: string | null;
+  languages: string | null;
+  subjects: string | null;
+  source: string;
+  gutendexId: number | null;
+  downloadCount: number | null;
+  publisherId: number | null;
+}
+
+export interface BooksPage {
+  content: BookApiResponse[];
+  totalPages: number;
+  totalElements: number;
+  number: number;
+  size: number;
+}
+
+export async function getBooks(page = 0, size = 10): Promise<BooksPage> {
+  const res = await fetch(
+    `${process.env.NEXT_PUBLIC_API_URL}/books?page=${page}&size=${size}`
+  );
+  if (!res.ok) throw new Error('Falha ao buscar livros');
+  return res.json();
+}
+
+export async function searchBooks(query: string, page = 0, size = 10): Promise<BooksPage> {
+  const res = await fetch(
+    `${process.env.NEXT_PUBLIC_API_URL}/books/search?query=${encodeURIComponent(query)}&page=${page}&size=${size}`
+  );
+  if (!res.ok) throw new Error('Falha ao buscar livros');
   return res.json();
 }
 
