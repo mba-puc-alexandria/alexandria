@@ -26,12 +26,12 @@ services:
     build:
       context: ./alexandria-frontend
       dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: https://api.bibliotecaalexandria.com.br
     container_name: alexandria-frontend
     restart: unless-stopped
     ports:
       - "80:3000"
-    environment:
-      NEXT_PUBLIC_API_URL: https://api.bibliotecaalexandria.com.br
     depends_on:
       backend:
         condition: service_started
