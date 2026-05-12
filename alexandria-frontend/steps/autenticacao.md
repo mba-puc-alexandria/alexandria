@@ -57,7 +57,7 @@ Tela de cadastro.
 ### `.env.local`
 Variável de ambiente com a URL do backend:
 ```
-NEXT_PUBLIC_API_URL=http://ec2-18-225-37-127.us-east-2.compute.amazonaws.com:8080
+NEXT_PUBLIC_API_URL=https://api.bibliotecaalexandria.com.br
 ```
 
 ---
@@ -112,5 +112,16 @@ Sidebar/BottomNav → clica Sair
 
 ## Observação importante — CORS
 
-O backend (`CorsConfig.java`) está configurado para aceitar apenas `http://localhost:3000`.  
-Quando o frontend for deployado em produção, o time do backend precisa atualizar a origem permitida para a URL do frontend em produção, usando uma variável de ambiente `ALLOWED_ORIGINS`.
+O backend (`CorsConfig.java`) lê as origens permitidas da variável de ambiente `CORS_ALLOWED_ORIGINS`.
+
+**Produção (workflow `deploy-aws.yml`):**
+```
+CORS_ALLOWED_ORIGINS=https://bibliotecaalexandria.com.br,https://api.bibliotecaalexandria.com.br,http://localhost:3000
+```
+
+**Desenvolvimento local (`docker-compose.aws.yml`):**
+```
+CORS_ALLOWED_ORIGINS: https://bibliotecaalexandria.com.br,https://api.bibliotecaalexandria.com.br
+```
+
+> 💡 Como o frontend (`bibliotecaalexandria.com.br`) e a API (`api.bibliotecaalexandria.com.br`) são subdomínios diferentes, o CORS é necessário. O Cloudflare cuida do SSL/HTTPS nas duas pontas.

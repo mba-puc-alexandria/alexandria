@@ -15,7 +15,7 @@ jobs:
         run: docker build -t alexandria-backend ./alexandria-backend
 
       - name: Build Frontend Docker Image
-        run: docker build -t alexandria-frontend --build-arg NEXT_PUBLIC_API_URL=http://${{ secrets.EC2_HOST }}:8080 ./alexandria-frontend
+        run: docker build -t alexandria-frontend --build-arg NEXT_PUBLIC_API_URL=https://api.bibliotecaalexandria.com.br ./alexandria-frontend
 
       - name: Salvar imagens
         run: |
@@ -62,7 +62,7 @@ jobs:
               -e DB_USER=admin \
               -e DB_PASSWORD=${{ secrets.DB_PASSWORD }} \
               -e JWT_SECRET=${{ secrets.JWT_SECRET }} \
-              -e CORS_ALLOWED_ORIGINS=http://18.225.37.127,http://localhost:3000,http://localhost \
+              -e CORS_ALLOWED_ORIGINS=https://bibliotecaalexandria.com.br,https://api.bibliotecaalexandria.com.br,http://localhost:3000 \
               alexandria-backend
             echo "Backend rodando!"
 
