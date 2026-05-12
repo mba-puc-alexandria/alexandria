@@ -1,4 +1,5 @@
 const API_URL = process.env.NEXT_PUBLIC_API_URL!;
+const API_URL_LOCAL = process.env.NEXT_PUBLIC_API_URL_LOCAL!;
 
 export interface LoginRequest {
   username: string;
@@ -12,7 +13,7 @@ export interface LoginResponse {
 }
 
 export async function login(data: LoginRequest): Promise<LoginResponse> {
-  const res = await fetch(`${API_URL}/auth/login`, {
+  const res = await fetch(`${API_URL_LOCAL}/auth/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
@@ -41,7 +42,7 @@ export interface RegisterResponse {
 }
 
 export async function register(data: RegisterRequest): Promise<RegisterResponse> {
-  const res = await fetch(`${API_URL}/auth/register`, {
+  const res = await fetch(`${API_URL_LOCAL}/auth/register`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
@@ -79,7 +80,7 @@ export interface BooksPage {
 
 export async function getBooks(page = 0, size = 10): Promise<BooksPage> {
   const res = await fetch(
-    `${process.env.NEXT_PUBLIC_API_URL}/books?page=${page}&size=${size}`
+    `${API_URL_LOCAL}/books?page=${page}&size=${size}`
   );
   if (!res.ok) throw new Error('Falha ao buscar livros');
   return res.json();
@@ -87,9 +88,15 @@ export async function getBooks(page = 0, size = 10): Promise<BooksPage> {
 
 export async function searchBooks(query: string, page = 0, size = 10): Promise<BooksPage> {
   const res = await fetch(
-    `${process.env.NEXT_PUBLIC_API_URL}/books/search?query=${encodeURIComponent(query)}&page=${page}&size=${size}`
+    `${API_URL_LOCAL}/books/search?query=${encodeURIComponent(query)}&page=${page}&size=${size}`
   );
   if (!res.ok) throw new Error('Falha ao buscar livros');
+  return res.json();
+}
+
+export async function getBookById(id: number): Promise<BookApiResponse> {
+  const res = await fetch(`${API_URL_LOCAL}/books/${id}`);
+  if (!res.ok) throw new Error('Livro não encontrado');
   return res.json();
 }
 
@@ -99,7 +106,7 @@ export function getAuthHeaders(): HeadersInit {
 }
 
 export async function apiFetch(path: string, init: RequestInit = {}): Promise<Response> {
-  return fetch(`${API_URL}${path}`, {
+  return fetch(`${API_URL_LOCAL}${path}`, {
     ...init,
     headers: {
       'Content-Type': 'application/json',

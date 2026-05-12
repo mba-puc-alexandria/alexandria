@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { Search, ArrowRight, ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import BookCard from "@/components/BookCard";
 import { getBooks, searchBooks, type BookApiResponse } from "@/lib/api";
@@ -101,7 +102,7 @@ export default function ExplorarPage() {
           ) : (
             <div className="flex flex-col gap-6">
               {books.map((book) => (
-                <div key={book.id} className="bg-cream-dark rounded-lg p-4 flex gap-6 items-center">
+                <Link key={book.id} href={`/explorar/${book.id}`} className="bg-cream-dark rounded-lg p-4 flex gap-6 items-center hover:bg-cream-active transition-colors">
                   {book.coverUrl ? (
                     <img src={book.coverUrl} alt={book.title} className="w-20 h-28 object-cover rounded-sm shadow-sm shrink-0 border border-white/10" />
                   ) : (
@@ -113,12 +114,12 @@ export default function ExplorarPage() {
                     <h4 className="font-brand font-bold text-brown text-lg leading-[22px]">{book.title}</h4>
                     <p className="text-slate text-sm">{book.author}</p>
                     <div className="flex items-center gap-3 mt-3">
-                      <button className="bg-brown text-cream text-[10px] font-bold tracking-widest uppercase px-4 py-1.5 rounded-xl">
-                        ADICIONAR
-                      </button>
+                      <span className="bg-brown text-cream text-[10px] font-bold tracking-widest uppercase px-4 py-1.5 rounded-xl">
+                        VER DETALHES
+                      </span>
                     </div>
                   </div>
-                </div>
+                </Link>
               ))}
             </div>
           )}

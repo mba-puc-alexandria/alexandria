@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Plus } from "lucide-react";
 import type { BookApiResponse } from "@/lib/api";
 
@@ -11,7 +12,7 @@ type Props = {
 export default function BookCard({ book, onAdd }: Props) {
   return (
     <div className="flex flex-col gap-4 group">
-      <div className="relative bg-cream-book rounded overflow-hidden shadow-sm">
+      <Link href={`/explorar/${book.id}`} className="relative bg-cream-book rounded overflow-hidden shadow-sm block">
         {book.coverUrl ? (
           <img
             src={book.coverUrl}
@@ -24,23 +25,21 @@ export default function BookCard({ book, onAdd }: Props) {
           </div>
         )}
         <div className="absolute inset-0 bg-brown/40 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-          <button
-            onClick={() => onAdd?.(book)}
-            className="bg-cream p-4 rounded-xl shadow-lg"
-          >
-            <Plus size={14} className="text-brown" />
-          </button>
+          <span className="bg-cream px-4 py-2 rounded-xl shadow-lg text-brown text-xs font-bold uppercase tracking-wide">
+            Ver detalhes
+          </span>
         </div>
-      </div>
+      </Link>
 
       <div className="flex flex-col">
         <h4 className="font-serif font-bold text-brown text-base leading-6">{book.title}</h4>
         <p className="text-brown-soft text-sm leading-5 mb-4">{book.author}</p>
         <button
+          type="button"
           onClick={() => onAdd?.(book)}
-          className="border border-cream-border rounded-xl py-2 px-4 text-xs font-bold tracking-wide uppercase text-brown hover:bg-cream-active transition-colors"
+          className="border border-cream-border rounded-xl py-2 px-4 text-xs font-bold tracking-wide uppercase text-brown hover:bg-cream-active transition-colors flex items-center justify-center gap-2"
         >
-          Adicionar à Coleção
+          <Plus size={12} /> Adicionar à Coleção
         </button>
       </div>
     </div>
