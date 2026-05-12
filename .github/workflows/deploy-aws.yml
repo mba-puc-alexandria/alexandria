@@ -15,7 +15,7 @@ jobs:
         run: docker build -t alexandria-backend ./alexandria-backend
 
       - name: Build Frontend Docker Image
-        run: docker build -t alexandria-frontend ./alexandria-frontend
+        run: docker build -t alexandria-frontend --build-arg NEXT_PUBLIC_API_URL=http://${{ secrets.EC2_HOST }}:8080 ./alexandria-frontend
 
       - name: Salvar imagens
         run: |
@@ -106,7 +106,6 @@ jobs:
               --name alexandria-frontend \
               --restart unless-stopped \
               -p 80:3000 \
-              -e NEXT_PUBLIC_API_URL=http://localhost:8080 \
               alexandria-frontend
             echo "Frontend no ar!"
             rm -f /tmp/backend.tar.gz /tmp/frontend.tar.gz
