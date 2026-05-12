@@ -1,6 +1,7 @@
 package com.pucsp.alexandria.advice;
 
 import com.pucsp.alexandria.domain.book.exception.BookNotFoundException;
+import com.pucsp.alexandria.domain.user.exception.DuplicateUserException;
 import com.pucsp.alexandria.domain.userbook.exception.DuplicateUserBooksException;
 import com.pucsp.alexandria.domain.userbook.exception.InvalidUserBooksException;
 import com.pucsp.alexandria.domain.userbook.exception.UserBooksNotFoundException;
@@ -43,6 +44,13 @@ public class GlobalExceptionHandler {
 
   @ExceptionHandler(DuplicateUserBooksException.class)
   public ResponseEntity<ErrorResponse> handleDuplicateUserBooks(DuplicateUserBooksException ex) {
+    return ResponseEntity
+        .status(HttpStatus.CONFLICT)
+        .body(new ErrorResponse(ex.getMessage(), HttpStatus.CONFLICT.value()));
+  }
+
+  @ExceptionHandler(DuplicateUserException.class)
+  public ResponseEntity<ErrorResponse> handleDuplicateUser(DuplicateUserException ex) {
     return ResponseEntity
         .status(HttpStatus.CONFLICT)
         .body(new ErrorResponse(ex.getMessage(), HttpStatus.CONFLICT.value()));

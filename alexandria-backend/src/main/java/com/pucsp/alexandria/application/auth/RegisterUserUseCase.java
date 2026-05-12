@@ -4,6 +4,7 @@ import com.pucsp.alexandria.application.auth.dto.RegisterInput;
 import com.pucsp.alexandria.application.auth.dto.RegisterOutput;
 import com.pucsp.alexandria.domain.user.User;
 import com.pucsp.alexandria.domain.user.UserRepository;
+import com.pucsp.alexandria.domain.user.exception.DuplicateUserException;
 
 public class RegisterUserUseCase {
 
@@ -14,6 +15,14 @@ public class RegisterUserUseCase {
   }
 
   public RegisterOutput execute(RegisterInput input) {
+    if (userRepository.existsByEmail(input.email())) {
+      throw new DuplicateUserException("Já existe um usuário cadastrado com este email");
+    }
+
+    if (userRepository.existsByUsername(input.username())) {
+      throw new DuplicateUserException("Já existe um usuário cadastrado com este nome de usuário");
+    }
+
     User user = User.create(
         input.username(),
         input.firstName(),
