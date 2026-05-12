@@ -15,6 +15,7 @@ services:
       DB_USER: admin
       DB_PASSWORD: ${DB_PASSWORD}
       JWT_SECRET: ${JWT_SECRET}
+      CORS_ALLOWED_ORIGINS: https://bibliotecaalexandria.com.br,https://api.bibliotecaalexandria.com.br
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
       interval: 30s
@@ -30,7 +31,7 @@ services:
     ports:
       - "80:3000"
     environment:
-      NEXT_PUBLIC_API_URL: http://localhost:8080
+      NEXT_PUBLIC_API_URL: https://api.bibliotecaalexandria.com.br
     depends_on:
       backend:
         condition: service_started
