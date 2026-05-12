@@ -24,6 +24,9 @@ hs_err_pid*
 replay_pid*
 .idea/
 
+### H2 local database files ###
+alexandria-backend/data/
+
 ### Alexandria Backend Specific ###
 alexandria-backend/HELP.md
 alexandria-backend/target/
