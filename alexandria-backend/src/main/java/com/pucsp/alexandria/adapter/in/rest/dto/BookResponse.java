@@ -1,11 +1,12 @@
 package com.pucsp.alexandria.adapter.in.rest.dto;
 
 import com.pucsp.alexandria.application.book.dto.BookOutput;
+import java.util.List;
 
 public record BookResponse(
     Long id,
     String title,
-    String author,
+    List<AuthorInfo> authors,
     Long gutendexId,
     String downloadUrl,
     String coverUrl,
@@ -16,11 +17,15 @@ public record BookResponse(
     String source
 ) {
 
+  public record AuthorInfo(Long id, String name) {}
+
   public static BookResponse from(BookOutput output) {
     return new BookResponse(
-        output.id().getValue(),
+        output.id(),
         output.title(),
-        output.author(),
+        output.authors().stream()
+            .map(a -> new AuthorInfo(a.id(), a.name()))
+            .toList(),
         output.gutendexId(),
         output.downloadUrl(),
         output.coverUrl(),
@@ -32,4 +37,3 @@ public record BookResponse(
     );
   }
 }
-

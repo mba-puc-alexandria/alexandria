@@ -2,12 +2,15 @@ package com.pucsp.alexandria.application.book.dto;
 
 import com.pucsp.alexandria.domain.book.Book;
 import com.pucsp.alexandria.domain.book.external.BookData;
+import java.util.List;
+import java.util.stream.Collectors;
 
 public record SearchBookOutput(
     Long id,
     Long gutendexId,
     String title,
-    String authors,
+    String authorsDisplay,
+    List<Long> authorIds,
     String downloadUrl,
     String coverUrl,
     String languages,
@@ -21,6 +24,7 @@ public record SearchBookOutput(
         bookData.gutendexId(),
         bookData.title(),
         bookData.authors(),
+        List.of(),
         bookData.downloadUrl(),
         bookData.coverUrl(),
         bookData.languages(),
@@ -29,12 +33,20 @@ public record SearchBookOutput(
     );
   }
 
-  public static SearchBookOutput from(Book book) {
+  public static SearchBookOutput from(Book book, List<com.pucsp.alexandria.domain.author.Author> authors) {
+    String names = authors.stream()
+        .map(com.pucsp.alexandria.domain.author.Author::getName)
+        .collect(Collectors.joining(", "));
+    List<Long> ids = authors.stream()
+        .map(a -> a.getId().getValue())
+        .toList();
+
     return new SearchBookOutput(
         book.getId().getValue(),
         book.getGutendexId(),
         book.getTitle(),
-        book.getAuthor(),
+        names,
+        ids,
         book.getDownloadUrl(),
         book.getCoverUrl(),
         book.getLanguages(),
@@ -43,4 +55,3 @@ public record SearchBookOutput(
     );
   }
 }
-

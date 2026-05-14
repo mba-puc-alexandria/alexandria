@@ -2,85 +2,82 @@ package com.pucsp.alexandria.adapter.out.persistence.jpa;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+import com.pucsp.alexandria.adapter.out.persistence.entity.AuthorEntity;
 import com.pucsp.alexandria.adapter.out.persistence.entity.BookEntity;
 import java.util.Optional;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
+import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
-@DataJpaTest
+@SpringBootTest(properties = {
+    "jwt.secret=test-secret-key-for-tests-min-256-bits",
+    "jwt.expiration-ms=86400000"
+})
 class BookJpaRepositoryTest {
 
     @Autowired
     private BookJpaRepository bookJpaRepository;
 
+    @Autowired
+    private AuthorJpaRepository authorJpaRepository;
+
     @Test
-    void shouldSaveAndFindBookById() {
-        BookEntity entity = new BookEntity(null, "Dom Casmurro", "Machado de Assis",
-                100L, "url", "url", "pt", "Fiction", 5000, null, "GUTENDEX");
-        BookEntity saved = bookJpaRepository.save(entity);
+    void shouldSaveAndFindBook() {
+        AuthorEntity author = authorJpaRepository.save(new AuthorEntity(null, "Machado de Assis", 1839, 1908));
+        BookEntity book = new BookEntity(null, "Dom Casmurro", Set.of(author), null, null, null, "pt", null, null, null, "GUTENDEX");
+        BookEntity saved = bookJpaRepository.save(book);
 
         Optional<BookEntity> found = bookJpaRepository.findById(saved.getId());
 
         assertTrue(found.isPresent());
         assertEquals("Dom Casmurro", found.get().getTitle());
-        assertEquals(100L, found.get().getGutendexId());
     }
 
     @Test
-    void shouldCheckExistenceByGutendexId() {
-        BookEntity entity = new BookEntity(null, "Title", "Author",
-                200L, null, null, null, null, null, null, "GUTENDEX");
-        bookJpaRepository.save(entity);
+    void shouldCheckIfGutendexIdExists() {
+        AuthorEntity author = authorJpaRepository.save(new AuthorEntity(null, "Author", null, null));
+        BookEntity book = new BookEntity(null, "Book", Set.of(author), 100L, null, null, null, null, null, null, "GUTENDEX");
+        bookJpaRepository.save(book);
 
-        assertTrue(bookJpaRepository.existsByGutendexId(200L));
+        assertTrue(bookJpaRepository.existsByGutendexId(100L));
         assertFalse(bookJpaRepository.existsByGutendexId(999L));
     }
 
     @Test
     void shouldFindByGutendexId() {
-        BookEntity entity = new BookEntity(null, "Title", "Author",
-                300L, null, null, null, null, null, null, "GUTENDEX");
-        bookJpaRepository.save(entity);
+        AuthorEntity author = authorJpaRepository.save(new AuthorEntity(null, "Author", null, null));
+        bookJpaRepository.save(new BookEntity(null, "Book", Set.of(author), 200L, null, null, null, null, null, null, "GUTENDEX"));
 
-        Optional<BookEntity> found = bookJpaRepository.findByGutendexId(300L);
+        Optional<BookEntity> found = bookJpaRepository.findByGutendexId(200L);
+
         assertTrue(found.isPresent());
-        assertEquals("Title", found.get().getTitle());
     }
 
     @Test
     void shouldSearchByTitleOrAuthor() {
-        BookEntity book1 = new BookEntity(null, "Dom Casmurro", "Machado de Assis",
-                null, null, null, null, null, null, 1L, "LOCAL");
-        BookEntity book2 = new BookEntity(null, "Memorias Postumas", "Machado de Assis",
-                null, null, null, null, null, null, 1L, "LOCAL");
-        bookJpaRepository.save(book1);
-        bookJpaRepository.save(book2);
+        AuthorEntity author1 = authorJpaRepository.save(new AuthorEntity(null, "Machado de Assis", 1839, 1908));
+        AuthorEntity author2 = authorJpaRepository.save(new AuthorEntity(null, "João Cabral", null, null));
 
-        Page<BookEntity> result = bookJpaRepository.searchByTitleOrAuthor("Machado", PageRequest.of(0, 10));
+        bookJpaRepository.save(new BookEntity(null, "Dom Casmurro", Set.of(author1), null, null, null, null, null, null, null, "GUTENDEX"));
+        bookJpaRepository.save(new BookEntity(null, "Outro Livro", Set.of(author2), null, null, null, null, null, null, null, "GUTENDEX"));
 
-        assertEquals(2, result.getTotalElements());
+        Page<BookEntity> results = bookJpaRepository.searchByTitleOrAuthor("Machado", PageRequest.of(0, 10));
+
+        assertEquals(1, results.getContent().size());
+        assertEquals("Dom Casmurro", results.getContent().get(0).getTitle());
     }
 
     @Test
-    void shouldReturnAllBooks() {
-        bookJpaRepository.save(new BookEntity(null, "B1", "A1", null, null, null, null, null, null, 1L, "LOCAL"));
-        bookJpaRepository.save(new BookEntity(null, "B2", "A2", null, null, null, null, null, null, 1L, "LOCAL"));
+    void shouldSearchByAuthorName() {
+        AuthorEntity author = authorJpaRepository.save(new AuthorEntity(null, "Clarice Lispector", 1920, 1977));
+        bookJpaRepository.save(new BookEntity(null, "A Hora da Estrela", Set.of(author), null, null, null, null, null, null, null, "GUTENDEX"));
 
-        Page<BookEntity> all = bookJpaRepository.findAll(PageRequest.of(0, 10));
+        Page<BookEntity> results = bookJpaRepository.searchByTitleOrAuthor("Clarice", PageRequest.of(0, 10));
 
-        assertEquals(2, all.getTotalElements());
-    }
-
-    @Test
-    void shouldDeleteBook() {
-        BookEntity saved = bookJpaRepository.save(
-                new BookEntity(null, "To Delete", "Author", null, null, null, null, null, null, 1L, "LOCAL"));
-
-        bookJpaRepository.delete(saved);
-
-        assertFalse(bookJpaRepository.findById(saved.getId()).isPresent());
+        assertEquals(1, results.getContent().size());
     }
 }

@@ -16,8 +16,8 @@ public interface BookJpaRepository extends JpaRepository<BookEntity, Long> {
 
   Optional<BookEntity> findByGutendexId(Long gutendexId);
 
-  @Query("SELECT b FROM BookEntity b WHERE LOWER(b.title) LIKE LOWER(CONCAT('%', :searchTerm, '%')) " +
-      "OR LOWER(b.author) LIKE LOWER(CONCAT('%', :searchTerm, '%'))")
+  @Query("SELECT DISTINCT b FROM BookEntity b LEFT JOIN b.authors a " +
+      "WHERE LOWER(b.title) LIKE LOWER(CONCAT('%', :searchTerm, '%')) " +
+      "OR LOWER(a.name) LIKE LOWER(CONCAT('%', :searchTerm, '%'))")
   Page<BookEntity> searchByTitleOrAuthor(@Param("searchTerm") String query, Pageable pageable);
 }
-
