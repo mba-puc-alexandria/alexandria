@@ -2,10 +2,16 @@ package com.pucsp.alexandria.adapter.out.persistence.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.JoinTable;
+import jakarta.persistence.ManyToMany;
 import jakarta.persistence.Table;
+import java.util.HashSet;
+import java.util.Set;
 
 @Entity
 @Table(name = "books")
@@ -18,8 +24,13 @@ public class BookEntity {
   @Column(nullable = false, length = 500)
   private String title;
 
-  @Column(nullable = false, length = 500)
-  private String author;
+  @ManyToMany(fetch = FetchType.LAZY)
+  @JoinTable(
+      name = "book_authors",
+      joinColumns = @JoinColumn(name = "book_id"),
+      inverseJoinColumns = @JoinColumn(name = "author_id")
+  )
+  private Set<AuthorEntity> authors = new HashSet<>();
 
   @Column(name = "gutendex_id", unique = true, nullable = true)
   private Long gutendexId;
@@ -48,12 +59,12 @@ public class BookEntity {
   public BookEntity() {
   }
 
-  public BookEntity(Long id, String title, String author, Long gutendexId, String downloadUrl,
+  public BookEntity(Long id, String title, Set<AuthorEntity> authors, Long gutendexId, String downloadUrl,
       String coverUrl, String languages, String subjects,
       Integer downloadCount, Long publisherId, String source) {
     this.id = id;
     this.title = title;
-    this.author = author;
+    this.authors = authors != null ? authors : new HashSet<>();
     this.gutendexId = gutendexId;
     this.downloadUrl = downloadUrl;
     this.coverUrl = coverUrl;
@@ -80,12 +91,12 @@ public class BookEntity {
     this.title = title;
   }
 
-  public String getAuthor() {
-    return author;
+  public Set<AuthorEntity> getAuthors() {
+    return authors;
   }
 
-  public void setAuthor(String author) {
-    this.author = author;
+  public void setAuthors(Set<AuthorEntity> authors) {
+    this.authors = authors;
   }
 
   public Long getGutendexId() {

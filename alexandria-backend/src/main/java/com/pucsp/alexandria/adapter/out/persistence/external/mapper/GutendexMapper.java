@@ -2,6 +2,8 @@ package com.pucsp.alexandria.adapter.out.persistence.external.mapper;
 
 import com.pucsp.alexandria.adapter.out.persistence.external.gutendex.dto.GutendexBookResponse;
 import com.pucsp.alexandria.domain.book.external.BookData;
+import com.pucsp.alexandria.adapter.out.persistence.external.gutendex.dto.GutendexAuthorResponse;
+import java.util.List;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -12,12 +14,27 @@ public class GutendexMapper {
       return null;
     }
 
-    String authors = response.authors() != null && !response.authors().isEmpty()
+    List<String> authorNames = response.authors() != null && !response.authors().isEmpty()
         ? response.authors().stream()
             .map(author -> formatAuthorName(author.name()))
-            .reduce((a, b) -> a + ", " + b)
-            .orElse("Unknown")
-        : "Unknown";
+            .toList()
+        : List.of();
+
+    String authors = authorNames.isEmpty()
+        ? "Unknown"
+        : String.join(", ", authorNames);
+
+    List<Integer> birthYears = response.authors() != null
+        ? response.authors().stream()
+            .map(GutendexAuthorResponse::birthYear)
+            .toList()
+        : List.of();
+
+    List<Integer> deathYears = response.authors() != null
+        ? response.authors().stream()
+            .map(GutendexAuthorResponse::deathYear)
+            .toList()
+        : List.of();
 
     String downloadUrl = response.formats() != null && response.formats().applicationEpubZip() != null
         ? response.formats().applicationEpubZip()
@@ -40,6 +57,9 @@ public class GutendexMapper {
         response.id(),
         response.title(),
         authors,
+        authorNames,
+        birthYears,
+        deathYears,
         downloadUrl,
         coverUrl,
         languages,

@@ -5,12 +5,15 @@ import static org.mockito.Mockito.*;
 
 import com.pucsp.alexandria.application.book.dto.CreateBookInput;
 import com.pucsp.alexandria.application.book.dto.CreateBookOutput;
+import com.pucsp.alexandria.domain.author.Author;
+import com.pucsp.alexandria.domain.author.AuthorRepository;
 import com.pucsp.alexandria.domain.book.Book;
 import com.pucsp.alexandria.domain.book.BookRepository;
 import com.pucsp.alexandria.domain.book.BookSource;
 import com.pucsp.alexandria.domain.book.external.BookApiClient;
 import com.pucsp.alexandria.domain.book.external.BookData;
 import java.util.List;
+import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -26,6 +29,9 @@ class CreateBookUseCaseTest {
     private BookRepository bookRepository;
 
     @Mock
+    private AuthorRepository authorRepository;
+
+    @Mock
     private BookApiClient bookApiClient;
 
     @InjectMocks
@@ -37,10 +43,17 @@ class CreateBookUseCaseTest {
     @Test
     void shouldCreateBooksFromGutendexPage() {
         BookData bookData = new BookData(-1L, 100L, "Dom Casmurro", "Machado de Assis",
+                List.of("Machado de Assis"), List.of(1839), List.of(1908),
                 "http://download.com", "http://cover.com", "pt", "Fiction", 5000);
+
+        Author author = Author.restore(1L, "Machado de Assis", 1839, 1908);
+
         when(bookApiClient.getPage(1)).thenReturn(List.of(bookData));
         when(bookRepository.existsByGutendexId(100L)).thenReturn(false);
-        Book savedBook = Book.restore(1L, "Dom Casmurro", "Machado de Assis", 100L,
+        when(authorRepository.findByName("Machado de Assis")).thenReturn(Optional.empty());
+        when(authorRepository.save(any(Author.class))).thenReturn(author);
+
+        Book savedBook = Book.restore(1L, "Dom Casmurro", java.util.Set.of(1L), 100L,
                 "http://download.com", "http://cover.com", "pt", "Fiction", 5000, null, BookSource.GUTENDEX);
         when(bookRepository.save(any(Book.class))).thenReturn(savedBook);
 
@@ -50,18 +63,27 @@ class CreateBookUseCaseTest {
         assertEquals(1L, output.ids().get(0));
         verify(bookRepository).save(bookCaptor.capture());
         assertEquals("Dom Casmurro", bookCaptor.getValue().getTitle());
+        verify(authorRepository).save(any(Author.class));
     }
 
     @Test
     void shouldSkipExistingGutendexBooks() {
         BookData bookData1 = new BookData(-1L, 100L, "Book 1", "Author 1",
+                List.of("Author 1"), List.of(), List.of(),
                 "url1", "url1", "pt", "Fiction", 100);
         BookData bookData2 = new BookData(-1L, 200L, "Book 2", "Author 2",
+                List.of("Author 2"), List.of(), List.of(),
                 "url2", "url2", "en", "Drama", 200);
+
+        Author author = Author.restore(2L, "Author 2", null, null);
+
         when(bookApiClient.getPage(1)).thenReturn(List.of(bookData1, bookData2));
         when(bookRepository.existsByGutendexId(100L)).thenReturn(true);
         when(bookRepository.existsByGutendexId(200L)).thenReturn(false);
-        Book savedBook = Book.restore(2L, "Book 2", "Author 2", 200L,
+        when(authorRepository.findByName("Author 2")).thenReturn(Optional.empty());
+        when(authorRepository.save(any(Author.class))).thenReturn(author);
+
+        Book savedBook = Book.restore(2L, "Book 2", java.util.Set.of(2L), 200L,
                 "url2", "url2", "en", "Drama", 200, null, BookSource.GUTENDEX);
         when(bookRepository.save(any(Book.class))).thenReturn(savedBook);
 
@@ -69,6 +91,28 @@ class CreateBookUseCaseTest {
 
         assertEquals(1, output.ids().size());
         assertEquals(2L, output.ids().get(0));
+    }
+
+    @Test
+    void shouldReuseExistingAuthor() {
+        BookData bookData = new BookData(-1L, 100L, "Dom Casmurro", "Machado de Assis",
+                List.of("Machado de Assis"), List.of(1839), List.of(1908),
+                "http://download.com", "http://cover.com", "pt", "Fiction", 5000);
+
+        Author existingAuthor = Author.restore(1L, "Machado de Assis", 1839, 1908);
+
+        when(bookApiClient.getPage(1)).thenReturn(List.of(bookData));
+        when(bookRepository.existsByGutendexId(100L)).thenReturn(false);
+        when(authorRepository.findByName("Machado de Assis")).thenReturn(Optional.of(existingAuthor));
+
+        Book savedBook = Book.restore(1L, "Dom Casmurro", java.util.Set.of(1L), 100L,
+                "http://download.com", "http://cover.com", "pt", "Fiction", 5000, null, BookSource.GUTENDEX);
+        when(bookRepository.save(any(Book.class))).thenReturn(savedBook);
+
+        CreateBookOutput output = createBookUseCase.execute(new CreateBookInput(1));
+
+        assertEquals(1, output.ids().size());
+        verify(authorRepository, never()).save(any(Author.class));
     }
 
     @Test
