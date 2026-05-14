@@ -1,12 +1,12 @@
 package com.pucsp.alexandria.application.book.dto;
 
 import com.pucsp.alexandria.domain.book.Book;
-import com.pucsp.alexandria.domain.book.BookId;
+import java.util.List;
 
 public record BookOutput(
-    BookId id,
+    Long id,
     String title,
-    String author,
+    List<AuthorInfo> authors,
     Long gutendexId,
     String downloadUrl,
     String coverUrl,
@@ -17,11 +17,13 @@ public record BookOutput(
     String source
 ) {
 
-  public static BookOutput from(Book book) {
+  public record AuthorInfo(Long id, String name) {}
+
+  public static BookOutput from(Book book, List<AuthorInfo> authors) {
     return new BookOutput(
-        book.getId(),
+        book.getId().getValue(),
         book.getTitle(),
-        book.getAuthor(),
+        authors,
         book.getGutendexId(),
         book.getDownloadUrl(),
         book.getCoverUrl(),
@@ -33,4 +35,3 @@ public record BookOutput(
     );
   }
 }
-
