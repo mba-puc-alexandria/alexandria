@@ -1,12 +1,17 @@
 package com.pucsp.alexandria.domain.book;
 
+import com.pucsp.alexandria.domain.author.AuthorId;
 import com.pucsp.alexandria.domain.book.exception.InvalidBookException;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 public class Book {
 
   private final BookId id;
   private final String title;
-  private final String author;
+  private final Set<AuthorId> authorIds;
   private final Long gutendexId;
   private final String downloadUrl;
   private final String coverUrl;
@@ -16,11 +21,13 @@ public class Book {
   private final Long publisherId;
   private final BookSource source;
 
-  private Book(BookId id, String title, String author, Long gutendexId, String downloadUrl, String coverUrl,
+  private Book(BookId id, String title, Set<AuthorId> authorIds, Long gutendexId, String downloadUrl, String coverUrl,
       String languages, String subjects, Integer downloadCount, Long publisherId, BookSource source) {
     this.id = id;
     this.title = title;
-    this.author = author;
+    this.authorIds = authorIds != null
+        ? Collections.unmodifiableSet(new HashSet<>(authorIds))
+        : Set.of();
     this.gutendexId = gutendexId;
     this.downloadUrl = downloadUrl;
     this.coverUrl = coverUrl;
@@ -31,30 +38,35 @@ public class Book {
     this.source = source;
   }
 
-  public static Book createLocal(String title, Long publisherId) {
+  public static Book createLocal(String title, Set<AuthorId> authorIds, Long publisherId) {
     validateTitle(title);
+    validateAuthorIds(authorIds);
     validatePublisherIdForLocal(publisherId);
-    return new Book(null, title, null, null, null, null, null, null, null, publisherId, BookSource.LOCAL);
+    return new Book(null, title, authorIds, null, null, null, null, null, null, publisherId, BookSource.LOCAL);
   }
 
-  public static Book createFromGutendex(Long gutendexId, String title, String author, String downloadUrl,
+  public static Book createFromGutendex(Long gutendexId, String title, Set<AuthorId> authorIds, String downloadUrl,
       String coverUrl, String languages, String subjects, Integer downloadCount) {
     validateTitle(title);
-    validateAuthor(author);
+    validateAuthorIds(authorIds);
     validateGutendexId(gutendexId);
-    return new Book(null, title, author, gutendexId, downloadUrl, coverUrl, languages, subjects,
+    return new Book(null, title, authorIds, gutendexId, downloadUrl, coverUrl, languages, subjects,
         downloadCount, null, BookSource.GUTENDEX);
   }
 
-  public static Book restore(Long id, String title, String author, Long gutendexId, String downloadUrl,
+  public static Book restore(Long id, String title, Set<Long> authorIds, Long gutendexId, String downloadUrl,
       String coverUrl, String languages, String subjects, Integer downloadCount, Long publisherId,
       BookSource source) {
     validateTitle(title);
+    Set<AuthorId> ids = authorIds.stream()
+        .map(AuthorId::from)
+        .collect(Collectors.toUnmodifiableSet());
+    validateAuthorIds(ids);
     if (source == BookSource.LOCAL) {
       validatePublisherIdForLocal(publisherId);
     }
     BookId bookId = BookId.from(id);
-    return new Book(bookId, title, author, gutendexId, downloadUrl, coverUrl, languages, subjects,
+    return new Book(bookId, title, ids, gutendexId, downloadUrl, coverUrl, languages, subjects,
         downloadCount, publisherId, source);
   }
 
@@ -67,12 +79,9 @@ public class Book {
     }
   }
 
-  private static void validateAuthor(String author) {
-    if (author == null || author.isBlank()) {
-      throw new InvalidBookException("Book author is required");
-    }
-    if (author.length() > 500) {
-      throw new InvalidBookException("Book author must not exceed 500 characters");
+  private static void validateAuthorIds(Set<AuthorId> authorIds) {
+    if (authorIds == null || authorIds.isEmpty()) {
+      throw new InvalidBookException("Book must have at least one author");
     }
   }
 
@@ -91,7 +100,7 @@ public class Book {
   public Book updateWith(String title) {
     String finalTitle = title != null ? title : this.title;
     validateTitle(finalTitle);
-    return new Book(this.id, finalTitle, this.author, this.gutendexId,
+    return new Book(this.id, finalTitle, this.authorIds, this.gutendexId,
         this.downloadUrl, this.coverUrl, this.languages, this.subjects,
         this.downloadCount, this.publisherId, this.source);
   }
@@ -104,8 +113,8 @@ public class Book {
     return title;
   }
 
-  public String getAuthor() {
-    return author;
+  public Set<AuthorId> getAuthorIds() {
+    return authorIds;
   }
 
   public Long getGutendexId() {

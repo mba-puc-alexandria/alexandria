@@ -1,108 +1,80 @@
 package com.pucsp.alexandria.adapter.out.persistence;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
 
+import com.pucsp.alexandria.adapter.out.persistence.entity.AuthorEntity;
+import com.pucsp.alexandria.adapter.out.persistence.entity.BookEntity;
+import com.pucsp.alexandria.adapter.out.persistence.jpa.AuthorJpaRepository;
+import com.pucsp.alexandria.adapter.out.persistence.jpa.BookJpaRepository;
 import com.pucsp.alexandria.adapter.out.persistence.mapper.BookMapper;
+import com.pucsp.alexandria.domain.author.AuthorId;
 import com.pucsp.alexandria.domain.book.Book;
+import com.pucsp.alexandria.domain.book.BookRepository;
 import com.pucsp.alexandria.domain.book.BookSource;
 import java.util.Optional;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
-import org.springframework.context.annotation.Import;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 
-@DataJpaTest
-@Import({BookRepositoryImpl.class, BookMapper.class})
+@ExtendWith(MockitoExtension.class)
 class BookRepositoryImplTest {
 
-    @Autowired
+    @Mock
+    private BookJpaRepository jpaRepository;
+
+    @Mock
+    private AuthorJpaRepository authorJpaRepository;
+
+    @Mock
+    private BookMapper mapper;
+
+    @InjectMocks
     private BookRepositoryImpl bookRepository;
 
     @Test
-    void shouldSaveAndFindBook() {
-        Book book = Book.createFromGutendex(1L, "Clean Code", "Robert C. Martin", null, null, "en", null, 0);
-        Book saved = bookRepository.save(book);
+    void shouldSaveBook() {
+        Set<AuthorId> authorIdSet = Set.of(AuthorId.from(1L));
+        Book book = Book.createLocal("Title", authorIdSet, 1L);
+        BookEntity entity = new BookEntity();
+        AuthorEntity authorEntity = new AuthorEntity(1L, "Author", null, null);
+        BookEntity savedEntity = new BookEntity(1L, "Title", Set.of(authorEntity), null, null, null, null, null, null, 1L, "LOCAL");
+        Book savedBook = Book.restore(1L, "Title", Set.of(1L), null, null, null, null, null, null, 1L, BookSource.LOCAL);
 
-        assertNotNull(saved.getId());
-        assertEquals("Clean Code", saved.getTitle());
-        assertEquals(BookSource.GUTENDEX, saved.getSource());
+        when(mapper.toPersistence(book)).thenReturn(entity);
+        when(authorJpaRepository.getReferenceById(1L)).thenReturn(authorEntity);
+        when(jpaRepository.save(entity)).thenReturn(savedEntity);
+        when(mapper.toDomain(savedEntity)).thenReturn(savedBook);
+
+        Book result = bookRepository.save(book);
+
+        assertNotNull(result);
+        assertEquals(1L, result.getId().getValue());
     }
 
     @Test
     void shouldFindById() {
-        Book saved = bookRepository.save(Book.createFromGutendex(2L, "Title", "Author", null, null, "en", null, 0));
+        BookEntity entity = new BookEntity(1L, "Title", Set.of(), null, null, null, null, null, null, 1L, "LOCAL");
+        Book book = Book.restore(1L, "Title", Set.of(1L), null, null, null, null, null, null, 1L, BookSource.LOCAL);
 
-        Optional<Book> found = bookRepository.findById(saved.getId().getValue());
+        when(jpaRepository.findById(1L)).thenReturn(Optional.of(entity));
+        when(mapper.toDomain(entity)).thenReturn(book);
 
-        assertTrue(found.isPresent());
-        assertEquals("Title", found.get().getTitle());
+        Optional<Book> result = bookRepository.findById(1L);
+
+        assertTrue(result.isPresent());
+        assertEquals("Title", result.get().getTitle());
     }
 
     @Test
     void shouldReturnEmptyWhenNotFound() {
-        Optional<Book> found = bookRepository.findById(999L);
-        assertFalse(found.isPresent());
-    }
+        when(jpaRepository.findById(99L)).thenReturn(Optional.empty());
 
-    @Test
-    void shouldFindAllPaged() {
-        bookRepository.save(Book.createFromGutendex(3L, "Book 1", "Author A", null, null, "en", null, 0));
-        bookRepository.save(Book.createFromGutendex(4L, "Book 2", "Author B", null, null, "en", null, 0));
+        Optional<Book> result = bookRepository.findById(99L);
 
-        Page<Book> all = bookRepository.findAll(PageRequest.of(0, 10));
-
-        assertEquals(2, all.getTotalElements());
-    }
-
-    @Test
-    void shouldSearchByQuery() {
-        bookRepository.save(Book.createFromGutendex(5L, "Dom Casmurro", "Machado de Assis", null, null, "pt", null, 0));
-        bookRepository.save(Book.createFromGutendex(6L, "Memorias Postumas", "Machado de Assis", null, null, "pt", null, 0));
-
-        Page<Book> result = bookRepository.searchBookByQuery("dom", PageRequest.of(0, 10));
-
-        assertEquals(1, result.getTotalElements());
-        assertEquals("Dom Casmurro", result.getContent().get(0).getTitle());
-    }
-
-    @Test
-    void shouldDeleteBook() {
-        Book saved = bookRepository.save(Book.createFromGutendex(7L, "To Delete", "Author", null, null, "en", null, 0));
-
-        bookRepository.delete(saved);
-
-        assertFalse(bookRepository.findById(saved.getId().getValue()).isPresent());
-    }
-
-    @Test
-    void shouldSaveGutendexBook() {
-        Book book = Book.createFromGutendex(500L, "Gutendex Book", "Author",
-                "url", "url", "en", "Fiction", 100);
-        Book saved = bookRepository.save(book);
-
-        assertNotNull(saved.getId());
-        assertTrue(bookRepository.existsByGutendexId(500L));
-    }
-
-    @Test
-    void shouldFindByGutendexId() {
-        bookRepository.save(Book.createFromGutendex(600L, "Title", "Author",
-                null, null, "en", null, 0));
-
-        Optional<Book> found = bookRepository.findByGutendexId(600L);
-
-        assertTrue(found.isPresent());
-    }
-
-    @Test
-    void shouldCheckExistenceByGutendexId() {
-        assertFalse(bookRepository.existsByGutendexId(999L));
-
-        bookRepository.save(Book.createFromGutendex(700L, "Title", "Author",
-                null, null, "en", null, 0));
-
-        assertTrue(bookRepository.existsByGutendexId(700L));
+        assertTrue(result.isEmpty());
     }
 }

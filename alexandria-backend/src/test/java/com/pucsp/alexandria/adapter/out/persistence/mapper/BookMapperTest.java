@@ -2,9 +2,11 @@ package com.pucsp.alexandria.adapter.out.persistence.mapper;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+import com.pucsp.alexandria.adapter.out.persistence.entity.AuthorEntity;
 import com.pucsp.alexandria.adapter.out.persistence.entity.BookEntity;
 import com.pucsp.alexandria.domain.book.Book;
 import com.pucsp.alexandria.domain.book.BookSource;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 class BookMapperTest {
@@ -13,7 +15,8 @@ class BookMapperTest {
 
     @Test
     void shouldMapEntityToDomain() {
-        BookEntity entity = new BookEntity(1L, "Dom Casmurro", "Machado de Assis",
+        AuthorEntity author = new AuthorEntity(1L, "Machado de Assis", null, null);
+        BookEntity entity = new BookEntity(1L, "Dom Casmurro", Set.of(author),
                 100L, "http://download.com", "http://cover.com",
                 "pt", "Fiction", 5000, null, "GUTENDEX");
 
@@ -22,14 +25,15 @@ class BookMapperTest {
         assertNotNull(book);
         assertEquals(1L, book.getId().getValue());
         assertEquals("Dom Casmurro", book.getTitle());
-        assertEquals("Machado de Assis", book.getAuthor());
+        assertEquals(Set.of(1L), Set.copyOf(book.getAuthorIds().stream().map(id -> id.getValue()).toList()));
         assertEquals(100L, book.getGutendexId());
         assertEquals(BookSource.GUTENDEX, book.getSource());
     }
 
     @Test
     void shouldMapDomainToEntity() {
-        Book book = Book.restore(1L, "Clean Code", "Robert Martin",
+        Set<Long> authorIds = Set.of(1L);
+        Book book = Book.restore(1L, "Clean Code", authorIds,
                 null, null, null, null, null, null, 5L, BookSource.LOCAL);
 
         BookEntity entity = mapper.toPersistence(book);
@@ -37,7 +41,7 @@ class BookMapperTest {
         assertNotNull(entity);
         assertEquals(1L, entity.getId());
         assertEquals("Clean Code", entity.getTitle());
-        assertEquals("Robert Martin", entity.getAuthor());
+        assertTrue(entity.getAuthors().isEmpty());
         assertNull(entity.getGutendexId());
         assertEquals(5L, entity.getPublisherId());
         assertEquals("LOCAL", entity.getSource());
@@ -55,11 +59,14 @@ class BookMapperTest {
 
     @Test
     void shouldMapLocalEntityWithoutGutendexFields() {
-        BookEntity entity = new BookEntity(2L, "Local Book", "", null, null, null, null, null, null, 3L, "LOCAL");
+        AuthorEntity author = new AuthorEntity(1L, "Author", null, null);
+        BookEntity entity = new BookEntity(2L, "Local Book", Set.of(author),
+                null, null, null, null, null, null, 3L, "LOCAL");
         Book book = mapper.toDomain(entity);
         assertNotNull(book);
         assertEquals(2L, book.getId().getValue());
         assertEquals("LOCAL", book.getSource().name());
         assertEquals(3L, book.getPublisherId());
+        assertFalse(book.getAuthorIds().isEmpty());
     }
 }

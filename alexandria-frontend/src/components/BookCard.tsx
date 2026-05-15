@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { Plus } from "lucide-react";
-import type { BookApiResponse } from "@/lib/api";
+import { getAuthorDisplay, type BookApiResponse } from "@/lib/api";
 
 type Props = {
   book: BookApiResponse;
@@ -33,7 +33,7 @@ export default function BookCard({ book, onAdd }: Props) {
 
       <div className="flex flex-col">
         <h4 className="font-serif font-bold text-brown text-base leading-6">{book.title}</h4>
-        <p className="text-brown-soft text-sm leading-5 mb-4">{book.author}</p>
+        <p className="text-brown-soft text-sm leading-5 mb-4">{getAuthorDisplay(book)}</p>
         <button
           type="button"
           onClick={() => onAdd?.(book)}

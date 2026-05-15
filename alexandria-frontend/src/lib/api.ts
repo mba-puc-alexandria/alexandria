@@ -56,10 +56,17 @@ export async function register(data: RegisterRequest): Promise<RegisterResponse>
   return res.json();
 }
 
+export interface AuthorInfo {
+  id: number;
+  name: string;
+  birthYear: number | null;
+  deathYear: number | null;
+}
+
 export interface BookApiResponse {
   id: number;
   title: string;
-  author: string;
+  authors: string | AuthorInfo[];
   coverUrl: string | null;
   downloadUrl: string | null;
   languages: string | null;
@@ -68,6 +75,11 @@ export interface BookApiResponse {
   gutendexId: number | null;
   downloadCount: number | null;
   publisherId: number | null;
+}
+
+export function getAuthorDisplay(book: BookApiResponse): string {
+  if (typeof book.authors === 'string') return book.authors;
+  return book.authors.map((a) => a.name).join(', ');
 }
 
 export interface BooksPage {

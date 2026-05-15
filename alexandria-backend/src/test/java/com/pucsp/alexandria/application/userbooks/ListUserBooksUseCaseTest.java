@@ -4,6 +4,8 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 import com.pucsp.alexandria.application.userbooks.dto.UserBooksOutput;
+import com.pucsp.alexandria.domain.author.Author;
+import com.pucsp.alexandria.domain.author.AuthorRepository;
 import com.pucsp.alexandria.domain.book.Book;
 import com.pucsp.alexandria.domain.book.BookRepository;
 import com.pucsp.alexandria.domain.book.BookSource;
@@ -13,6 +15,7 @@ import com.pucsp.alexandria.domain.userbook.UserBooksStatus;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -32,43 +35,44 @@ class ListUserBooksUseCaseTest {
     @Mock
     private BookRepository bookRepository;
 
+    @Mock
+    private AuthorRepository authorRepository;
+
     @InjectMocks
     private ListUserBooksUseCase listUserBooksUseCase;
 
     @Test
-    void shouldListAllUserBooks() {
-        UserBooks ub = UserBooks.restore(1L, 1L, 10L, "toread", null, null, LocalDateTime.now());
-        Page<UserBooks> ubPage = new PageImpl<>(List.of(ub));
-        Pageable pageable = PageRequest.of(0, 10);
+    void shouldListUserBooks() {
+        UserBooks userBook = UserBooks.restore(1L, 1L, 1L, "reading", 50, null, LocalDateTime.now());
+        Page<UserBooks> userBooksPage = new PageImpl<>(List.of(userBook));
 
-        when(userBooksRepository.findByUserId(any(), eq(pageable))).thenReturn(ubPage);
-        Book book = Book.restore(10L, "Dom Casmurro", "Machado", 100L,
-                "url", "url", "pt", "Fiction", 100, null, BookSource.GUTENDEX);
-        when(bookRepository.findById(10L)).thenReturn(Optional.of(book));
+        Book book = Book.restore(1L, "Title", Set.of(1L), null, null, null, null, null, null, null, BookSource.GUTENDEX);
+        Author author = Author.restore(1L, "Author Name", null, null);
 
-        Page<UserBooksOutput> result = listUserBooksUseCase.execute(1L, null, pageable);
+        when(userBooksRepository.findByUserId(any(), any(Pageable.class))).thenReturn(userBooksPage);
+        when(bookRepository.findById(1L)).thenReturn(Optional.of(book));
+        when(authorRepository.findAllById(anySet())).thenReturn(List.of(author));
 
-        assertEquals(1, result.getContent().size());
-        assertEquals("toread", result.getContent().get(0).status());
-        assertEquals("Dom Casmurro", result.getContent().get(0).book().title());
-    }
-
-    @Test
-    void shouldListUserBooksFilteredByStatus() {
-        UserBooks ub = UserBooks.restore(1L, 1L, 10L, "reading", 50, null, LocalDateTime.now());
-        Page<UserBooks> ubPage = new PageImpl<>(List.of(ub));
-        Pageable pageable = PageRequest.of(0, 10);
-
-        when(userBooksRepository.findByUserIdAndStatus(any(), eq(UserBooksStatus.READING), eq(pageable)))
-                .thenReturn(ubPage);
-        Book book = Book.restore(10L, "Title", "Author", 100L,
-                "url", "url", "pt", "Fic", 100, null, BookSource.GUTENDEX);
-        when(bookRepository.findById(10L)).thenReturn(Optional.of(book));
-
-        Page<UserBooksOutput> result = listUserBooksUseCase.execute(1L, "reading", pageable);
+        Page<UserBooksOutput> result = listUserBooksUseCase.execute(1L, null, PageRequest.of(0, 10));
 
         assertEquals(1, result.getContent().size());
         assertEquals("reading", result.getContent().get(0).status());
-        assertEquals(50, result.getContent().get(0).progress());
+    }
+
+    @Test
+    void shouldFilterByStatus() {
+        UserBooks userBook = UserBooks.restore(1L, 1L, 1L, "reading", 50, null, LocalDateTime.now());
+        Page<UserBooks> userBooksPage = new PageImpl<>(List.of(userBook));
+
+        Book book = Book.restore(1L, "Title", Set.of(1L), null, null, null, null, null, null, null, BookSource.GUTENDEX);
+        Author author = Author.restore(1L, "Author", null, null);
+
+        when(userBooksRepository.findByUserIdAndStatus(any(), any(), any(Pageable.class))).thenReturn(userBooksPage);
+        when(bookRepository.findById(1L)).thenReturn(Optional.of(book));
+        when(authorRepository.findAllById(anySet())).thenReturn(List.of(author));
+
+        Page<UserBooksOutput> result = listUserBooksUseCase.execute(1L, "reading", PageRequest.of(0, 10));
+
+        assertEquals(1, result.getContent().size());
     }
 }

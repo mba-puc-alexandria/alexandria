@@ -4,10 +4,13 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 import com.pucsp.alexandria.application.book.dto.SearchBookOutput;
+import com.pucsp.alexandria.domain.author.Author;
+import com.pucsp.alexandria.domain.author.AuthorRepository;
 import com.pucsp.alexandria.domain.book.Book;
 import com.pucsp.alexandria.domain.book.BookRepository;
 import com.pucsp.alexandria.domain.book.BookSource;
 import java.util.List;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -24,22 +27,30 @@ class SearchBookByTitleUseCaseTest {
     @Mock
     private BookRepository bookRepository;
 
+    @Mock
+    private AuthorRepository authorRepository;
+
     @InjectMocks
     private SearchBookByTitleUseCase searchBookByTitleUseCase;
 
     @Test
     void shouldSearchBooksByQuery() {
-        Book book = Book.restore(1L, "Dom Casmurro", "Machado de Assis", 100L,
+        Set<Long> authorIds = Set.of(1L);
+        Book book = Book.restore(1L, "Dom Casmurro", authorIds, 100L,
                 "url", "url", "pt", "Fiction", 5000, null, BookSource.GUTENDEX);
         Page<Book> bookPage = new PageImpl<>(List.of(book));
         Pageable pageable = PageRequest.of(0, 10);
 
+        Author author = Author.restore(1L, "Machado de Assis", 1839, 1908);
+
         when(bookRepository.searchBookByQuery("Dom", pageable)).thenReturn(bookPage);
+        when(authorRepository.findAllById(anySet())).thenReturn(List.of(author));
 
         Page<SearchBookOutput> result = searchBookByTitleUseCase.execute("Dom", pageable);
 
         assertEquals(1, result.getContent().size());
         assertEquals("Dom Casmurro", result.getContent().get(0).title());
+        assertEquals("Machado de Assis", result.getContent().get(0).authorsDisplay());
     }
 
     @Test
