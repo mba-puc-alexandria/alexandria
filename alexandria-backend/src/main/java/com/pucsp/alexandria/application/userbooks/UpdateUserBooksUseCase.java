@@ -48,7 +48,7 @@ public class UpdateUserBooksUseCase {
 
     List<Author> authors = authorRepository.findAllById(book.getAuthorIds());
     List<AuthorInfo> authorInfos = authors.stream()
-        .map(a -> new AuthorInfo(a.getId().getValue(), a.getName()))
+        .map(a -> new AuthorInfo(a.getId().getValue(), a.getName(), a.getBirthYear(), a.getDeathYear()))
         .toList();
 
     return UserBooksOutput.from(saved, BookOutput.from(book, authorInfos));

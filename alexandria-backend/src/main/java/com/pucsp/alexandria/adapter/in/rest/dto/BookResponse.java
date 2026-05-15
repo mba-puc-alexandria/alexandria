@@ -17,14 +17,14 @@ public record BookResponse(
     String source
 ) {
 
-  public record AuthorInfo(Long id, String name) {}
+  public record AuthorInfo(Long id, String name, Integer birthYear, Integer deathYear) {}
 
   public static BookResponse from(BookOutput output) {
     return new BookResponse(
         output.id(),
         output.title(),
         output.authors().stream()
-            .map(a -> new AuthorInfo(a.id(), a.name()))
+            .map(a -> new AuthorInfo(a.id(), a.name(), a.birthYear(), a.deathYear()))
             .toList(),
         output.gutendexId(),
         output.downloadUrl(),

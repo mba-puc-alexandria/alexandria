@@ -7,6 +7,7 @@ import com.pucsp.alexandria.domain.author.AuthorId;
 import com.pucsp.alexandria.domain.author.AuthorRepository;
 import com.pucsp.alexandria.domain.book.Book;
 import com.pucsp.alexandria.domain.book.BookRepository;
+import com.pucsp.alexandria.domain.book.external.AuthorData;
 import com.pucsp.alexandria.domain.book.external.BookApiClient;
 import com.pucsp.alexandria.domain.book.external.BookData;
 import java.util.ArrayList;
@@ -40,6 +41,9 @@ public class CreateBookUseCase {
       }
 
       Set<AuthorId> authorIds = findOrCreateAuthors(bookData);
+      if (authorIds.isEmpty()) {
+        continue;
+      }
 
       Book newBook = Book.createFromGutendex(
           bookData.gutendexId(),
@@ -61,13 +65,18 @@ public class CreateBookUseCase {
 
   private Set<AuthorId> findOrCreateAuthors(BookData bookData) {
     Set<AuthorId> authorIds = new HashSet<>();
-    for (int i = 0; i < bookData.authorNames().size(); i++) {
-      String name = bookData.authorNames().get(i);
-      Integer birthYear = !bookData.birthYears().isEmpty() ? bookData.birthYears().get(i) : null;
-      Integer deathYear = !bookData.deathYears().isEmpty() ? bookData.deathYears().get(i) : null;
+    for (AuthorData authorData : bookData.authorDataList()) {
+      String formattedName = authorData.getFormattedName();
+      if (formattedName == null || formattedName.isBlank()) {
+        continue;
+      }
 
-      Author author = authorRepository.findByName(name)
-          .orElseGet(() -> authorRepository.save(Author.create(name, birthYear, deathYear)));
+      Author author = authorRepository.findByName(formattedName)
+          .orElseGet(() -> authorRepository.save(Author.create(
+              formattedName,
+              authorData.birthYear(),
+              authorData.deathYear()
+          )));
 
       authorIds.add(author.getId());
     }

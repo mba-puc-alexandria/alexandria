@@ -57,7 +57,7 @@ public class AddUserBooksUseCase {
 
     List<Author> authors = authorRepository.findAllById(book.getAuthorIds());
     List<AuthorInfo> authorInfos = authors.stream()
-        .map(a -> new AuthorInfo(a.getId().getValue(), a.getName()))
+        .map(a -> new AuthorInfo(a.getId().getValue(), a.getName(), a.getBirthYear(), a.getDeathYear()))
         .toList();
     BookOutput bookOutput = BookOutput.from(book, authorInfos);
     return UserBooksOutput.from(saved, bookOutput);

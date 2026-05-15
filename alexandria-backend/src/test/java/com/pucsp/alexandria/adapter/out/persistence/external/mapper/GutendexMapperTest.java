@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import com.pucsp.alexandria.adapter.out.persistence.external.gutendex.dto.GutendexAuthorResponse;
 import com.pucsp.alexandria.adapter.out.persistence.external.gutendex.dto.GutendexBookResponse;
 import com.pucsp.alexandria.adapter.out.persistence.external.gutendex.dto.GutendexFormatsResponse;
+import com.pucsp.alexandria.domain.book.external.AuthorData;
 import com.pucsp.alexandria.domain.book.external.BookData;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -28,10 +29,10 @@ class GutendexMapperTest {
         assertEquals(100L, bookData.gutendexId());
         assertEquals("Dom Casmurro", bookData.title());
         assertEquals("Machado de Assis", bookData.authors());
-        assertEquals(1, bookData.authorNames().size());
-        assertEquals("Machado de Assis", bookData.authorNames().get(0));
-        assertEquals(1839, bookData.birthYears().get(0));
-        assertEquals(1908, bookData.deathYears().get(0));
+        assertEquals(1, bookData.authorDataList().size());
+        assertEquals("Machado de Assis", bookData.authorDataList().get(0).name());
+        assertEquals(1839, bookData.authorDataList().get(0).birthYear());
+        assertEquals(1908, bookData.authorDataList().get(0).deathYear());
         assertEquals("http://download.epub", bookData.downloadUrl());
         assertEquals("http://cover.jpg", bookData.coverUrl());
         assertEquals("pt", bookData.languages());
@@ -51,12 +52,12 @@ class GutendexMapperTest {
         BookData bookData = mapper.toBookData(response);
 
         assertEquals("Author One, Author Two", bookData.authors());
-        assertEquals(2, bookData.authorNames().size());
-        assertEquals("Author One", bookData.authorNames().get(0));
-        assertEquals("Author Two", bookData.authorNames().get(1));
-        assertEquals(2, bookData.birthYears().size());
-        assertEquals(1900, bookData.birthYears().get(0));
-        assertEquals(1910, bookData.birthYears().get(1));
+        assertEquals(2, bookData.authorDataList().size());
+        assertEquals("Author One", bookData.authorDataList().get(0).name());
+        assertEquals("Author Two", bookData.authorDataList().get(1).name());
+        assertEquals(2, bookData.authorDataList().size());
+        assertEquals(1900, bookData.authorDataList().get(0).birthYear());
+        assertEquals(1910, bookData.authorDataList().get(1).birthYear());
     }
 
     @Test
@@ -67,7 +68,7 @@ class GutendexMapperTest {
         BookData bookData = mapper.toBookData(response);
 
         assertEquals("Unknown", bookData.authors());
-        assertTrue(bookData.authorNames().isEmpty());
+        assertTrue(bookData.authorDataList().isEmpty());
     }
 
     @Test
@@ -81,6 +82,9 @@ class GutendexMapperTest {
 
         assertNull(bookData.downloadUrl());
         assertNull(bookData.coverUrl());
+        assertEquals(1, bookData.authorDataList().size());
+        assertNull(bookData.authorDataList().get(0).birthYear());
+        assertNull(bookData.authorDataList().get(0).deathYear());
     }
 
     @Test
@@ -93,6 +97,7 @@ class GutendexMapperTest {
         BookData bookData = mapper.toBookData(response);
 
         assertEquals("Machado de Assis", bookData.authors());
+        assertEquals("Machado de Assis", bookData.authorDataList().get(0).getFormattedName());
     }
 
     @Test
@@ -122,5 +127,6 @@ class GutendexMapperTest {
         BookData bookData = mapper.toBookData(response);
 
         assertEquals("Spaces Around", bookData.authors());
+        assertEquals("Spaces Around", bookData.authorDataList().get(0).getFormattedName());
     }
 }

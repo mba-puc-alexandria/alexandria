@@ -77,7 +77,7 @@ class BookControllerIntegrationTest {
 
     @Test
     void shouldGetBookById() throws Exception {
-        List<AuthorInfo> authors = List.of(new AuthorInfo(1L, "Machado de Assis"));
+        List<AuthorInfo> authors = List.of(new AuthorInfo(1L, "Machado de Assis", 1839, 1908));
         BookOutput bookOutput = new BookOutput(
                 1L, "Dom Casmurro", authors,
                 100L, "url", "url", "pt", "Fiction", 5000, null, BookSource.GUTENDEX.name());
@@ -93,8 +93,8 @@ class BookControllerIntegrationTest {
 
     @Test
     void shouldListAllBooks() throws Exception {
-        List<AuthorInfo> authors1 = List.of(new AuthorInfo(1L, "Author 1"));
-        List<AuthorInfo> authors2 = List.of(new AuthorInfo(2L, "Author 2"));
+        List<AuthorInfo> authors1 = List.of(new AuthorInfo(1L, "Author 1", null, null));
+        List<AuthorInfo> authors2 = List.of(new AuthorInfo(2L, "Author 2", null, null));
         BookOutput book1 = new BookOutput(
                 1L, "Book 1", authors1, null, null, null, null, null, null, 1L, BookSource.LOCAL.name());
         BookOutput book2 = new BookOutput(
@@ -115,7 +115,7 @@ class BookControllerIntegrationTest {
 
     @Test
     void shouldUpdateBook() throws Exception {
-        List<AuthorInfo> authors = List.of(new AuthorInfo(1L, "Author"));
+        List<AuthorInfo> authors = List.of(new AuthorInfo(1L, "Author", null, null));
         BookOutput updated = new BookOutput(
                 1L, "Updated Title", authors, null, null, null, null, null, null, 1L, BookSource.LOCAL.name());
         when(updateBookUseCase.execute(eq(1L), any(UpdateBookInput.class))).thenReturn(updated);
