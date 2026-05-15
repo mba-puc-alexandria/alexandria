@@ -1,8 +1,12 @@
 package com.pucsp.alexandria.adapter.out.persistence.mapper;
 
+import com.pucsp.alexandria.adapter.out.persistence.entity.AuthorEntity;
 import com.pucsp.alexandria.adapter.out.persistence.entity.BookEntity;
 import com.pucsp.alexandria.domain.book.Book;
 import com.pucsp.alexandria.domain.book.BookSource;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.stream.Collectors;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -13,10 +17,13 @@ public class BookMapper {
       return null;
     }
     BookSource source = BookSource.valueOf(entity.getSource());
+    Set<Long> authorIds = entity.getAuthors().stream()
+        .map(AuthorEntity::getId)
+        .collect(Collectors.toSet());
     return Book.restore(
         entity.getId(),
         entity.getTitle(),
-        entity.getAuthor(),
+        authorIds,
         entity.getGutendexId(),
         entity.getDownloadUrl(),
         entity.getCoverUrl(),
@@ -35,7 +42,7 @@ public class BookMapper {
     return new BookEntity(
         book.getId() != null ? book.getId().getValue() : null,
         book.getTitle(),
-        book.getAuthor(),
+        new HashSet<>(),
         book.getGutendexId(),
         book.getDownloadUrl(),
         book.getCoverUrl(),
@@ -47,4 +54,3 @@ public class BookMapper {
     );
   }
 }
-

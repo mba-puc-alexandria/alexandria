@@ -4,10 +4,11 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 import com.pucsp.alexandria.adapter.out.persistence.external.gutendex.GutendexClient;
+import com.pucsp.alexandria.adapter.out.persistence.external.gutendex.dto.GutendexAuthorResponse;
 import com.pucsp.alexandria.adapter.out.persistence.external.gutendex.dto.GutendexBookResponse;
-import com.pucsp.alexandria.adapter.out.persistence.external.gutendex.dto.GutendexFormatsResponse;
 import com.pucsp.alexandria.adapter.out.persistence.external.gutendex.dto.GutendexSearchResponse;
 import com.pucsp.alexandria.adapter.out.persistence.external.mapper.GutendexMapper;
+import com.pucsp.alexandria.domain.book.external.AuthorData;
 import com.pucsp.alexandria.domain.book.external.BookData;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -29,66 +30,26 @@ class BookApiClientImplTest {
     private BookApiClientImpl bookApiClient;
 
     @Test
-    void shouldSearchByTitle() {
-        GutendexSearchResponse response = new GutendexSearchResponse(1,
-                List.of(new GutendexBookResponse(100L, "Title", List.of(), null, List.of(), List.of(), 0)));
-        when(gutendexClient.searchByTitle("Dom")).thenReturn(response);
-        BookData bookData = new BookData(-1L, 100L, "Title", "Unknown", null, null, null, null, 0);
-        when(gutendexMapper.toBookData(any())).thenReturn(bookData);
-
-        List<BookData> result = bookApiClient.searchByTitle("Dom");
-
-        assertEquals(1, result.size());
-        assertEquals("Title", result.get(0).title());
-    }
-
-    @Test
-    void shouldReturnEmptyListWhenSearchResponseIsNull() {
-        when(gutendexClient.searchByTitle("")).thenReturn(null);
-
-        List<BookData> result = bookApiClient.searchByTitle("");
-
-        assertTrue(result.isEmpty());
-    }
-
-    @Test
-    void shouldReturnEmptyListWhenSearchResultsAreNull() {
-        when(gutendexClient.searchByTitle("none")).thenReturn(new GutendexSearchResponse(0, null));
-
-        List<BookData> result = bookApiClient.searchByTitle("none");
-
-        assertTrue(result.isEmpty());
-    }
-
-    @Test
-    void shouldReturnEmptyListWhenSearchResultsAreEmpty() {
-        when(gutendexClient.searchByTitle("empty")).thenReturn(new GutendexSearchResponse(0, List.of()));
-
-        List<BookData> result = bookApiClient.searchByTitle("empty");
-
-        assertTrue(result.isEmpty());
-    }
-
-    @Test
-    void shouldGetPage() {
-        GutendexSearchResponse response = new GutendexSearchResponse(2,
-                List.of(
-                    new GutendexBookResponse(100L, "B1", List.of(), null, List.of(), List.of(), 0),
-                    new GutendexBookResponse(200L, "B2", List.of(), null, List.of(), List.of(), 0)
-                ));
+    void shouldReturnBooksWhenPageFound() {
+        GutendexSearchResponse response = new GutendexSearchResponse(1, List.of(
+                new GutendexBookResponse(100L, "Dom Casmurro",
+                        List.of(new GutendexAuthorResponse("Machado de Assis", null, null)),
+                        null, List.of("pt"), List.of("Fiction"), 5000)
+        ));
         when(gutendexClient.getPage(1)).thenReturn(response);
-        when(gutendexMapper.toBookData(any())).thenReturn(
-                new BookData(-1L, 100L, "B1", "Unknown", null, null, null, null, 0),
-                new BookData(-1L, 200L, "B2", "Unknown", null, null, null, null, 0)
-        );
+        BookData bookData = new BookData(-1L, 100L, "Dom Casmurro", "Machado de Assis",
+                List.of(new AuthorData("Machado de Assis", null, null)),
+                null, null, "pt", "Fiction", 5000);
+        when(gutendexMapper.toBookData(any())).thenReturn(bookData);
 
         List<BookData> result = bookApiClient.getPage(1);
 
-        assertEquals(2, result.size());
+        assertEquals(1, result.size());
+        assertEquals("Dom Casmurro", result.get(0).title());
     }
 
     @Test
-    void shouldReturnEmptyListWhenGetPageResponseIsNull() {
+    void shouldReturnEmptyListWhenPageNotFound() {
         when(gutendexClient.getPage(99)).thenReturn(null);
 
         List<BookData> result = bookApiClient.getPage(99);
@@ -97,8 +58,9 @@ class BookApiClientImplTest {
     }
 
     @Test
-    void shouldReturnEmptyListWhenGetPageResultsAreEmpty() {
-        when(gutendexClient.getPage(1)).thenReturn(new GutendexSearchResponse(0, List.of()));
+    void shouldReturnEmptyListWhenResponseHasNoResults() {
+        GutendexSearchResponse response = new GutendexSearchResponse(0, List.of());
+        when(gutendexClient.getPage(1)).thenReturn(response);
 
         List<BookData> result = bookApiClient.getPage(1);
 

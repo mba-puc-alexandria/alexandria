@@ -4,7 +4,7 @@ import { use, useEffect, useState, useCallback, useRef } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
-import { getBookById, getUserBooks, updateUserBook, type BookApiResponse } from "@/lib/api";
+import { getBookById, getUserBooks, updateUserBook, getAuthorDisplay, type BookApiResponse } from "@/lib/api";
 
 const ReactReader = dynamic(
   () => import("react-reader").then((m) => m.ReactReader),
@@ -229,7 +229,7 @@ export default function LeitorPage({
           Voltar
         </Link>
         <h1 className="font-serif font-bold text-brown text-sm truncate flex-1">{book.title}</h1>
-        <span className="text-brown-soft text-xs shrink-0">{book.author}</span>
+        <span className="text-brown-soft text-xs shrink-0">{getAuthorDisplay(book)}</span>
         {renderReadingInfo()}
       </div>
 

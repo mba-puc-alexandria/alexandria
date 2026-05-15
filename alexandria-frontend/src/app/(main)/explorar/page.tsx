@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Search, ArrowRight, ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import BookCard from "@/components/BookCard";
-import { getBooks, searchBooks, type BookApiResponse } from "@/lib/api";
+import { getBooks, searchBooks, getAuthorDisplay, type BookApiResponse } from "@/lib/api";
 
 export default function ExplorarPage() {
   const [books, setBooks] = useState<BookApiResponse[]>([]);
@@ -112,7 +112,7 @@ export default function ExplorarPage() {
                   )}
                   <div className="flex flex-col flex-1">
                     <h4 className="font-brand font-bold text-brown text-lg leading-[22px]">{book.title}</h4>
-                    <p className="text-slate text-sm">{book.author}</p>
+                    <p className="text-slate text-sm">{getAuthorDisplay(book)}</p>
                     <div className="flex items-center gap-3 mt-3">
                       <span className="bg-brown text-cream text-[10px] font-bold tracking-widest uppercase px-4 py-1.5 rounded-xl">
                         VER DETALHES

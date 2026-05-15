@@ -3,7 +3,7 @@
 import { use, useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, BookOpen, Plus } from "lucide-react";
-import { getBookById, addUserBook, type BookApiResponse } from "@/lib/api";
+import { getBookById, addUserBook, getAuthorDisplay, type BookApiResponse } from "@/lib/api";
 
 export default function BookDetailPage({
   params,
@@ -101,7 +101,7 @@ export default function BookDetailPage({
             <h1 className="font-serif font-bold text-brown text-3xl md:text-4xl leading-tight">
               {book.title}
             </h1>
-            <p className="text-brown-soft text-lg">{book.author}</p>
+            <p className="text-brown-soft text-lg">{getAuthorDisplay(book)}</p>
           </div>
 
           {subjects.length > 0 && (

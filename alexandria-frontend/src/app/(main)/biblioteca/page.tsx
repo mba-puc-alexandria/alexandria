@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Search, Plus, Star, BookOpen } from "lucide-react";
-import { getUserBooks, type UserBookResponse } from "@/lib/api";
+import { getUserBooks, getAuthorDisplay, type UserBookResponse } from "@/lib/api";
 
 const filters = ["Todos", "Lendo", "Concluído", "Para Ler"];
 
@@ -90,7 +90,7 @@ export default function BibliotecaPage() {
     const matchesQuery =
       query.trim() === "" ||
       ub.book.title.toLowerCase().includes(query.toLowerCase()) ||
-      ub.book.author.toLowerCase().includes(query.toLowerCase());
+      getAuthorDisplay(ub.book).toLowerCase().includes(query.toLowerCase());
 
     const isConcluido = ub.status === 'done' || (ub.status === 'reading' && ub.progress === 100);
     const matchesFilter =
@@ -156,7 +156,7 @@ export default function BibliotecaPage() {
             <div key={ub.id} className="flex flex-col">
               <BookCover ub={ub} />
               <h3 className="font-brand font-bold text-brown text-lg leading-[22px]">{ub.book.title}</h3>
-              <p className="text-slate/70 text-xs mt-1">{ub.book.author}</p>
+              <p className="text-slate/70 text-xs mt-1">{getAuthorDisplay(ub.book)}</p>
             </div>
           ))}
         </div>
