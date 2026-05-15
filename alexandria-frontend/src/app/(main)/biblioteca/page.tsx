@@ -1,30 +1,104 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Search, Plus, Star } from "lucide-react";
-import { getBooks, type BookApiResponse } from "@/lib/api";
+import Link from "next/link";
+import { Search, Plus, Star, BookOpen } from "lucide-react";
+import { getUserBooks, type UserBookResponse } from "@/lib/api";
 
-const filters = ["Todos", "Lendo", "Concluído", "Para Ler", "Emprestado"];
+const filters = ["Todos", "Lendo", "Concluído", "Para Ler"];
+
+const STATUS_MAP: Record<string, number> = {
+  reading: 1,
+  done: 2,
+  toread: 3,
+};
+
+const STATUS_BADGE: Record<string, { className: string }> = {
+  reading: { className: 'bg-terra text-cream' },
+  done:    { className: 'bg-brown text-cream' },
+};
+
+function BookCover({ ub }: { ub: UserBookResponse }) {
+  const badgeStyle = STATUS_BADGE[ub.status];
+  const badgeLabel = ub.status === 'reading'
+    ? (ub.progress === 100 ? 'Lido' : `${ub.progress ?? 0}%`)
+    : ub.status === 'done' ? 'Concluído' : null;
+  const badge = badgeStyle && badgeLabel ? { label: badgeLabel, className: badgeStyle.className } : null;
+
+  const cover = ub.book.coverUrl ? (
+    <img src={ub.book.coverUrl} alt={ub.book.title} className="w-full h-[239px] object-cover" />
+  ) : (
+    <div className="w-full h-[239px] bg-cream-book flex items-center justify-center">
+      <span className="text-slate/30 text-xs uppercase tracking-widest">Sem capa</span>
+    </div>
+  );
+
+  const indicators = (
+    <>
+      {badge && (
+        <span className={`absolute top-2 left-2 text-xs font-bold px-2 py-0.5 rounded-full z-10 ${badge.className}`}>
+          {badge.label}
+        </span>
+      )}
+      {ub.status === 'reading' && ub.progress != null && (
+        <div className="absolute bottom-0 left-0 right-0 h-1 bg-brown/20 z-10">
+          <div className="h-full bg-terra" style={{ width: `${ub.progress}%` }} />
+        </div>
+      )}
+    </>
+  );
+
+  if (ub.book.downloadUrl) {
+    return (
+      <Link href={`/leitor/${ub.book.id}`} className="relative mb-4 overflow-hidden rounded block group">
+        {cover}
+        <div className="absolute inset-0 bg-brown/0 group-hover:bg-brown/50 transition-colors flex items-center justify-center">
+          <BookOpen size={32} className="text-cream opacity-0 group-hover:opacity-100 transition-opacity" />
+        </div>
+        {indicators}
+      </Link>
+    );
+  }
+
+  return (
+    <div className="relative mb-4 overflow-hidden rounded group cursor-not-allowed">
+      {cover}
+      <div className="absolute inset-0 bg-brown/0 group-hover:bg-brown/40 transition-colors flex items-center justify-center">
+        <span className="text-cream text-xs font-bold opacity-0 group-hover:opacity-100 transition-opacity uppercase tracking-widest">
+          Indisponível
+        </span>
+      </div>
+      {indicators}
+    </div>
+  );
+}
 
 export default function BibliotecaPage() {
-  const [books, setBooks] = useState<BookApiResponse[]>([]);
+  const [books, setBooks] = useState<UserBookResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState(0);
   const [query, setQuery] = useState("");
 
   useEffect(() => {
-    getBooks(0, 20)
-      .then((page) => setBooks(page.content))
+    getUserBooks()
+      .then(setBooks)
       .catch(console.error)
       .finally(() => setLoading(false));
   }, []);
 
-  const filtered = books.filter(
-    (book) =>
+  const filtered = books.filter((ub) => {
+    const matchesQuery =
       query.trim() === "" ||
-      book.title.toLowerCase().includes(query.toLowerCase()) ||
-      book.author.toLowerCase().includes(query.toLowerCase())
-  );
+      ub.book.title.toLowerCase().includes(query.toLowerCase()) ||
+      ub.book.author.toLowerCase().includes(query.toLowerCase());
+
+    const isConcluido = ub.status === 'done' || (ub.status === 'reading' && ub.progress === 100);
+    const matchesFilter =
+      activeFilter === 0 ||
+      (activeFilter === 2 ? isConcluido : STATUS_MAP[ub.status] === activeFilter);
+
+    return matchesQuery && matchesFilter;
+  });
 
   return (
     <div className="px-6 md:px-8 pt-8 md:pt-12 pb-8 flex flex-col gap-8 max-w-5xl relative">
@@ -78,19 +152,11 @@ export default function BibliotecaPage() {
         </div>
       ) : (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-10">
-          {filtered.map((book) => (
-            <div key={book.id} className="flex flex-col">
-              <div className="relative mb-4 overflow-hidden rounded">
-                {book.coverUrl ? (
-                  <img src={book.coverUrl} alt={book.title} className="w-full h-[239px] object-cover" />
-                ) : (
-                  <div className="w-full h-[239px] bg-cream-book flex items-center justify-center">
-                    <span className="text-slate/30 text-xs uppercase tracking-widest">Sem capa</span>
-                  </div>
-                )}
-              </div>
-              <h3 className="font-brand font-bold text-brown text-lg leading-[22px]">{book.title}</h3>
-              <p className="text-slate/70 text-xs mt-1">{book.author}</p>
+          {filtered.map((ub) => (
+            <div key={ub.id} className="flex flex-col">
+              <BookCover ub={ub} />
+              <h3 className="font-brand font-bold text-brown text-lg leading-[22px]">{ub.book.title}</h3>
+              <p className="text-slate/70 text-xs mt-1">{ub.book.author}</p>
             </div>
           ))}
         </div>

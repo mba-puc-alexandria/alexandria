@@ -3,7 +3,7 @@
 import { use, useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, BookOpen, Plus } from "lucide-react";
-import { getBookById, type BookApiResponse } from "@/lib/api";
+import { getBookById, addUserBook, type BookApiResponse } from "@/lib/api";
 
 export default function BookDetailPage({
   params,
@@ -14,6 +14,8 @@ export default function BookDetailPage({
   const [book, setBook] = useState<BookApiResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [adding, setAdding] = useState(false);
+  const [added, setAdded] = useState(false);
 
   useEffect(() => {
     getBookById(Number(id))
@@ -47,6 +49,20 @@ export default function BookDetailPage({
         </Link>
       </div>
     );
+  }
+
+  async function handleAddToLibrary() {
+    setAdding(true);
+    try {
+      await addUserBook(book!.id);
+      setAdded(true);
+    } catch (e) {
+      if (e instanceof Error && e.message === 'already_added') {
+        setAdded(true);
+      }
+    } finally {
+      setAdding(false);
+    }
   }
 
   const subjects = book.subjects
@@ -140,10 +156,12 @@ export default function BookDetailPage({
             )}
             <button
               type="button"
-              className="flex items-center justify-center gap-2 border border-cream-border text-brown font-bold text-sm px-8 py-4 rounded-xl hover:bg-cream-active transition-colors"
+              onClick={handleAddToLibrary}
+              disabled={adding || added}
+              className="flex items-center justify-center gap-2 border border-cream-border text-brown font-bold text-sm px-8 py-4 rounded-xl hover:bg-cream-active transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Plus size={16} />
-              Adicionar à Biblioteca
+              {added ? 'Adicionado à Biblioteca' : adding ? 'Adicionando...' : 'Adicionar à Biblioteca'}
             </button>
           </div>
         </div>
