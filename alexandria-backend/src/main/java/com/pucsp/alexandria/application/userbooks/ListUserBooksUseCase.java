@@ -58,15 +58,23 @@ public class ListUserBooksUseCase {
         .collect(Collectors.toSet());
 
     List<Author> allAuthors = authorRepository.findAllById(allAuthorIds);
-    Map<Long, String> authorMap = allAuthors.stream()
-        .collect(Collectors.toMap(a -> a.getId().getValue(), Author::getName));
+    Map<Long, Author> authorMap = allAuthors.stream()
+        .collect(Collectors.toMap(a -> a.getId().getValue(), a -> a));
 
     Map<Long, BookOutput> bookOutputMap = books.stream()
         .collect(Collectors.toMap(
             b -> b.getId().getValue(),
             b -> {
               List<AuthorInfo> infos = b.getAuthorIds().stream()
-                  .map(id -> new AuthorInfo(id.getValue(), authorMap.get(id.getValue())))
+                  .map(id -> {
+                    Author author = authorMap.get(id.getValue());
+                    return new AuthorInfo(
+                        id.getValue(),
+                        author != null ? author.getName() : null,
+                        author != null ? author.getBirthYear() : null,
+                        author != null ? author.getDeathYear() : null
+                    );
+                  })
                   .toList();
               return BookOutput.from(b, infos);
             }

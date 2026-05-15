@@ -25,7 +25,7 @@ public class GetBookUseCase {
 
     List<Author> authors = authorRepository.findAllById(book.getAuthorIds());
     List<AuthorInfo> authorInfos = authors.stream()
-        .map(a -> new AuthorInfo(a.getId().getValue(), a.getName()))
+        .map(a -> new AuthorInfo(a.getId().getValue(), a.getName(), a.getBirthYear(), a.getDeathYear()))
         .toList();
 
     return BookOutput.from(book, authorInfos);
