@@ -5,7 +5,6 @@ import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
   BookOpen,
-  ArrowLeftRight,
   Compass,
   Settings,
   HelpCircle,
@@ -17,7 +16,6 @@ import { useAuth } from "@/contexts/AuthContext";
 const navLinks = [
   { href: "/dashboard", label: "Painel", icon: LayoutDashboard },
   { href: "/biblioteca", label: "Biblioteca", icon: BookOpen },
-  { href: "/emprestimos", label: "Empréstimos", icon: ArrowLeftRight },
   { href: "/explorar", label: "Explorar", icon: Compass },
 ];
 

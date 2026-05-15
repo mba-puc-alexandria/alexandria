@@ -100,6 +100,43 @@ export async function getBookById(id: number): Promise<BookApiResponse> {
   return res.json();
 }
 
+export interface UserBookResponse {
+  id: number;
+  book: BookApiResponse;
+  status: string;
+  progress: number | null;
+  rating: number | null;
+}
+
+export async function addUserBook(bookId: number): Promise<UserBookResponse> {
+  const res = await apiFetch('/user-books', {
+    method: 'POST',
+    body: JSON.stringify({ bookId, status: 'TOREAD' }),
+  });
+  if (res.status === 409) throw new Error('already_added');
+  if (!res.ok) throw new Error('Falha ao adicionar livro');
+  return res.json();
+}
+
+export async function getUserBooks(): Promise<UserBookResponse[]> {
+  const res = await apiFetch('/user-books');
+  if (!res.ok) throw new Error('Falha ao buscar biblioteca');
+  const page = await res.json();
+  return page.content;
+}
+
+export async function updateUserBook(
+  userBookId: number,
+  data: { status?: string; progress?: number; rating?: number }
+): Promise<UserBookResponse> {
+  const res = await apiFetch(`/user-books/${userBookId}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error('Falha ao atualizar livro');
+  return res.json();
+}
+
 export function getAuthHeaders(): HeadersInit {
   const token = typeof window !== 'undefined' ? localStorage.getItem('auth-token') : null;
   return token ? { Authorization: `Bearer ${token}` } : {};

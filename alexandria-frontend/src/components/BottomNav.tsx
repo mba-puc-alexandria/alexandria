@@ -2,13 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, BookOpen, ArrowLeftRight, Compass, LogOut } from "lucide-react";
+import { LayoutDashboard, BookOpen, Compass, LogOut } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
 const navItems = [
   { href: "/dashboard", label: "Painel", icon: LayoutDashboard },
   { href: "/biblioteca", label: "Biblioteca", icon: BookOpen },
-  { href: "/emprestimos", label: "Empréstimos", icon: ArrowLeftRight },
   { href: "/explorar", label: "Explorar", icon: Compass },
 ];
 

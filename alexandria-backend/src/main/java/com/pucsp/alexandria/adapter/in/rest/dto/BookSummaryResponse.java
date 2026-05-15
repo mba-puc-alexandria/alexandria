@@ -7,7 +7,7 @@ public record BookSummaryResponse(
     Long gutenbergId,
     String title,
     String author,
-    String cover,
+    String coverUrl,
     String downloadUrl
 ) {
 
