@@ -17,7 +17,7 @@ public record BookOutput(
     String source
 ) {
 
-  public record AuthorInfo(Long id, String name) {}
+  public record AuthorInfo(Long id, String name, Integer birthYear, Integer deathYear) {}
 
   public static BookOutput from(Book book, List<AuthorInfo> authors) {
     return new BookOutput(

@@ -8,6 +8,7 @@ import com.pucsp.alexandria.adapter.out.persistence.external.gutendex.dto.Gutend
 import com.pucsp.alexandria.adapter.out.persistence.external.gutendex.dto.GutendexBookResponse;
 import com.pucsp.alexandria.adapter.out.persistence.external.gutendex.dto.GutendexSearchResponse;
 import com.pucsp.alexandria.adapter.out.persistence.external.mapper.GutendexMapper;
+import com.pucsp.alexandria.domain.book.external.AuthorData;
 import com.pucsp.alexandria.domain.book.external.BookData;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -37,7 +38,7 @@ class BookApiClientImplTest {
         ));
         when(gutendexClient.getPage(1)).thenReturn(response);
         BookData bookData = new BookData(-1L, 100L, "Dom Casmurro", "Machado de Assis",
-                List.of("Machado de Assis"), List.of(), List.of(),
+                List.of(new AuthorData("Machado de Assis", null, null)),
                 null, null, "pt", "Fiction", 5000);
         when(gutendexMapper.toBookData(any())).thenReturn(bookData);
 

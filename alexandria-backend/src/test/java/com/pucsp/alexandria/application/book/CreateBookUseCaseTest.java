@@ -10,6 +10,7 @@ import com.pucsp.alexandria.domain.author.AuthorRepository;
 import com.pucsp.alexandria.domain.book.Book;
 import com.pucsp.alexandria.domain.book.BookRepository;
 import com.pucsp.alexandria.domain.book.BookSource;
+import com.pucsp.alexandria.domain.book.external.AuthorData;
 import com.pucsp.alexandria.domain.book.external.BookApiClient;
 import com.pucsp.alexandria.domain.book.external.BookData;
 import java.util.List;
@@ -43,7 +44,7 @@ class CreateBookUseCaseTest {
     @Test
     void shouldCreateBooksFromGutendexPage() {
         BookData bookData = new BookData(-1L, 100L, "Dom Casmurro", "Machado de Assis",
-                List.of("Machado de Assis"), List.of(1839), List.of(1908),
+                List.of(new AuthorData("Machado de Assis", 1839, 1908)),
                 "http://download.com", "http://cover.com", "pt", "Fiction", 5000);
 
         Author author = Author.restore(1L, "Machado de Assis", 1839, 1908);
@@ -69,10 +70,10 @@ class CreateBookUseCaseTest {
     @Test
     void shouldSkipExistingGutendexBooks() {
         BookData bookData1 = new BookData(-1L, 100L, "Book 1", "Author 1",
-                List.of("Author 1"), List.of(), List.of(),
+                List.of(new AuthorData("Author 1", null, null)),
                 "url1", "url1", "pt", "Fiction", 100);
         BookData bookData2 = new BookData(-1L, 200L, "Book 2", "Author 2",
-                List.of("Author 2"), List.of(), List.of(),
+                List.of(new AuthorData("Author 2", null, null)),
                 "url2", "url2", "en", "Drama", 200);
 
         Author author = Author.restore(2L, "Author 2", null, null);
@@ -96,7 +97,7 @@ class CreateBookUseCaseTest {
     @Test
     void shouldReuseExistingAuthor() {
         BookData bookData = new BookData(-1L, 100L, "Dom Casmurro", "Machado de Assis",
-                List.of("Machado de Assis"), List.of(1839), List.of(1908),
+                List.of(new AuthorData("Machado de Assis", 1839, 1908)),
                 "http://download.com", "http://cover.com", "pt", "Fiction", 5000);
 
         Author existingAuthor = Author.restore(1L, "Machado de Assis", 1839, 1908);
