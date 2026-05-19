@@ -3,13 +3,13 @@ package com.pucsp.alexandria.advice;
 import static org.junit.jupiter.api.Assertions.*;
 
 import com.pucsp.alexandria.domain.book.exception.BookNotFoundException;
+import com.pucsp.alexandria.domain.user.exception.InvalidCredentialsException;
 import com.pucsp.alexandria.domain.userbook.exception.DuplicateUserBooksException;
 import com.pucsp.alexandria.domain.userbook.exception.InvalidUserBooksException;
 import com.pucsp.alexandria.domain.userbook.exception.UserBooksNotFoundException;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.authentication.BadCredentialsException;
 
 class GlobalExceptionHandlerTest {
 
@@ -59,9 +59,9 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
-    void shouldHandleBadCredentials() {
-        BadCredentialsException ex = new BadCredentialsException("Bad credentials");
-        ResponseEntity<ErrorResponse> response = handler.handleBadCredentials(ex);
+    void shouldHandleInvalidCredentials() {
+        InvalidCredentialsException ex = new InvalidCredentialsException("Invalid username or password");
+        ResponseEntity<ErrorResponse> response = handler.handleInvalidCredentials(ex);
         assertEquals(HttpStatus.UNAUTHORIZED, response.getStatusCode());
         assertEquals("Invalid username or password", response.getBody().getMessage());
         assertEquals(401, response.getBody().getStatus());

@@ -15,6 +15,7 @@ import com.pucsp.alexandria.domain.book.external.BookApiClient;
 import com.pucsp.alexandria.domain.book.external.BookData;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -131,5 +132,31 @@ class CreateBookUseCaseTest {
 
         assertThrows(RuntimeException.class,
                 () -> createBookUseCase.execute(new CreateBookInput(1)));
+    }
+
+    @Test
+    void shouldContinueWhenSingleBookFails() {
+        BookData validBook = new BookData(-1L, 100L, "Dom Casmurro",
+                "Machado de Assis",
+                List.of(new AuthorData("Machado de Assis", 1839, 1908)),
+                "url", "url", "pt", "Fiction", 5000);
+
+        BookData invalidBook = new BookData(-1L, 200L, "",
+                "Unknown", List.of(), null, null, null, null, null);
+
+        when(bookApiClient.getPage(1)).thenReturn(List.of(validBook, invalidBook));
+        when(bookRepository.existsByGutendexId(100L)).thenReturn(false);
+        when(bookRepository.existsByGutendexId(200L)).thenReturn(false);
+
+        Author author = Author.restore(1L, "Machado de Assis", 1839, 1908);
+        when(authorRepository.findByName("Machado de Assis")).thenReturn(Optional.of(author));
+
+        Book saved = Book.restore(1L, "Dom Casmurro", Set.of(1L), 100L,
+                "url", "url", "pt", "Fiction", 5000, null, BookSource.GUTENDEX);
+        when(bookRepository.save(any(Book.class))).thenReturn(saved);
+
+        CreateBookOutput output = createBookUseCase.execute(new CreateBookInput(1));
+
+        assertEquals(1, output.ids().size());
     }
 }
