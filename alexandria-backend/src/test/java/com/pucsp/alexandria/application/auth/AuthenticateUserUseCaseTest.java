@@ -7,6 +7,7 @@ import com.pucsp.alexandria.application.auth.dto.AuthInput;
 import com.pucsp.alexandria.application.auth.dto.AuthOutput;
 import com.pucsp.alexandria.domain.user.User;
 import com.pucsp.alexandria.domain.user.UserRepository;
+import com.pucsp.alexandria.domain.user.exception.InvalidCredentialsException;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -46,7 +47,7 @@ class AuthenticateUserUseCaseTest {
     void shouldThrowExceptionForInvalidUsername() {
         when(userRepository.findByUsername("unknown")).thenReturn(Optional.empty());
 
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+        InvalidCredentialsException ex = assertThrows(InvalidCredentialsException.class,
                 () -> authenticateUserUseCase.execute(new AuthInput("unknown", "pass")));
         assertEquals("Invalid username or password", ex.getMessage());
     }
@@ -58,7 +59,7 @@ class AuthenticateUserUseCaseTest {
         when(userRepository.findByUsername("john_doe")).thenReturn(Optional.of(user));
         when(passwordEncoder.matches("wrong", "encodedPassword")).thenReturn(false);
 
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+        InvalidCredentialsException ex = assertThrows(InvalidCredentialsException.class,
                 () -> authenticateUserUseCase.execute(new AuthInput("john_doe", "wrong")));
         assertEquals("Invalid username or password", ex.getMessage());
     }

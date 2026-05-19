@@ -4,6 +4,7 @@ import com.pucsp.alexandria.application.auth.AuthenticateUserUseCase;
 import com.pucsp.alexandria.application.auth.RegisterUserUseCase;
 import com.pucsp.alexandria.application.book.CreateBookUseCase;
 import com.pucsp.alexandria.application.book.DeleteBookUseCase;
+import com.pucsp.alexandria.application.book.SyncAllGutendexBooksUseCase;
 import com.pucsp.alexandria.application.book.GetBookUseCase;
 import com.pucsp.alexandria.application.book.ListBooksUseCase;
 import com.pucsp.alexandria.application.book.SearchBookByTitleUseCase;
@@ -110,5 +111,11 @@ public class BeanConfiguration {
   public AuthenticateUserUseCase authenticateUserUseCase(UserRepository userRepository,
                                                           PasswordEncoder passwordEncoder) {
     return new AuthenticateUserUseCase(userRepository, passwordEncoder);
+  }
+
+  @Bean
+  public SyncAllGutendexBooksUseCase syncAllGutendexBooksUseCase(
+      CreateBookUseCase createBookUseCase) {
+    return new SyncAllGutendexBooksUseCase(createBookUseCase);
   }
 }

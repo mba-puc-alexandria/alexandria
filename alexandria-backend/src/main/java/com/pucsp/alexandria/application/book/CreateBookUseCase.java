@@ -12,10 +12,15 @@ import com.pucsp.alexandria.domain.book.external.BookApiClient;
 import com.pucsp.alexandria.domain.book.external.BookData;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.Optional;
 import java.util.Set;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.transaction.annotation.Transactional;
 
 public class CreateBookUseCase {
+
+  private static final Logger log = LoggerFactory.getLogger(CreateBookUseCase.class);
 
   private final BookRepository bookRepository;
   private final AuthorRepository authorRepository;
@@ -36,31 +41,40 @@ public class CreateBookUseCase {
 
     ArrayList<Long> createdIds = new ArrayList<>();
     for (BookData bookData : bookDataList) {
-      if (bookRepository.existsByGutendexId(bookData.gutendexId())) {
-        continue;
+      try {
+        processBook(bookData).ifPresent(createdIds::add);
+      } catch (Exception e) {
+        log.warn("Erro ao processar livro '{}' (gutendexId={}) na página {}: {}",
+                bookData.title(), bookData.gutendexId(), input.page(), e.getMessage());
       }
-
-      Set<AuthorId> authorIds = findOrCreateAuthors(bookData);
-      if (authorIds.isEmpty()) {
-        continue;
-      }
-
-      Book newBook = Book.createFromGutendex(
-          bookData.gutendexId(),
-          bookData.title(),
-          authorIds,
-          bookData.downloadUrl(),
-          bookData.coverUrl(),
-          bookData.languages(),
-          bookData.subjects(),
-          bookData.downloadCount()
-      );
-
-      Book saved = bookRepository.save(newBook);
-      createdIds.add(saved.getId().getValue());
     }
 
     return new CreateBookOutput(createdIds);
+  }
+
+  private Optional<Long> processBook(BookData bookData) {
+    if (bookRepository.existsByGutendexId(bookData.gutendexId())) {
+      return Optional.empty();
+    }
+
+    Set<AuthorId> authorIds = findOrCreateAuthors(bookData);
+    if (authorIds.isEmpty()) {
+      return Optional.empty();
+    }
+
+    Book newBook = Book.createFromGutendex(
+        bookData.gutendexId(),
+        bookData.title(),
+        authorIds,
+        bookData.downloadUrl(),
+        bookData.coverUrl(),
+        bookData.languages(),
+        bookData.subjects(),
+        bookData.downloadCount()
+    );
+
+    Book saved = bookRepository.save(newBook);
+    return Optional.of(saved.getId().getValue());
   }
 
   private Set<AuthorId> findOrCreateAuthors(BookData bookData) {
