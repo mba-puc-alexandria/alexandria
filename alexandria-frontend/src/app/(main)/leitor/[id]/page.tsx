@@ -2,7 +2,7 @@
 
 import { use, useEffect, useState, useCallback, useRef } from "react";
 import dynamic from "next/dynamic";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { getBookById, getUserBooks, updateUserBook, getAuthorDisplay, type BookApiResponse } from "@/lib/api";
 
@@ -30,6 +30,7 @@ export default function LeitorPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
+  const router = useRouter();
   const [book, setBook] = useState<BookApiResponse | null>(null);
   const [epubData, setEpubData] = useState<ArrayBuffer | null>(null);
   const [loading, setLoading] = useState(true);
@@ -221,13 +222,13 @@ export default function LeitorPage({
   return (
     <div className="flex flex-col h-full">
       <div className="flex items-center gap-4 px-6 py-3 border-b border-cream-border bg-cream shrink-0">
-        <Link
-          href={`/explorar/${id}`}
+        <button
+          onClick={() => router.back()}
           className="flex items-center gap-2 text-brown-soft text-sm font-bold hover:text-brown transition-colors"
         >
           <ArrowLeft size={16} />
           Voltar
-        </Link>
+        </button>
         <h1 className="font-serif font-bold text-brown text-sm truncate flex-1">{book.title}</h1>
         <span className="text-brown-soft text-xs shrink-0">{getAuthorDisplay(book)}</span>
         {renderReadingInfo()}
