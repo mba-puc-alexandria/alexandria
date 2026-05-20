@@ -2,15 +2,33 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Search, ArrowRight, ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { Search, ArrowRight, ChevronLeft, ChevronRight, Plus, Check, Loader2 } from "lucide-react";
 import BookCard from "@/components/BookCard";
-import { getBooks, searchBooks, getAuthorDisplay, type BookApiResponse } from "@/lib/api";
+import { getBooks, searchBooks, addUserBook, getAuthorDisplay, type BookApiResponse } from "@/lib/api";
 
 export default function ExplorarPage() {
   const [books, setBooks] = useState<BookApiResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
   const [searching, setSearching] = useState(false);
+  const [addStates, setAddStates] = useState<Record<number, "idle" | "loading" | "added">>({});
+
+  async function handleAddMobile(e: React.MouseEvent, bookId: number) {
+    e.preventDefault();
+    const current = addStates[bookId] ?? "idle";
+    if (current !== "idle") return;
+    setAddStates((s) => ({ ...s, [bookId]: "loading" }));
+    try {
+      await addUserBook(bookId);
+      setAddStates((s) => ({ ...s, [bookId]: "added" }));
+    } catch (err: unknown) {
+      if (err instanceof Error && err.message === "already_added") {
+        setAddStates((s) => ({ ...s, [bookId]: "added" }));
+      } else {
+        setAddStates((s) => ({ ...s, [bookId]: "idle" }));
+      }
+    }
+  }
 
   useEffect(() => {
     getBooks(0, 10)
@@ -101,26 +119,44 @@ export default function ExplorarPage() {
             <p className="text-slate/50 text-sm">Nenhum livro encontrado.</p>
           ) : (
             <div className="flex flex-col gap-6">
-              {books.map((book) => (
-                <Link key={book.id} href={`/explorar/${book.id}`} className="bg-cream-dark rounded-lg p-4 flex gap-6 items-center hover:bg-cream-active transition-colors">
-                  {book.coverUrl ? (
-                    <img src={book.coverUrl} alt={book.title} className="w-20 h-28 object-cover rounded-sm shadow-sm shrink-0 border border-white/10" />
-                  ) : (
-                    <div className="w-20 h-28 bg-cream-book rounded-sm shrink-0 flex items-center justify-center">
-                      <span className="text-slate/30 text-[10px]">Sem capa</span>
-                    </div>
-                  )}
-                  <div className="flex flex-col flex-1">
-                    <h4 className="font-brand font-bold text-brown text-lg leading-[22px]">{book.title}</h4>
-                    <p className="text-slate text-sm">{getAuthorDisplay(book)}</p>
-                    <div className="flex items-center gap-3 mt-3">
-                      <span className="bg-brown text-cream text-[10px] font-bold tracking-widest uppercase px-4 py-1.5 rounded-xl">
-                        VER DETALHES
-                      </span>
-                    </div>
+              {books.map((book) => {
+                const addState = addStates[book.id] ?? "idle";
+                return (
+                  <div key={book.id} className="bg-cream-dark rounded-lg p-4 flex gap-4 items-center hover:bg-cream-active transition-colors">
+                    <Link href={`/explorar/${book.id}`} className="flex gap-4 items-center flex-1 min-w-0">
+                      {book.coverUrl ? (
+                        <img src={book.coverUrl} alt={book.title} className="w-20 h-28 object-cover rounded-sm shadow-sm shrink-0 border border-white/10" />
+                      ) : (
+                        <div className="w-20 h-28 bg-cream-book rounded-sm shrink-0 flex items-center justify-center">
+                          <span className="text-slate/30 text-[10px]">Sem capa</span>
+                        </div>
+                      )}
+                      <div className="flex flex-col flex-1 min-w-0">
+                        <h4 className="font-brand font-bold text-brown text-lg leading-[22px]">{book.title}</h4>
+                        <p className="text-slate text-sm">{getAuthorDisplay(book)}</p>
+                        <div className="flex items-center gap-3 mt-3">
+                          <span className="bg-brown text-cream text-[10px] font-bold tracking-widest uppercase px-4 py-1.5 rounded-xl">
+                            VER DETALHES
+                          </span>
+                        </div>
+                      </div>
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={(e) => handleAddMobile(e, book.id)}
+                      className="w-10 h-10 rounded-full border border-cream-border flex items-center justify-center text-brown hover:bg-cream-active transition-colors shrink-0 cursor-pointer"
+                    >
+                      {addState === "loading" ? (
+                        <Loader2 size={16} className="animate-spin" />
+                      ) : addState === "added" ? (
+                        <Check size={16} className="text-green-700" />
+                      ) : (
+                        <Plus size={16} />
+                      )}
+                    </button>
                   </div>
-                </Link>
-              ))}
+                );
+              })}
             </div>
           )}
         </section>
@@ -158,7 +194,7 @@ export default function ExplorarPage() {
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Pesquisar por título, autor ou ISBN..."
-                className="w-full bg-cream border border-cream-border border-b-2 border-b-brown-soft px-4 py-7 font-serif text-2xl text-cream-border placeholder:text-cream-border outline-none pr-12"
+                className="w-full bg-cream border border-cream-border border-b-2 border-b-brown-soft px-4 py-7 font-serif text-2xl text-brown placeholder:text-brown-soft/40 outline-none pr-12"
               />
               <Search size={33} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate" />
             </div>

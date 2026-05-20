@@ -20,8 +20,7 @@ export async function login(data: LoginRequest): Promise<LoginResponse> {
   });
 
   if (!res.ok) {
-    const error = await res.json().catch(() => ({}));
-    throw new Error((error as { message?: string }).message || 'Credenciais inválidas');
+    throw new Error('Usuário ou senha incorretos');
   }
 
   return res.json();
