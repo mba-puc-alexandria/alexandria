@@ -44,7 +44,6 @@ jobs:
           script: |
             echo "Limpando disco antes do deploy..."
             sudo docker system prune -af --volumes || true
-            sudo rm -f /tmp/backend.tar.gz /tmp/frontend.tar.gz
             echo "Espaço em disco:"
             df -h /
 
@@ -123,3 +122,5 @@ jobs:
               alexandria-frontend
             echo "Frontend no ar!"
             rm -f /tmp/backend.tar.gz /tmp/frontend.tar.gz
+
+
