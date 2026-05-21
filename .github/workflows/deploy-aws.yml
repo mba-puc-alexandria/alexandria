@@ -34,6 +34,20 @@ jobs:
           scp -i ~/.ssh/ec2_key /tmp/backend.tar.gz ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/tmp/
           scp -i ~/.ssh/ec2_key /tmp/frontend.tar.gz ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/tmp/
 
+      - name: Limpar disco na EC2 antes do deploy
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          command_timeout: 2m
+          script: |
+            echo "Limpando disco antes do deploy..."
+            sudo docker system prune -af --volumes || true
+            sudo rm -f /tmp/backend.tar.gz /tmp/frontend.tar.gz
+            echo "Espaço em disco:"
+            df -h /
+
       - name: Deploy Backend na EC2
         uses: appleboy/ssh-action@v1.2.0
         with:
