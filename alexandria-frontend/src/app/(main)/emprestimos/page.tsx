@@ -81,10 +81,10 @@ export default function EmprestimosPage() {
         </h3>
 
         <div className="flex flex-col gap-4">
-          {loans.map((loan, i) => {
+          {loans.map((loan) => {
             const s = statusStyle[loan.status];
             return (
-              <div key={i} className="bg-cream-book rounded-lg p-6 flex flex-col gap-6">
+              <div key={loan.title} className="bg-cream-book rounded-lg p-6 flex flex-col gap-6">
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex flex-col gap-1 flex-1">
                     <h4 className="font-brand font-bold text-brown text-xl leading-[25px]">

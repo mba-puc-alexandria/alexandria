@@ -94,6 +94,14 @@ export default function LeitorPage({
     [id]
   );
 
+  function persistProgress(percent: number) {
+    lastSavedProgressRef.current = percent;
+    updateUserBook(userBookIdRef.current!, {
+      status: 'reading',
+      progress: percent,
+    }).catch(() => {});
+  }
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const handleRendition = useCallback((rendition: any) => {
     rendition.book.ready.then(() => {
@@ -148,13 +156,7 @@ export default function LeitorPage({
       if (!userBookIdRef.current || percent === lastSavedProgressRef.current) return;
 
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
-      saveTimerRef.current = setTimeout(() => {
-        lastSavedProgressRef.current = percent;
-        updateUserBook(userBookIdRef.current!, {
-          status: 'reading',
-          progress: percent,
-        }).catch(() => {});
-      }, 2000);
+      saveTimerRef.current = setTimeout(() => persistProgress(percent), 2000);
     });
   }, []);
 
@@ -209,7 +211,7 @@ export default function LeitorPage({
     );
   }
 
-  if (!book || !book.downloadUrl) {
+  if (!book?.downloadUrl) {
     return (
       <div className="flex flex-col items-center justify-center h-full gap-4">
         <p className="text-brown font-serif text-xl">Arquivo de leitura indisponível.</p>
