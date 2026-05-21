@@ -5,7 +5,6 @@ import static org.junit.jupiter.api.Assertions.*;
 import com.pucsp.alexandria.adapter.out.persistence.external.gutendex.dto.GutendexAuthorResponse;
 import com.pucsp.alexandria.adapter.out.persistence.external.gutendex.dto.GutendexBookResponse;
 import com.pucsp.alexandria.adapter.out.persistence.external.gutendex.dto.GutendexFormatsResponse;
-import com.pucsp.alexandria.domain.book.external.AuthorData;
 import com.pucsp.alexandria.domain.book.external.BookData;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -130,3 +129,6 @@ class GutendexMapperTest {
         assertEquals("Spaces Around", bookData.authorDataList().get(0).getFormattedName());
     }
 }
+
+    
+

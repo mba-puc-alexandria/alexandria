@@ -3,7 +3,6 @@ package com.pucsp.alexandria.adapter.out.persistence.external.mapper;
 import com.pucsp.alexandria.adapter.out.persistence.external.gutendex.dto.GutendexBookResponse;
 import com.pucsp.alexandria.domain.book.external.AuthorData;
 import com.pucsp.alexandria.domain.book.external.BookData;
-import com.pucsp.alexandria.adapter.out.persistence.external.gutendex.dto.GutendexAuthorResponse;
 import java.util.List;
 import org.springframework.stereotype.Component;
 

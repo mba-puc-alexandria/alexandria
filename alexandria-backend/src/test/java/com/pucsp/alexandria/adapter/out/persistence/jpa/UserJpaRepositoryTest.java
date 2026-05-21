@@ -6,7 +6,7 @@ import com.pucsp.alexandria.adapter.out.persistence.entity.UserEntity;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
+import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 
 @DataJpaTest
 class UserJpaRepositoryTest {
@@ -67,3 +67,4 @@ class UserJpaRepositoryTest {
         assertFalse(userJpaRepository.findById(saved.getId()).isPresent());
     }
 }
+

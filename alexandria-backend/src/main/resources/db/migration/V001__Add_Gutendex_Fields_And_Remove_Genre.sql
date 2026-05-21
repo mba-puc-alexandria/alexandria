@@ -8,9 +8,8 @@ ALTER TABLE books ADD COLUMN download_count INT NULL;
 ALTER TABLE books MODIFY COLUMN publisher_id BIGINT NULL;
 
 ALTER TABLE books DROP INDEX title;
-ALTER TABLE books MODIFY COLUMN title VARCHAR(255) NOT NULL;
+ALTER TABLE books MODIFY COLUMN title VARCHAR(500) NOT NULL;
 
 ALTER TABLE books DROP COLUMN genre;
 
 CREATE INDEX idx_gutendex_id ON books(gutendex_id);
-

@@ -11,7 +11,6 @@ import com.pucsp.alexandria.domain.book.BookRepository;
 import com.pucsp.alexandria.domain.book.BookSource;
 import com.pucsp.alexandria.domain.userbook.UserBooks;
 import com.pucsp.alexandria.domain.userbook.UserBooksRepository;
-import com.pucsp.alexandria.domain.userbook.UserBooksStatus;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
