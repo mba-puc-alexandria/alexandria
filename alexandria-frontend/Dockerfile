@@ -2,7 +2,9 @@ FROM node:20-alpine AS build
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
-COPY . .
+COPY src ./src
+COPY public ./public
+COPY next.config.ts tsconfig.json postcss.config.mjs eslint.config.mjs ./
 ARG NEXT_PUBLIC_API_URL
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 RUN npm run build
