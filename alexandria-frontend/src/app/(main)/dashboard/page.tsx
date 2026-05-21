@@ -44,6 +44,50 @@ export default function DashboardPage() {
       .reduce((acc, b) => acc + ((b.progress ?? 0) / 100) * AVG_BOOK_MINUTES, 0)
   );
 
+  function renderReadingBooks() {
+    if (loading) return <p className="text-slate text-sm">Carregando...</p>;
+    if (readingBooks.length === 0) return <p className="text-slate text-sm">Nenhum livro em leitura no momento.</p>;
+    return readingBooks.map((ub) => {
+      const progress = ub.progress ?? 0;
+      return (
+        <div key={ub.id} className="bg-cream-dark rounded-lg p-4 flex gap-4">
+          {ub.book.coverUrl ? (
+            <img
+              src={ub.book.coverUrl}
+              alt={ub.book.title}
+              className="w-24 h-36 object-cover rounded-sm shadow-sm shrink-0"
+            />
+          ) : (
+            <div className="w-24 h-36 rounded-sm shadow-sm shrink-0 bg-cream-book flex items-center justify-center">
+              <span className="text-slate/30 text-[9px] uppercase tracking-widest text-center px-1">Sem capa</span>
+            </div>
+          )}
+          <div className="flex flex-col justify-between flex-1">
+            <div className="flex flex-col gap-1">
+              <h3 className="font-serif font-bold text-brown text-lg leading-7">{ub.book.title}</h3>
+              <p className="text-slate text-xs">{getAuthorDisplay(ub.book)}</p>
+            </div>
+            <div className="flex flex-col gap-2">
+              <div className="flex justify-between text-[9px] font-bold text-slate uppercase tracking-tight">
+                <span>{progress}% concluído</span>
+              </div>
+              <div className="bg-cream-border h-1 rounded-full overflow-hidden">
+                <div className="bg-terra h-full transition-all duration-500" style={{ width: `${progress}%` }} />
+              </div>
+              <Link
+                href={`/leitor/${ub.book.id}`}
+                className="flex items-center gap-1.5 text-brown text-[10px] font-bold mt-2 hover:text-terra transition-colors w-fit"
+              >
+                <BookOpen size={10} />
+                Retomar Leitura
+              </Link>
+            </div>
+          </div>
+        </div>
+      );
+    });
+  }
+
   return (
     <div className="px-6 md:px-8 pt-8 md:pt-12 pb-8 flex flex-col gap-8 md:gap-12 max-w-5xl">
 
@@ -127,53 +171,7 @@ export default function DashboardPage() {
         </div>
 
         <div className="flex flex-col gap-4">
-          {loading ? (
-            <p className="text-slate text-sm">Carregando...</p>
-          ) : readingBooks.length > 0 ? (
-            readingBooks.map((ub) => {
-              const progress = ub.progress ?? 0;
-              return (
-                <div key={ub.id} className="bg-cream-dark rounded-lg p-4 flex gap-4">
-                  {ub.book.coverUrl ? (
-                    <img
-                      src={ub.book.coverUrl}
-                      alt={ub.book.title}
-                      className="w-24 h-36 object-cover rounded-sm shadow-sm shrink-0"
-                    />
-                  ) : (
-                    <div className="w-24 h-36 rounded-sm shadow-sm shrink-0 bg-cream-book flex items-center justify-center">
-                      <span className="text-slate/30 text-[9px] uppercase tracking-widest text-center px-1">Sem capa</span>
-                    </div>
-                  )}
-                  <div className="flex flex-col justify-between flex-1">
-                    <div className="flex flex-col gap-1">
-                      <h3 className="font-serif font-bold text-brown text-lg leading-7">
-                        {ub.book.title}
-                      </h3>
-                      <p className="text-slate text-xs">{getAuthorDisplay(ub.book)}</p>
-                    </div>
-                    <div className="flex flex-col gap-2">
-                      <div className="flex justify-between text-[9px] font-bold text-slate uppercase tracking-tight">
-                        <span>{progress}% concluído</span>
-                      </div>
-                      <div className="bg-cream-border h-1 rounded-full overflow-hidden">
-                        <div className="bg-terra h-full transition-all duration-500" style={{ width: `${progress}%` }} />
-                      </div>
-                      <Link
-                        href={`/leitor/${ub.book.id}`}
-                        className="flex items-center gap-1.5 text-brown text-[10px] font-bold mt-2 hover:text-terra transition-colors w-fit"
-                      >
-                        <BookOpen size={10} />
-                        Retomar Leitura
-                      </Link>
-                    </div>
-                  </div>
-                </div>
-              );
-            })
-          ) : (
-            <p className="text-slate text-sm">Nenhum livro em leitura no momento.</p>
-          )}
+          {renderReadingBooks()}
         </div>
       </section>
 

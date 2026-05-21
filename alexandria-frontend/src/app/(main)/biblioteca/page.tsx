@@ -6,6 +6,7 @@ import { Search, Plus, Star, BookOpen } from "lucide-react";
 import { getUserBooks, getAuthorDisplay, type UserBookResponse } from "@/lib/api";
 
 const filters = ["Todos", "Lendo", "Concluído", "Para Ler"];
+const SKELETON_KEYS = ["sk-a", "sk-b", "sk-c", "sk-d", "sk-e", "sk-f", "sk-g", "sk-h"];
 
 const STATUS_MAP: Record<string, number> = {
   reading: 1,
@@ -18,11 +19,15 @@ const STATUS_BADGE: Record<string, { className: string }> = {
   done:    { className: 'bg-brown text-cream' },
 };
 
+function getBadgeLabel(status: string, progress: number | null): string | null {
+  if (status === 'reading') return progress === 100 ? 'Lido' : `${progress ?? 0}%`;
+  if (status === 'done') return 'Concluído';
+  return null;
+}
+
 function BookCover({ ub }: { ub: UserBookResponse }) {
   const badgeStyle = STATUS_BADGE[ub.status];
-  const badgeLabel = ub.status === 'reading'
-    ? (ub.progress === 100 ? 'Lido' : `${ub.progress ?? 0}%`)
-    : ub.status === 'done' ? 'Concluído' : null;
+  const badgeLabel = getBadgeLabel(ub.status, ub.progress);
   const badge = badgeStyle && badgeLabel ? { label: badgeLabel, className: badgeStyle.className } : null;
 
   const cover = ub.book.coverUrl ? (
@@ -100,6 +105,43 @@ export default function BibliotecaPage() {
     return matchesQuery && matchesFilter;
   });
 
+  function renderContent() {
+    if (loading) {
+      return (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-10">
+          {SKELETON_KEYS.map((key) => (
+            <div key={key} className="flex flex-col gap-3">
+              <div className="w-full h-[239px] bg-cream-book rounded animate-pulse" />
+              <div className="h-4 bg-cream-book rounded animate-pulse w-3/4" />
+              <div className="h-3 bg-cream-book rounded animate-pulse w-1/2" />
+            </div>
+          ))}
+        </div>
+      );
+    }
+    if (filtered.length === 0) {
+      return (
+        <div className="flex flex-col items-center justify-center py-24 gap-4">
+          <Star size={32} className="text-slate/20" />
+          <p className="text-slate/40 text-sm">
+            {query ? "Nenhum livro encontrado para essa busca." : "Sua biblioteca está vazia."}
+          </p>
+        </div>
+      );
+    }
+    return (
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-10">
+        {filtered.map((ub) => (
+          <div key={ub.id} className="flex flex-col">
+            <BookCover ub={ub} />
+            <h3 className="font-brand font-bold text-brown text-lg leading-[22px]">{ub.book.title}</h3>
+            <p className="text-slate/70 text-xs mt-1">{getAuthorDisplay(ub.book)}</p>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
   return (
     <div className="px-6 md:px-8 pt-8 md:pt-12 pb-8 flex flex-col gap-8 max-w-5xl relative">
       <div className="flex flex-col gap-6">
@@ -133,34 +175,7 @@ export default function BibliotecaPage() {
         ))}
       </div>
 
-      {loading ? (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-10">
-          {Array.from({ length: 8 }).map((_, i) => (
-            <div key={i} className="flex flex-col gap-3">
-              <div className="w-full h-[239px] bg-cream-book rounded animate-pulse" />
-              <div className="h-4 bg-cream-book rounded animate-pulse w-3/4" />
-              <div className="h-3 bg-cream-book rounded animate-pulse w-1/2" />
-            </div>
-          ))}
-        </div>
-      ) : filtered.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-24 gap-4">
-          <Star size={32} className="text-slate/20" />
-          <p className="text-slate/40 text-sm">
-            {query ? "Nenhum livro encontrado para essa busca." : "Sua biblioteca está vazia."}
-          </p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-10">
-          {filtered.map((ub) => (
-            <div key={ub.id} className="flex flex-col">
-              <BookCover ub={ub} />
-              <h3 className="font-brand font-bold text-brown text-lg leading-[22px]">{ub.book.title}</h3>
-              <p className="text-slate/70 text-xs mt-1">{getAuthorDisplay(ub.book)}</p>
-            </div>
-          ))}
-        </div>
-      )}
+      {renderContent()}
 
       <button className="fixed bottom-20 md:bottom-8 right-6 bg-brown text-cream size-14 rounded-xl flex items-center justify-center shadow-xl hover:bg-brown/90 transition-colors">
         <Plus size={14} />

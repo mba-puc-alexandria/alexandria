@@ -69,6 +69,12 @@ export default function BookDetailPage({
     ? book.subjects.split(",").map((s) => s.trim()).filter(Boolean)
     : [];
 
+  function getAddButtonLabel() {
+    if (added) return 'Adicionado à Biblioteca';
+    if (adding) return 'Adicionando...';
+    return 'Adicionar à Biblioteca';
+  }
+
   return (
     <div className="flex flex-col px-6 pt-8 pb-16 md:px-12 md:pt-12 gap-8 max-w-4xl">
       <Link
@@ -161,7 +167,7 @@ export default function BookDetailPage({
               className="flex items-center justify-center gap-2 border border-cream-border text-brown font-bold text-sm px-8 py-4 rounded-xl hover:bg-cream-active transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Plus size={16} />
-              {added ? 'Adicionado à Biblioteca' : adding ? 'Adicionando...' : 'Adicionar à Biblioteca'}
+              {getAddButtonLabel()}
             </button>
           </div>
         </div>

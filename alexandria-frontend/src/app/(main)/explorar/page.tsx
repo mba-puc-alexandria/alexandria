@@ -56,6 +56,36 @@ export default function ExplorarPage() {
       .finally(() => setLoading(false));
   }
 
+  function getAddIcon(state: "idle" | "loading" | "added") {
+    if (state === "loading") return <Loader2 size={16} className="animate-spin" />;
+    if (state === "added") return <Check size={16} className="text-green-700" />;
+    return <Plus size={16} />;
+  }
+
+  function renderDesktopBooks() {
+    if (loading) {
+      return (
+        <div className="grid grid-cols-5 gap-8">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="flex flex-col gap-4">
+              <div className="w-full h-[250px] bg-cream-book rounded animate-pulse" />
+              <div className="h-4 bg-cream-book rounded animate-pulse w-3/4" />
+              <div className="h-3 bg-cream-book rounded animate-pulse w-1/2" />
+            </div>
+          ))}
+        </div>
+      );
+    }
+    if (books.length === 0) return <p className="text-slate/50 text-sm">Nenhum livro encontrado.</p>;
+    return (
+      <div className="grid grid-cols-5 gap-8">
+        {books.map((book) => (
+          <BookCard key={book.id} book={book} />
+        ))}
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col">
       {/* ── MOBILE LAYOUT ── */}
@@ -146,13 +176,7 @@ export default function ExplorarPage() {
                       onClick={(e) => handleAddMobile(e, book.id)}
                       className="w-10 h-10 rounded-full border border-cream-border flex items-center justify-center text-brown hover:bg-cream-active transition-colors shrink-0 cursor-pointer"
                     >
-                      {addState === "loading" ? (
-                        <Loader2 size={16} className="animate-spin" />
-                      ) : addState === "added" ? (
-                        <Check size={16} className="text-green-700" />
-                      ) : (
-                        <Plus size={16} />
-                      )}
+                      {getAddIcon(addState)}
                     </button>
                   </div>
                 );
@@ -257,25 +281,7 @@ export default function ExplorarPage() {
               </button>
             </div>
           </div>
-          {loading ? (
-            <div className="grid grid-cols-5 gap-8">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <div key={i} className="flex flex-col gap-4">
-                  <div className="w-full h-[250px] bg-cream-book rounded animate-pulse" />
-                  <div className="h-4 bg-cream-book rounded animate-pulse w-3/4" />
-                  <div className="h-3 bg-cream-book rounded animate-pulse w-1/2" />
-                </div>
-              ))}
-            </div>
-          ) : books.length === 0 ? (
-            <p className="text-slate/50 text-sm">Nenhum livro encontrado.</p>
-          ) : (
-            <div className="grid grid-cols-5 gap-8">
-              {books.map((book) => (
-                <BookCard key={book.id} book={book} />
-              ))}
-            </div>
-          )}
+          {renderDesktopBooks()}
         </section>
       </div>
     </div>

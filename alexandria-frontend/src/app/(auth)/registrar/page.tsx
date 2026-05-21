@@ -63,10 +63,11 @@ export default function RegistrarPage() {
           {/* Nome e sobrenome lado a lado */}
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-bold text-brown-soft uppercase tracking-widest">
+              <label htmlFor="firstName" className="text-xs font-bold text-brown-soft uppercase tracking-widest">
                 Nome
               </label>
               <input
+                id="firstName"
                 name="firstName"
                 type="text"
                 value={form.firstName}
@@ -77,10 +78,11 @@ export default function RegistrarPage() {
               />
             </div>
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-bold text-brown-soft uppercase tracking-widest">
+              <label htmlFor="lastName" className="text-xs font-bold text-brown-soft uppercase tracking-widest">
                 Sobrenome
               </label>
               <input
+                id="lastName"
                 name="lastName"
                 type="text"
                 value={form.lastName}
@@ -93,10 +95,11 @@ export default function RegistrarPage() {
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-bold text-brown-soft uppercase tracking-widest">
+            <label htmlFor="username" className="text-xs font-bold text-brown-soft uppercase tracking-widest">
               Usuário
             </label>
             <input
+              id="username"
               name="username"
               type="text"
               value={form.username}
@@ -109,10 +112,11 @@ export default function RegistrarPage() {
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-bold text-brown-soft uppercase tracking-widest">
+            <label htmlFor="email" className="text-xs font-bold text-brown-soft uppercase tracking-widest">
               E-mail
             </label>
             <input
+              id="email"
               name="email"
               type="email"
               value={form.email}
@@ -125,10 +129,11 @@ export default function RegistrarPage() {
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-bold text-brown-soft uppercase tracking-widest">
+            <label htmlFor="password" className="text-xs font-bold text-brown-soft uppercase tracking-widest">
               Senha
             </label>
             <input
+              id="password"
               name="password"
               type="password"
               value={form.password}
@@ -142,10 +147,11 @@ export default function RegistrarPage() {
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-bold text-brown-soft uppercase tracking-widest">
+            <label htmlFor="confirmPassword" className="text-xs font-bold text-brown-soft uppercase tracking-widest">
               Confirmar senha
             </label>
             <input
+              id="confirmPassword"
               name="confirmPassword"
               type="password"
               value={form.confirmPassword}

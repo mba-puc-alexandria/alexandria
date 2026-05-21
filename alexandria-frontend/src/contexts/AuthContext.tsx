@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useMemo, ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { login as apiLogin, LoginRequest } from '@/lib/api';
 
@@ -52,8 +52,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     router.push('/login');
   }
 
+  const value = useMemo(() => ({ user, login, logout, isLoading }), [user, isLoading]);
+
   return (
-    <AuthContext.Provider value={{ user, login, logout, isLoading }}>
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );

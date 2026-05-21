@@ -1,13 +1,13 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-const PUBLIC_PATHS = ['/login', '/registrar'];
+const PUBLIC_PATHS = new Set(['/login', '/registrar']);
 
 export function proxy(request: NextRequest) {
   const token = request.cookies.get('auth-token')?.value;
   const { pathname } = request.nextUrl;
 
-  if (PUBLIC_PATHS.includes(pathname)) {
+  if (PUBLIC_PATHS.has(pathname)) {
     if (token) {
       return NextResponse.redirect(new URL('/explorar', request.url));
     }

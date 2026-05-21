@@ -47,10 +47,11 @@ function LoginForm() {
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-5">
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-bold text-brown-soft uppercase tracking-widest">
+            <label htmlFor="username" className="text-xs font-bold text-brown-soft uppercase tracking-widest">
               Usuário
             </label>
             <input
+              id="username"
               type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
@@ -62,10 +63,11 @@ function LoginForm() {
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-bold text-brown-soft uppercase tracking-widest">
+            <label htmlFor="password" className="text-xs font-bold text-brown-soft uppercase tracking-widest">
               Senha
             </label>
             <input
+              id="password"
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}

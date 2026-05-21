@@ -12,6 +12,12 @@ type Props = {
 export default function BookCard({ book }: Props) {
   const [state, setState] = useState<"idle" | "loading" | "added">("idle");
 
+  function getStateIcon() {
+    if (state === "loading") return <Loader2 size={16} className="animate-spin" />;
+    if (state === "added") return <Check size={16} />;
+    return <Plus size={16} />;
+  }
+
   async function handleAdd(e: React.MouseEvent) {
     e.preventDefault();
     e.stopPropagation();
@@ -57,13 +63,7 @@ export default function BookCard({ book }: Props) {
             onClick={handleAdd}
             className="w-12 h-12 flex items-center justify-center bg-brown text-cream rounded-xl hover:bg-brown/80 hover:scale-110 transition-all duration-200 cursor-pointer shrink-0"
           >
-            {state === "loading" ? (
-              <Loader2 size={16} className="animate-spin" />
-            ) : state === "added" ? (
-              <Check size={16} />
-            ) : (
-              <Plus size={16} />
-            )}
+            {getStateIcon()}
           </button>
         </div>
       </div>
