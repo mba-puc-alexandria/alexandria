@@ -5,7 +5,7 @@
 | Tecnologia | Versão | Propósito |
 |------------|--------|-----------|
 | Java | 17 | Linguagem |
-| Spring Boot | 4.0.3 | Framework principal |
+| Spring Boot | 3.4.4 | Framework principal |
 | Maven | - | Gerenciamento de dependências |
 | MySQL 8 | - | Banco de dados relacional |
 | Spring Data JPA + Hibernate | - | ORM e acesso a dados |
@@ -213,6 +213,7 @@ com.pucsp.alexandria
     ├── application.properties              # Config padrão (MySQL local/Flyway desligado)
     ├── application-rds.properties          # Config RDS (Flyway ligado, SSL)
     └── db/migration/
+                ├── V0__Create_initial_tables.sql       # Criação das tabelas iniciais
         ├── V001__Add_Gutendex_Fields_And_Remove_Genre.sql
         └── V002__Create_Authors_And_BookAuthors.sql
 ```
@@ -463,8 +464,8 @@ user_books
 ```
 BookApiClientImpl
     → GutendexClient (RestTemplate)
-        → GET https://gutendex.com/books?languages=pt&page={n}
-        → GET https://gutendex.com/books?search={query}&languages=pt
+                → GET https://gutendex.com/books?page={n}
+        → GET https://gutendex.com/books?search={query}
     → GutendexMapper (converte GutendexBookResponse → BookData)
     → AuthorData.getFormattedName() (formata "Sobrenome, Nome" → "Nome Sobrenome")
 ```
@@ -510,10 +511,13 @@ O `CreateBookUseCase` chama `bookApiClient.getPage(page)` para importar uma pág
 
 | Migração | Descrição |
 |----------|-----------|
+| Migração | Descrição |
+|----------|-----------|
+| `V0__Create_initial_tables.sql` | Cria as tabelas iniciais (`books`, `users`, `user_books`) com a estrutura anterior às migrations V001 e V002 |
 | `V001__Add_Gutendex_Fields_And_Remove_Genre.sql` | Adiciona colunas Gutendex (`gutendex_id`, `download_url`, `cover_url`, `languages`, `subjects`, `download_count`), remove coluna `genre`, modifica `publisher_id` para nullable |
 | `V002__Create_Authors_And_BookAuthors.sql` | Cria tabelas `authors` e `book_authors`, migra dados da coluna `author` (antiga) para a nova estrutura, remove coluna `author` |
 
-> **Importante:** As tabelas iniciais (`books`, `users`, `user_books`) são criadas automaticamente pelo Hibernate com `spring.jpa.hibernate.ddl-auto=update`. As migrações Flyway apenas fazem alterações incrementais.
+> **Importante:** No perfil `rds`, o Flyway gerencia todo o schema (via `V0`, `V001`, `V002`). O Hibernate usa `ddl-auto=validate` para garantir que as entidades estejam consistentes com o banco.
 
 ---
 
@@ -574,7 +578,7 @@ Isso mantém a camada de aplicação **pura** (sem anotações Spring) e facilit
 | Propriedade | Valor |
 |-------------|-------|
 | Banco | MySQL via SSL (variáveis de ambiente) |
-| JPA DDL | `update` |
+| JPA DDL | `validate` |
 | Flyway | `true` |
 | JWT Secret | Via variável de ambiente `JWT_SECRET` |
 | Monitoramento | Actuator endpoints (health, info) |
@@ -687,14 +691,14 @@ docker-compose up -d
 ### Por que não usar `@Service` nos Use Cases?
 Para manter a camada de aplicação **pura** (POJO), sem dependência de frameworks. Os Use Cases são registrados como `@Bean` em `BeanConfiguration`, facilitando testes unitários.
 
-### Por que usar `ddl-auto=update` junto com Flyway?
-O `ddl-auto=update` do Hibernate garante que as tabelas existam (inclusive durante desenvolvimento). As migrações Flyway são usadas apenas para mudanças estruturais controladas em produção, com validação de integridade.
+### Por que usar `ddl-auto=validate` junto com Flyway no perfil RDS?
+Com `ddl-auto=validate`, o Hibernate verifica se as entidades JPA correspondem exatamente ao schema gerenciado pelo Flyway. Se houver diferença, a aplicação não sobe — evitando dessincronia entre código e banco. Em desenvolvimento local (`application.properties`), o `ddl-auto=update` continua sendo usado para agilizar o desenvolvimento.
 
 ### Por que o UserId é passado como `Long` no Authentication?
 O `JwtAuthenticationFilter` seta o `userId` como principal (`authentication.setPrincipal(userId)`), e os controllers fazem cast para `Long` para obter o ID do usuário autenticado.
 
 ### Por que a Gutendex busca apenas livros em português?
-O parâmetro `languages=pt` é fixo no `GutendexClient`, definido como constante `SEARCH_BOOKS_DEFAULT_LANGUAGE = "pt"`, pois o foco da aplicação é o público brasileiro.
+O `GutendexClient` busca livros sem filtro de idioma, mas o foco da aplicação é o público brasileiro. Caso deseje filtrar por idioma, basta adicionar o parâmetro `languages=pt` na URL da requisição.
 
 ---
 
