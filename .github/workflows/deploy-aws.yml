@@ -1,4 +1,4 @@
-name: Deploy AWS
+﻿name: Deploy AWS
 
 on:
   push:
@@ -44,7 +44,7 @@ jobs:
           script: |
             echo "Limpando disco antes do deploy..."
             sudo docker system prune -af --volumes || true
-            echo "Espaço em disco:"
+            echo "Espaco em disco:"
             df -h /
 
       - name: Deploy Backend na EC2
@@ -64,7 +64,7 @@ jobs:
             git pull origin ${{ github.ref_name }}
             echo "Subindo container..."
             docker rm -f alexandria-backend 2>/dev/null || true
-            docker run -d \
+            CONTAINER_ID=$(docker run -d \
               --name alexandria-backend \
               --restart unless-stopped \
               -p 8080:8080 \
@@ -76,8 +76,17 @@ jobs:
               -e DB_PASSWORD=${{ secrets.DB_PASSWORD }} \
               -e JWT_SECRET=${{ secrets.JWT_SECRET }} \
               -e CORS_ALLOWED_ORIGINS=https://bibliotecaalexandria.com.br,https://api.bibliotecaalexandria.com.br,http://localhost:3000 \
-              alexandria-backend
-            echo "Backend rodando!"
+              alexandria-backend)
+            echo "Container ID: $CONTAINER_ID"
+            sleep 5
+            STATUS=$(docker inspect --format '{{.State.Status}}' alexandria-backend 2>/dev/null || echo "not_found")
+            echo "Status do container: $STATUS"
+            if [ "$STATUS" != "running" ]; then
+              echo "Container nao esta rodando! Coletando logs..."
+              docker logs alexandria-backend 2>&1 || true
+              exit 1
+            fi
+            echo "Container esta rodando! Aguardando aplicacao subir..."
 
       - name: Aguardar Backend
         uses: appleboy/ssh-action@v1.2.0
@@ -85,21 +94,27 @@ jobs:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
-          command_timeout: 5m
+          command_timeout: 10m
           script: |
             set -e
             echo "Aguardando backend subir..."
-            for i in $(seq 1 12); do
-              sleep 5
+            for i in $(seq 1 36); do
+              sleep 10
               if curl -sf http://localhost:8080/actuator/health > /dev/null 2>&1; then
                 echo "Backend no ar!"
                 break
               fi
-              if [ "$i" -eq 12 ]; then
-                echo "Backend nao subiu a tempo!"
+              if [ "$i" -eq 36 ]; then
+                echo "Backend nao subiu a tempo! Coletando logs para diagnostico..."
+                echo "=== docker ps ==="
+                docker ps -a --filter name=alexandria-backend
+                echo "=== docker logs alexandria-backend ==="
+                docker logs alexandria-backend 2>&1 || echo "Container nao encontrado ou sem logs"
+                echo "=== docker inspect alexandria-backend ==="
+                docker inspect alexandria-backend --format '{{.State.Status}} {{.State.ExitCode}} {{.State.Error}}' 2>/dev/null || echo "Container nao encontrado"
                 exit 1
               fi
-              echo "Tentativa $i/12..."
+              echo "Tentativa $i/36..."
             done
 
       - name: Deploy Frontend na EC2
@@ -122,5 +137,3 @@ jobs:
               alexandria-frontend
             echo "Frontend no ar!"
             rm -f /tmp/backend.tar.gz /tmp/frontend.tar.gz
-
-
