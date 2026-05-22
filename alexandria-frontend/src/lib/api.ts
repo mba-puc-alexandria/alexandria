@@ -97,6 +97,15 @@ export async function getBooks(page = 0, size = 10): Promise<BooksPage> {
   return res.json();
 }
 
+export async function getTopBooks(size = 4): Promise<BookApiResponse[]> {
+  const res = await fetch(
+    `${API_URL_LOCAL}/books?page=0&size=${size}&sort=downloadCount,desc`
+  );
+  if (!res.ok) throw new Error('Falha ao buscar livros');
+  const page: BooksPage = await res.json();
+  return page.content;
+}
+
 export async function searchBooks(query: string, page = 0, size = 10): Promise<BooksPage> {
   const res = await fetch(
     `${API_URL_LOCAL}/books/search?query=${encodeURIComponent(query)}&page=${page}&size=${size}`

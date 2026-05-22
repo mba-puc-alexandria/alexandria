@@ -14,9 +14,9 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 
 const navLinks = [
-  { href: "/dashboard", label: "Painel", icon: LayoutDashboard },
-  { href: "/biblioteca", label: "Biblioteca", icon: BookOpen },
   { href: "/explorar", label: "Explorar", icon: Compass },
+  { href: "/biblioteca", label: "Biblioteca", icon: BookOpen },
+  { href: "/dashboard", label: "Painel", icon: LayoutDashboard },
 ];
 
 const bottomLinks = [

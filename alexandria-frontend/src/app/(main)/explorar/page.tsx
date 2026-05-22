@@ -2,9 +2,9 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Search, ArrowRight, ChevronLeft, ChevronRight, Plus, Check, Loader2 } from "lucide-react";
+import { Search, ArrowRight, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Plus, Check, Loader2 } from "lucide-react";
 import BookCard from "@/components/BookCard";
-import { getBooks, searchBooks, addUserBook, getAuthorDisplay, type BookApiResponse } from "@/lib/api";
+import { getBooks, getTopBooks, searchBooks, addUserBook, getAuthorDisplay, type BookApiResponse } from "@/lib/api";
 
 export default function ExplorarPage() {
   const [books, setBooks] = useState<BookApiResponse[]>([]);
@@ -12,6 +12,10 @@ export default function ExplorarPage() {
   const [query, setQuery] = useState("");
   const [searching, setSearching] = useState(false);
   const [addStates, setAddStates] = useState<Record<number, "idle" | "loading" | "added">>({});
+  const [topBooks, setTopBooks] = useState<BookApiResponse[]>([]);
+  const [topLoading, setTopLoading] = useState(true);
+  const [page, setPage] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
 
   async function handleAddMobile(e: React.MouseEvent, bookId: number) {
     e.preventDefault();
@@ -30,30 +34,52 @@ export default function ExplorarPage() {
     }
   }
 
+  // Top books — só na montagem
   useEffect(() => {
-    getBooks(0, 10)
-      .then((page) => setBooks(page.content))
+    getTopBooks(4)
+      .then(setTopBooks)
       .catch(console.error)
-      .finally(() => setLoading(false));
+      .finally(() => setTopLoading(false));
   }, []);
 
-  async function handleSearch(e: React.FormEvent) {
-    e.preventDefault();
-    if (!query.trim()) {
-      setSearching(false);
-      setLoading(true);
-      getBooks(0, 10)
-        .then((page) => setBooks(page.content))
-        .catch(console.error)
-        .finally(() => setLoading(false));
-      return;
-    }
-    setSearching(true);
+  // Browse com paginação — roda quando page muda e não está em modo busca
+  useEffect(() => {
+    if (searching) return;
     setLoading(true);
-    searchBooks(query.trim(), 0, 10)
-      .then((page) => setBooks(page.content))
+    getBooks(page, 10)
+      .then((data) => {
+        setBooks(data.content);
+        setTotalPages(data.totalPages);
+      })
       .catch(console.error)
       .finally(() => setLoading(false));
+  }, [page, searching]);
+
+  // Busca em tempo real com debounce de 400ms
+  useEffect(() => {
+    const trimmed = query.trim();
+    if (!trimmed) {
+      setSearching(false);
+      setPage(0);
+      return;
+    }
+    const timer = setTimeout(() => {
+      setSearching(true);
+      setLoading(true);
+      setPage(0);
+      searchBooks(trimmed, 0, 10)
+        .then((data) => {
+          setBooks(data.content);
+          setTotalPages(data.totalPages);
+        })
+        .catch(console.error)
+        .finally(() => setLoading(false));
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [query]);
+
+  function handleSearch(e: React.FormEvent) {
+    e.preventDefault();
   }
 
   function getAddIcon(state: "idle" | "loading" | "added") {
@@ -107,36 +133,31 @@ export default function ExplorarPage() {
         </section>
 
         <section className="flex flex-col gap-6">
-          <div className="flex items-start justify-between">
-            <h2 className="font-brand font-bold text-brown text-2xl leading-8">Curadorias em Destaque</h2>
-            <button className="text-slate text-xs font-bold tracking-widest uppercase mt-1">VER TUDO</button>
-          </div>
-          <div className="grid grid-cols-12 gap-4">
-            <div className="col-span-12 bg-cream-book rounded-lg overflow-hidden">
-              <div className="h-48 bg-gradient-to-b from-slate/30 to-slate/60 relative">
-                <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
-              </div>
-              <div className="p-6 flex flex-col gap-2">
-                <p className="text-terra text-[10px] font-extrabold tracking-widest uppercase">ESSENCIAIS</p>
-                <h3 className="font-brand font-bold text-brown text-xl leading-6">Clássicos do Século XVIII</h3>
-                <p className="text-slate text-sm leading-5">Uma jornada pelas mentes que moldaram o pensamento moderno europeu.</p>
-              </div>
+          <h2 className="font-brand font-bold text-brown text-2xl leading-8">Mais Baixados</h2>
+          {topLoading ? (
+            <div className="grid grid-cols-2 gap-3">
+              {[0, 1, 2, 3].map((i) => (
+                <div key={i} className="h-40 bg-cream-book rounded-lg animate-pulse" />
+              ))}
             </div>
-            <div className="col-span-6 bg-cream-book rounded-lg p-5 flex flex-col justify-between min-h-[163px]">
-              <BookOpen />
-              <div>
-                <h4 className="font-brand font-bold text-brown text-lg leading-[22px]">Poesia Visual</h4>
-                <p className="text-slate text-[10px] uppercase tracking-widest">12 TÍTULOS</p>
-              </div>
+          ) : topBooks.length > 0 && (
+            <div className="grid grid-cols-2 gap-3">
+              {topBooks.map((book, i) => (
+                <Link key={book.id} href={`/explorar/${book.id}`} className="relative rounded-lg overflow-hidden h-40">
+                  {book.coverUrl ? (
+                    <img src={book.coverUrl} alt={book.title} className="absolute inset-0 w-full h-full object-cover" />
+                  ) : (
+                    <div className="absolute inset-0 bg-cream-book" />
+                  )}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+                  <div className="absolute bottom-0 left-0 right-0 p-3">
+                    <p className="text-terra text-[10px] font-extrabold tracking-widest">#{i + 1}</p>
+                    <h4 className="font-brand font-bold text-white text-sm leading-5 line-clamp-2">{book.title}</h4>
+                  </div>
+                </Link>
+              ))}
             </div>
-            <div className="col-span-6 bg-[#521b00] rounded-lg p-5 flex flex-col justify-between min-h-[163px]">
-              <div className="text-terra text-xs font-bold">★</div>
-              <div>
-                <h4 className="font-brand font-bold text-white/90 text-lg leading-[22px]">Manuscritos Raros</h4>
-                <p className="text-terra text-[10px] uppercase tracking-widest">COLEÇÃO PRIVADA</p>
-              </div>
-            </div>
-          </div>
+          )}
         </section>
 
         <section className="flex flex-col gap-6">
@@ -195,16 +216,102 @@ export default function ExplorarPage() {
       <div className="hidden md:flex flex-col px-8 pt-12 pb-48 gap-16 max-w-5xl">
         <section className="grid grid-cols-12 gap-8 min-h-[320px] items-end">
           <div className="col-span-8 flex flex-col gap-4">
-            <p className="text-terra text-xs font-extrabold tracking-[1.2px] uppercase">Motor de Descoberta</p>
+            <p className="text-terra text-xs font-extrabold tracking-[1.2px] uppercase">Descubra livros</p>
             <h1 className="font-serif font-bold text-brown text-[96px] leading-none tracking-tight">
-              Expanda seu<br />Estudo<br />Particular
+              Encontre sua<br />próxima<br />leitura
             </h1>
           </div>
           <div className="col-span-4 pb-4">
             <p className="text-brown-soft text-lg font-light leading-relaxed">
-              Cure sua coleção de literatura atemporal e pensamento contemporâneo. Cada adição é um passo em direção ao seu domínio pessoal.
+              Milhares de livros disponíveis para leitura livre. Explore, salve e leia quando quiser.
             </p>
           </div>
+        </section>
+
+        <section className="flex flex-col gap-8">
+          <h2 className="font-serif font-bold text-brown text-3xl">Mais Baixados</h2>
+          {topLoading ? (
+            <div className="grid grid-cols-4 gap-6">
+              <div className="col-span-2 row-span-2 min-h-[392px] bg-cream-book rounded-lg animate-pulse" />
+              <div className="col-span-2 h-48 bg-cream-book rounded-lg animate-pulse" />
+              <div className="col-span-1 min-h-[200px] bg-cream-book rounded-lg animate-pulse" />
+              <div className="col-span-1 min-h-[200px] bg-cream-book rounded-lg animate-pulse" />
+            </div>
+          ) : topBooks.length > 0 && (
+            <div className="grid grid-cols-4 gap-6">
+              {/* #1 — card grande */}
+              <Link href={`/explorar/${topBooks[0].id}`} className="col-span-2 row-span-2 relative rounded-lg overflow-hidden min-h-[392px]">
+                {topBooks[0].coverUrl ? (
+                  <img src={topBooks[0].coverUrl} alt={topBooks[0].title} className="absolute inset-0 w-full h-full object-cover" />
+                ) : (
+                  <div className="absolute inset-0 bg-slate" />
+                )}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent" />
+                <div className="absolute bottom-0 left-0 right-0 p-8 flex flex-col gap-2">
+                  <p className="text-terra text-xs font-extrabold tracking-widest uppercase">#1 Mais Baixado</p>
+                  <h3 className="font-serif font-bold text-white text-2xl leading-8">{topBooks[0].title}</h3>
+                  <p className="text-white/70 text-sm">{getAuthorDisplay(topBooks[0])}</p>
+                  {topBooks[0].downloadCount && (
+                    <p className="text-white/50 text-xs">{topBooks[0].downloadCount.toLocaleString('pt-BR')} downloads</p>
+                  )}
+                  <span className="mt-2 bg-cream text-brown font-bold text-sm px-6 py-3 rounded-xl flex items-center gap-2 w-fit">
+                    Ver livro <ArrowRight size={12} />
+                  </span>
+                </div>
+              </Link>
+
+              {/* #2 — card médio horizontal */}
+              {topBooks[1] && (
+                <Link href={`/explorar/${topBooks[1].id}`} className="col-span-2 bg-cream-border rounded-lg overflow-hidden h-48 flex">
+                  {topBooks[1].coverUrl ? (
+                    <img src={topBooks[1].coverUrl} alt={topBooks[1].title} className="h-full w-32 object-cover shrink-0" />
+                  ) : (
+                    <div className="h-full w-32 bg-cream-book shrink-0" />
+                  )}
+                  <div className="p-6 flex flex-col justify-center gap-1">
+                    <p className="text-terra text-xs font-extrabold tracking-widest uppercase">#2</p>
+                    <h4 className="font-serif font-bold text-brown text-xl leading-7 line-clamp-2">{topBooks[1].title}</h4>
+                    <p className="text-brown-soft text-sm">{getAuthorDisplay(topBooks[1])}</p>
+                    {topBooks[1].downloadCount && (
+                      <p className="text-brown-soft text-xs mt-1">{topBooks[1].downloadCount.toLocaleString('pt-BR')} downloads</p>
+                    )}
+                  </div>
+                </Link>
+              )}
+
+              {/* #3 — card pequeno */}
+              {topBooks[2] && (
+                <Link href={`/explorar/${topBooks[2].id}`} className="col-span-1 relative rounded-lg overflow-hidden min-h-[200px]">
+                  {topBooks[2].coverUrl ? (
+                    <img src={topBooks[2].coverUrl} alt={topBooks[2].title} className="absolute inset-0 w-full h-full object-cover" />
+                  ) : (
+                    <div className="absolute inset-0 bg-brown" />
+                  )}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
+                  <div className="absolute bottom-0 left-0 right-0 p-5">
+                    <p className="text-terra text-xs font-bold mb-1">#3</p>
+                    <h4 className="font-serif font-bold text-white text-base leading-6 line-clamp-2">{topBooks[2].title}</h4>
+                  </div>
+                </Link>
+              )}
+
+              {/* #4 — card pequeno */}
+              {topBooks[3] && (
+                <Link href={`/explorar/${topBooks[3].id}`} className="col-span-1 relative rounded-lg overflow-hidden min-h-[200px]">
+                  {topBooks[3].coverUrl ? (
+                    <img src={topBooks[3].coverUrl} alt={topBooks[3].title} className="absolute inset-0 w-full h-full object-cover" />
+                  ) : (
+                    <div className="absolute inset-0 bg-cream-book" />
+                  )}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
+                  <div className="absolute bottom-0 left-0 right-0 p-5">
+                    <p className="text-terra text-xs font-bold mb-1">#4</p>
+                    <h4 className="font-serif font-bold text-white text-base leading-6 line-clamp-2">{topBooks[3].title}</h4>
+                  </div>
+                </Link>
+              )}
+            </div>
+          )}
         </section>
 
         <section className="bg-cream-dark rounded-lg p-12 relative overflow-hidden">
@@ -217,67 +324,53 @@ export default function ExplorarPage() {
                 type="text"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Pesquisar por título, autor ou ISBN..."
-                className="w-full bg-cream border border-cream-border border-b-2 border-b-brown-soft px-4 py-7 font-serif text-2xl text-brown placeholder:text-brown-soft/40 outline-none pr-12"
+                placeholder="O que você quer ler hoje? Ex: romance, filosofia, Machado de Assis..."
+                className="w-full bg-cream border border-cream-border border-b-2 border-b-brown-soft px-4 py-4 font-serif text-base text-brown placeholder:text-brown-soft/70 outline-none pr-12"
               />
               <Search size={33} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate" />
             </div>
-            <button type="submit" className="bg-brown text-cream font-bold text-lg px-12 py-6 rounded-xl shadow-[0_24px_40px_rgba(48,13,0,0.06)] hover:bg-brown/90 transition-colors shrink-0">
+            <button type="submit" className="bg-brown text-cream font-bold text-sm px-8 py-4 rounded-xl shadow-[0_24px_40px_rgba(48,13,0,0.06)] hover:bg-brown/90 transition-colors shrink-0">
               Buscar
             </button>
           </form>
         </section>
 
         <section className="flex flex-col gap-8">
-          <div className="flex items-baseline justify-between">
-            <h2 className="font-serif font-bold text-brown text-3xl">Curadorias em Destaque</h2>
-            <button className="text-terra text-sm font-bold tracking-widest uppercase">VER TUDO</button>
-          </div>
-          <div className="grid grid-cols-4 gap-6">
-            <div className="col-span-2 row-span-2 bg-slate rounded-lg p-8 flex flex-col justify-between min-h-[392px] relative overflow-hidden">
-              <div className="absolute inset-0 bg-gradient-to-br from-slate-600 to-slate-900 opacity-20" />
-              <div className="relative flex flex-col gap-4">
-                <div className="size-6 text-white">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-                    <path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                  </svg>
-                </div>
-                <h3 className="font-serif font-bold text-white text-3xl">Filosofia Clássica</h3>
-                <p className="text-blue-light/80 text-base leading-6 max-w-xs">Um caminho curado através dos pensamentos fundamentais da civilização ocidental.</p>
-              </div>
-              <button className="relative bg-cream text-brown font-bold text-sm px-6 py-3 rounded-xl flex items-center gap-2 w-fit">
-                Explorar Coleção <ArrowRight size={12} />
-              </button>
-            </div>
-            <div className="col-span-2 bg-cream-border rounded-lg p-8 flex gap-6 items-center h-48">
-              <div className="w-24 h-32 bg-cream-book rounded-sm shadow-lg shrink-0" />
-              <div className="flex flex-col gap-1">
-                <h4 className="font-serif font-bold text-brown text-xl">Minimalismo Moderno</h4>
-                <p className="text-brown-soft text-sm">12 Livros sobre design e espaço.</p>
-              </div>
-            </div>
-            <div className="col-span-1 bg-brown rounded-lg px-6 pt-16 pb-6 flex flex-col justify-end min-h-[200px]">
-              <p className="text-cream/60 text-xs mb-4 font-bold">★ ★ ★ ★ ★</p>
-              <h4 className="font-serif font-bold text-white text-lg leading-7">Escolha dos Críticos 2024</h4>
-            </div>
-            <div className="col-span-1 bg-cream-book rounded-lg px-6 pt-32 pb-6 flex flex-col justify-end min-h-[200px]">
-              <p className="text-brown-soft text-xs font-bold tracking-widest uppercase mb-2">NOVIDADES</p>
-              <h4 className="font-serif font-bold text-brown text-lg leading-7">Edições Raras</h4>
-            </div>
-          </div>
-        </section>
-
-        <section className="flex flex-col gap-8">
           <div className="flex items-center justify-between border-b border-cream-border pb-4">
             <h2 className="font-serif font-bold text-brown text-2xl">
-              {searching ? `Resultados para "${query}"` : "Recomendado para sua Biblioteca"}
+              {searching ? `Resultados para "${query}"` : "Livros disponíveis"}
             </h2>
-            <div className="flex gap-2">
-              <button className="p-2 rounded-xl hover:bg-cream-active transition-colors">
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setPage(0)}
+                disabled={page === 0}
+                className="p-2 rounded-xl hover:bg-cream-active transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+              >
+                <ChevronsLeft size={18} className="text-brown" />
+              </button>
+              <button
+                onClick={() => setPage((p) => p - 1)}
+                disabled={page === 0}
+                className="p-2 rounded-xl hover:bg-cream-active transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+              >
                 <ChevronLeft size={18} className="text-brown" />
               </button>
-              <button className="p-2 rounded-xl opacity-40 hover:bg-cream-active transition-colors">
+              <span className="text-brown-soft text-xs px-2 tabular-nums">
+                {page + 1} / {totalPages}
+              </span>
+              <button
+                onClick={() => setPage((p) => p + 1)}
+                disabled={page >= totalPages - 1}
+                className="p-2 rounded-xl hover:bg-cream-active transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+              >
                 <ChevronRight size={18} className="text-brown" />
+              </button>
+              <button
+                onClick={() => setPage(totalPages - 1)}
+                disabled={page >= totalPages - 1}
+                className="p-2 rounded-xl hover:bg-cream-active transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+              >
+                <ChevronsRight size={18} className="text-brown" />
               </button>
             </div>
           </div>
@@ -288,10 +381,3 @@ export default function ExplorarPage() {
   );
 }
 
-function BookOpen() {
-  return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="text-slate">
-      <path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-    </svg>
-  );
-}
