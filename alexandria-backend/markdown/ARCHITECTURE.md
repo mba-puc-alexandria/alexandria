@@ -1,4 +1,4 @@
-# 🏛️ Arquitetura do Alexandria Backend
+﻿# 🏛️ Arquitetura do Alexandria Backend
 
 ## Tecnologias
 
@@ -13,6 +13,7 @@
 | RestTemplate | - | HTTP Client (Gutendex API) |
 | Jackson | - | Serialização JSON |
 | Spring Security | - | Autenticação e autorização (JWT) |
+| Spring Boot Validation | - | Validação de beans com Jakarta Validation |
 | JWT (jjwt) | 0.12.6 | Geração/validação de tokens JWT |
 | SpringDoc OpenAPI | 2.7.0 | Documentação Swagger |
 | AWS Parameter Store | 2.4.4 | Configuração externalizada (AWS) |
@@ -72,7 +73,6 @@ com.pucsp.alexandria
 │   │   │   ├── BookApiClient.java          # Porta de saída externa
 │   │   │   ├── BookData.java               # Record DTO (dados da API externa)
 │   │   │   ├── AuthorData.java             # Record DTO (dados do autor externo c/ formatação)
-│   │   │   └── PersonData.java             # Record DTO (dados brutos de pessoa da Gutendex)
 │   │   └── exception/
 │   │       ├── BookNotFoundException.java
 │   │       ├── DuplicateBookException.java
@@ -113,6 +113,7 @@ com.pucsp.alexandria
 │   │   ├── UpdateBookUseCase.java
 │   │   ├── DeleteBookUseCase.java
 │   │   ├── SearchBookByTitleUseCase.java
+│   │   ├── SyncAllGutendexBooksUseCase.java    # Sincroniza todas as páginas da Gutendex
 │   │   └── dto/
 │   │       ├── BookOutput.java             # DTO de saída (com AuthorInfo interno)
 │   │       ├── CreateBookInput.java
@@ -141,8 +142,11 @@ com.pucsp.alexandria
 │
 ├── adapter/                                # 🏗️ INFRAESTRUTURA (Adapters)
 │   ├── in/                                 # 🔵 Adapters de Entrada
+│   │   ├── job/
+│   │   │   └── SyncGutendexJobService.java  # Job assíncrono de sincronização Gutendex
 │   │   └── rest/
 │   │       ├── BookController.java         # REST Controller (/books)
+│   │       ├── JobController.java          # REST Controller (/api/jobs)
 │   │       ├── UserBooksController.java    # REST Controller (/user-books)
 │   │       ├── auth/
 │   │       │   ├── AuthController.java     # REST Controller (/auth)
@@ -195,6 +199,7 @@ com.pucsp.alexandria
 │                   └── GutendexMapper.java # GutendexDTO → BookData
 │
 ├── config/                                 # ⚙️ Configurações Spring
+│   ├── AsyncConfig.java                    # Thread pool p/ execução assíncrona de jobs
 │   ├── BeanConfiguration.java              # Beans: Use Cases + RestTemplate
 │   ├── SecurityConfig.java                 # Security Filter Chain + CORS
 │   ├── CorsConfig.java                     # Configuração CORS
@@ -366,6 +371,9 @@ AuthOutput execute(AuthInput input);  // senha é validada no controller via Pas
 | `GET` | `/books` | Listar livros (paginado) |
 | `GET` | `/books/{id}` | Buscar livro por ID |
 | `POST` | `/books` | Importar página da Gutendex |
+| `PUT` | `/books/{id}` | Atualizar título de um livro |
+| `DELETE` | `/books/{id}` | Deletar livro |
+| `POST` | `/api/jobs/sync-gutendex` | Disparar sincronização completa da Gutendex |
 | `GET` | `/actuator/health` | Health check |
 | `GET` | `/swagger-ui/**`, `/api-docs/**` | Documentação Swagger |
 
@@ -377,8 +385,6 @@ AuthOutput execute(AuthInput input);  // senha é validada no controller via Pas
 | `POST` | `/user-books` | Adicionar livro à coleção do usuário |
 | `PUT` | `/user-books/{id}` | Atualizar status/progresso/rating de um livro |
 | `DELETE` | `/user-books/{id}` | Remover livro da coleção do usuário |
-| `PUT` | `/books/{id}` | Atualizar título de um livro |
-| `DELETE` | `/books/{id}` | Deletar livro |
 
 ### Fluxo de DTOs entre camadas
 
@@ -507,17 +513,15 @@ O `CreateBookUseCase` chama `bookApiClient.getPage(page)` para importar uma pág
 
 ## 📜 Migrações Flyway
 
-**Nota:** Flyway está **desabilitado** no perfil padrão (`spring.flyway.enabled=false`) e **habilitado** apenas no perfil `rds` (produção).
+**Nota:** Flyway está **desabilitado** em ambos os perfis (`spring.flyway.enabled=false`). O schema é gerenciado pelo Hibernate via `ddl-auto`. **Após o MVP**, o Flyway será ativado no perfil RDS para gerenciamento versionado do schema em produção.
 
-| Migração | Descrição |
-|----------|-----------|
 | Migração | Descrição |
 |----------|-----------|
 | `V0__Create_initial_tables.sql` | Cria as tabelas iniciais (`books`, `users`, `user_books`) com a estrutura anterior às migrations V001 e V002 |
 | `V001__Add_Gutendex_Fields_And_Remove_Genre.sql` | Adiciona colunas Gutendex (`gutendex_id`, `download_url`, `cover_url`, `languages`, `subjects`, `download_count`), remove coluna `genre`, modifica `publisher_id` para nullable |
 | `V002__Create_Authors_And_BookAuthors.sql` | Cria tabelas `authors` e `book_authors`, migra dados da coluna `author` (antiga) para a nova estrutura, remove coluna `author` |
 
-> **Importante:** No perfil `rds`, o Flyway gerencia todo o schema (via `V0`, `V001`, `V002`). O Hibernate usa `ddl-auto=validate` para garantir que as entidades estejam consistentes com o banco.
+> **Importante:** Ambos os perfis mantêm `spring.flyway.enabled=false`. O Hibernate gerencia o schema: `ddl-auto=update` no perfil padrão e `ddl-auto=validate` no perfil RDS para validar a consistência.
 
 ---
 
@@ -577,15 +581,15 @@ Isso mantém a camada de aplicação **pura** (sem anotações Spring) e facilit
 
 | Propriedade | Valor |
 |-------------|-------|
-| Banco | MySQL via SSL (variáveis de ambiente) |
+| Banco | MySQL (variáveis de ambiente) |
 | JPA DDL | `validate` |
-| Flyway | `true` |
+| Flyway | `false` |
 | JWT Secret | Via variável de ambiente `JWT_SECRET` |
 | Monitoramento | Actuator endpoints (health, info) |
 | CORS | Configurável via `CORS_ALLOWED_ORIGINS` |
 | Swagger | `/swagger-ui.html`, `/api-docs` |
 
-**Dockerfile** inicia com `--spring.profiles.active=rds`.
+**Dockerfile** inicia sem profile específico (usa `application.properties`).
 
 ---
 
@@ -628,16 +632,23 @@ src/test/java/
     │   ├── userbook/      # UserBooksTest, UserBooksStatusTest
     │   └── shared/valueobject/ # EmailTest
     ├── application/       # Testes de Use Cases (Mockito)
-    │   ├── book/          # CreateBookUseCaseTest, GetBookUseCaseTest, ...
+    │   ├── book/          # CreateBookUseCaseTest, GetBookUseCaseTest, ..., SyncAllGutendexBooksUseCaseTest
     │   ├── auth/          # RegisterUserUseCaseTest, AuthenticateUserUseCaseTest
     │   └── userbooks/     # AddUserBooksUseCaseTest, ListUserBooksUseCaseTest, ...
     ├── adapter/
-    │   └── out/persistence/
-    │       ├── jpa/       # Testes de JPA Repository (Testcontainers)
-    │       ├── entity/    # Testes de entidades JPA
-    │       ├── mapper/    # Testes de mappers
-    │       └── external/  # Testes de clientes externos (Gutendex)
-    ├── adapter/in/rest/   # Testes de integração dos controllers
+    │   ├── out/persistence/
+    │   │   ├── jpa/       # Testes de JPA Repository (Testcontainers)
+    │   │   ├── entity/    # Testes de entidades JPA
+    │   │   ├── mapper/    # Testes de mappers
+    │   │   ├── external/  # Testes de clientes externos (Gutendex)
+    │   │   ├── BookRepositoryImplTest.java, UserRepositoryImplTest.java
+    │   │   └── UserBooksRepositoryImplTest.java
+    │   └── in/rest/       # Testes de integração dos controllers
+    │       ├── BookControllerIntegrationTest.java, AuthControllerIntegrationTest.java
+    │       ├── UserBooksControllerIntegrationTest.java
+    │       └── JobControllerIntegrationTest.java
+    ├── advice/            # Testes do tratamento de erros
+    │   └── GlobalExceptionHandlerTest.java
     └── config/jwt/        # Testes de JWT
 ```
 
@@ -691,8 +702,8 @@ docker-compose up -d
 ### Por que não usar `@Service` nos Use Cases?
 Para manter a camada de aplicação **pura** (POJO), sem dependência de frameworks. Os Use Cases são registrados como `@Bean` em `BeanConfiguration`, facilitando testes unitários.
 
-### Por que usar `ddl-auto=validate` junto com Flyway no perfil RDS?
-Com `ddl-auto=validate`, o Hibernate verifica se as entidades JPA correspondem exatamente ao schema gerenciado pelo Flyway. Se houver diferença, a aplicação não sobe — evitando dessincronia entre código e banco. Em desenvolvimento local (`application.properties`), o `ddl-auto=update` continua sendo usado para agilizar o desenvolvimento.
+### Por que usar `ddl-auto=validate` no perfil RDS?
+Com `ddl-auto=validate`, o Hibernate verifica se as entidades JPA correspondem ao schema do banco na inicialização. Se houver diferença, a aplicação não sobe — evitando dessincronia entre código e banco. Em desenvolvimento local (`application.properties`), o `ddl-auto=update` continua sendo usado para agilizar o desenvolvimento.
 
 ### Por que o UserId é passado como `Long` no Authentication?
 O `JwtAuthenticationFilter` seta o `userId` como principal (`authentication.setPrincipal(userId)`), e os controllers fazem cast para `Long` para obter o ID do usuário autenticado.
