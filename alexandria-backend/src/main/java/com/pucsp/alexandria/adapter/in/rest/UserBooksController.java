@@ -9,6 +9,7 @@ import com.pucsp.alexandria.application.userbooks.RemoveUserBooksUseCase;
 import com.pucsp.alexandria.application.userbooks.UpdateUserBooksUseCase;
 import com.pucsp.alexandria.application.userbooks.dto.AddUserBooksInput;
 import com.pucsp.alexandria.application.userbooks.dto.UpdateUserBooksInput;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
@@ -26,6 +27,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/user-books")
+@SecurityRequirement(name = "bearerAuth")
 public class UserBooksController {
 
   private final AddUserBooksUseCase addUserBooksUseCase;
