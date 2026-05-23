@@ -52,10 +52,9 @@ public class BookController {
     this.searchBookByTitleUseCase = searchBookByTitleUseCase;
   }
 
-  @PostMapping
+    @PostMapping
   public ResponseEntity<Void> create(@RequestBody CreateBookRequest request) {
-    CreateBookInput input = new CreateBookInput(request.page());
-    var output = createBookUseCase.execute(input);
+    createBookUseCase.execute(new CreateBookInput(request.page()));
     return ResponseEntity.noContent().build();
   }
 
