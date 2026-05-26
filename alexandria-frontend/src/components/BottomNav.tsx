@@ -2,22 +2,29 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, BookOpen, Compass, LogOut } from "lucide-react";
+import { LayoutDashboard, BookOpen, Compass, LogOut, LogIn } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useAuthModal } from "@/contexts/AuthModalContext";
 
-const navItems = [
-  { href: "/dashboard", label: "Painel", icon: LayoutDashboard },
-  { href: "/biblioteca", label: "Biblioteca", icon: BookOpen },
+const publicItems = [
   { href: "/explorar", label: "Explorar", icon: Compass },
+];
+
+const privateItems = [
+  { href: "/biblioteca", label: "Biblioteca", icon: BookOpen },
+  { href: "/dashboard", label: "Painel", icon: LayoutDashboard },
 ];
 
 export default function BottomNav() {
   const pathname = usePathname();
-  const { logout } = useAuth();
+  const { user, logout } = useAuth();
+  const { openLoginModal } = useAuthModal();
+
+  const items = user ? [...publicItems, ...privateItems] : publicItems;
 
   return (
     <nav className="md:hidden fixed bottom-0 left-0 right-0 z-30 bg-cream/95 backdrop-blur-sm border-t border-cream-border flex items-center justify-around px-2 pb-safe pt-2 h-[64px]">
-      {navItems.map(({ href, label, icon: Icon }) => {
+      {items.map(({ href, label, icon: Icon }) => {
         const active = pathname === href || pathname.startsWith(href + "/");
         return (
           <Link
@@ -34,13 +41,24 @@ export default function BottomNav() {
           </Link>
         );
       })}
-      <button
-        onClick={logout}
-        className="flex flex-col items-center gap-1 px-4 py-1 rounded-xl text-terra/70 transition-colors"
-      >
-        <LogOut size={20} strokeWidth={1.5} />
-        <span className="text-[9px] tracking-wide uppercase font-bold text-terra/50">Sair</span>
-      </button>
+
+      {user ? (
+        <button
+          onClick={logout}
+          className="flex flex-col items-center gap-1 px-4 py-1 rounded-xl text-terra/70 transition-colors"
+        >
+          <LogOut size={20} strokeWidth={1.5} />
+          <span className="text-[9px] tracking-wide uppercase font-bold text-terra/50">Sair</span>
+        </button>
+      ) : (
+        <button
+          onClick={openLoginModal}
+          className="flex flex-col items-center gap-1 px-4 py-1 rounded-xl text-slate/60"
+        >
+          <LogIn size={20} strokeWidth={1.5} />
+          <span className="text-[9px] tracking-wide uppercase font-bold text-slate/50">Entrar</span>
+        </button>
+      )}
     </nav>
   );
 }

@@ -49,7 +49,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem('auth-user');
     document.cookie = 'auth-token=; path=/; max-age=0';
     setUser(null);
-    router.push('/login');
+    router.push('/explorar');
   }
 
   const value = useMemo(() => ({ user, login, logout, isLoading }), [user, isLoading]);

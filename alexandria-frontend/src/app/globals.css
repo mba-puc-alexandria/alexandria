@@ -23,3 +23,48 @@ body {
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
 }
+
+/* Pontos animados do botão carregando */
+@keyframes dot-fade {
+  0%, 80%, 100% { opacity: 0; }
+  40%            { opacity: 1; }
+}
+
+.dot-1 { animation: dot-fade 1.4s ease-in-out infinite; animation-delay: 0s; }
+.dot-2 { animation: dot-fade 1.4s ease-in-out infinite; animation-delay: 0.25s; }
+.dot-3 { animation: dot-fade 1.4s ease-in-out infinite; animation-delay: 0.5s; }
+
+/* Animações do modal */
+@keyframes modal-overlay-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes modal-card-in {
+  0%   { opacity: 0; transform: scale(0.05); }
+  60%  { opacity: 1; transform: scale(1.03); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+.modal-overlay {
+  animation: modal-overlay-in 0.4s ease forwards;
+}
+
+.modal-card {
+  animation: modal-card-in 0.55s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  transform-origin: center center;
+}
+
+/* Dark mode — sobrescreve as variáveis CSS em tempo de execução */
+html.dark {
+  --color-cream: #1e1f22;
+  --color-cream-dark: #2b2d31;
+  --color-cream-active: #3a3d42;
+  --color-cream-border: #3a3d42;
+  --color-cream-book: #2b2d31;
+  --color-brown: #fafafa;
+  --color-brown-soft: #8c8c8c;
+  --color-slate: #8c8c8c;
+  --color-terra: #49afd0;
+  --color-blue-light: #32526c;
+}

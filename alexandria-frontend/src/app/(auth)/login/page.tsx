@@ -1,13 +1,20 @@
 'use client';
 
-import { useState, FormEvent, Suspense } from 'react';
+import { useState, FormEvent, Suspense, useEffect } from 'react';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 
 function LoginForm() {
-  const { login } = useAuth();
+  const { login, user, isLoading } = useAuth();
   const searchParams = useSearchParams();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!isLoading && user) {
+      router.replace('/explorar');
+    }
+  }, [user, isLoading, router]);
   const justRegistered = searchParams.get('registered') === '1';
 
   const [username, setUsername] = useState('');

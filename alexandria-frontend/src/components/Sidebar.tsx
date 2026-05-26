@@ -13,8 +13,11 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
-const navLinks = [
+const publicLinks = [
   { href: "/explorar", label: "Explorar", icon: Compass },
+];
+
+const privateLinks = [
   { href: "/biblioteca", label: "Biblioteca", icon: BookOpen },
   { href: "/dashboard", label: "Painel", icon: LayoutDashboard },
 ];
@@ -45,7 +48,7 @@ export default function Sidebar() {
       </div>
 
       <nav className="flex flex-col gap-1 flex-1">
-        {navLinks.map(({ href, label, icon: Icon }) => {
+        {[...publicLinks, ...(user ? privateLinks : [])].map(({ href, label, icon: Icon }) => {
           const active = pathname === href || pathname.startsWith(href + "/");
           return (
             <Link

@@ -35,6 +35,7 @@ export default function RootLayout({
   return (
     <html
       lang="pt-BR"
+      suppressHydrationWarning
       className={`${manrope.variable} ${notoSerif.variable} ${playfair.variable} h-full`}
     >
       <body className="h-full">
