@@ -4,6 +4,8 @@ import { useState } from "react";
 import Link from "next/link";
 import { Plus, Check, Loader2 } from "lucide-react";
 import { getAuthorDisplay, addUserBook, type BookApiResponse } from "@/lib/api";
+import { useAuth } from "@/contexts/AuthContext";
+import { useAuthModal } from "@/contexts/AuthModalContext";
 
 type Props = {
   book: BookApiResponse;
@@ -11,6 +13,8 @@ type Props = {
 
 export default function BookCard({ book }: Props) {
   const [state, setState] = useState<"idle" | "loading" | "added">("idle");
+  const { user } = useAuth();
+  const { openLoginModal } = useAuthModal();
 
   function getStateIcon() {
     if (state === "loading") return <Loader2 size={16} className="animate-spin" />;
@@ -21,6 +25,10 @@ export default function BookCard({ book }: Props) {
   async function handleAdd(e: React.MouseEvent) {
     e.preventDefault();
     e.stopPropagation();
+    if (!user) {
+      openLoginModal();
+      return;
+    }
     if (state !== "idle") return;
     setState("loading");
     try {

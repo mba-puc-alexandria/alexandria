@@ -1,114 +1,89 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import { Search, Bell, Loader2 } from "lucide-react";
-import Link from "next/link";
-import { searchBooks, getAuthorDisplay, type BookApiResponse } from "@/lib/api";
+import { useState, useEffect } from "react";
+import { Sun, Moon, Crown, LogOut } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { useAuthModal } from "@/contexts/AuthModalContext";
+
+type Theme = "light" | "dark";
 
 export default function Header() {
-  const [query, setQuery] = useState("");
-  const [results, setResults] = useState<BookApiResponse[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [open, setOpen] = useState(false);
-  const wrapperRef = useRef<HTMLDivElement>(null);
+  const [theme, setTheme] = useState<Theme>("light");
+  const { user, logout } = useAuth();
+  const { openLoginModal } = useAuthModal();
 
-  // Debounce da busca
   useEffect(() => {
-    const trimmed = query.trim();
-    if (!trimmed) {
-      setResults([]);
-      setOpen(false);
-      return;
-    }
-    setLoading(true);
-    const timer = setTimeout(() => {
-      searchBooks(trimmed, 0, 6)
-        .then((data) => {
-          setResults(data.content);
-          setOpen(true);
-        })
-        .catch(() => setResults([]))
-        .finally(() => setLoading(false));
-    }, 350);
-    return () => clearTimeout(timer);
-  }, [query]);
-
-  // Fechar ao clicar fora
-  useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
-      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    const saved = (localStorage.getItem("alexandria-theme") as Theme) ?? "light";
+    applyTheme(saved);
+    setTheme(saved);
   }, []);
 
-  function handleSelect() {
-    setQuery("");
-    setOpen(false);
-    setResults([]);
+  function applyTheme(t: Theme) {
+    document.documentElement.classList.toggle("dark", t === "dark");
+    localStorage.setItem("alexandria-theme", t);
+  }
+
+  function switchTheme(t: Theme) {
+    setTheme(t);
+    applyTheme(t);
   }
 
   return (
-    <header className="flex items-center justify-between px-8 py-4 bg-cream border-b border-cream-border shrink-0 z-10">
-      <div className="w-48" />
-
-      <div className="flex items-center gap-4">
-        <div className="relative" ref={wrapperRef}>
-          {loading ? (
-            <Loader2 size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate opacity-60 animate-spin" />
-          ) : (
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate opacity-60" />
-          )}
-          <input
-            type="text"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={(e) => e.key === "Escape" && setOpen(false)}
-            placeholder="Pesquisar clássicos, ensaios..."
-            className="bg-cream-dark text-sm text-slate placeholder:text-slate/60 rounded-xl pl-9 pr-4 py-2 w-64 outline-none border border-transparent focus:border-cream-border transition-colors"
-          />
-
-          {open && (
-            <div className="absolute top-full mt-2 right-0 w-80 bg-cream border border-cream-border rounded-xl shadow-lg overflow-hidden z-50">
-              {results.length === 0 ? (
-                <p className="text-slate/50 text-sm px-4 py-3">Nenhum resultado.</p>
-              ) : (
-                <ul>
-                  {results.map((book) => (
-                    <li key={book.id}>
-                      <Link
-                        href={`/explorar/${book.id}`}
-                        onClick={handleSelect}
-                        className="flex items-center gap-3 px-4 py-3 hover:bg-cream-dark transition-colors"
-                      >
-                        {book.coverUrl ? (
-                          <img src={book.coverUrl} alt={book.title} className="w-8 h-11 object-cover rounded shrink-0" />
-                        ) : (
-                          <div className="w-8 h-11 bg-cream-book rounded shrink-0" />
-                        )}
-                        <div className="flex flex-col min-w-0">
-                          <span className="text-brown text-sm font-bold truncate">{book.title}</span>
-                          <span className="text-slate text-xs truncate">{getAuthorDisplay(book)}</span>
-                        </div>
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          )}
-        </div>
-
-        <button className="p-2 rounded-xl text-slate hover:bg-cream-active transition-colors">
-          <Bell size={18} />
+    <header className="w-full flex items-center justify-end px-8 py-3 bg-cream border-b border-cream-border shrink-0 z-10 gap-4">
+      {/* Switcher de tema */}
+      <div className="flex items-center gap-1 p-1 bg-cream-dark rounded-xl border border-cream-border">
+        <button
+          onClick={() => switchTheme("light")}
+          title="Modo claro"
+          className={`p-2 rounded-lg transition-colors ${
+            theme === "light"
+              ? "bg-cream text-brown shadow-sm"
+              : "text-slate hover:bg-cream-active"
+          }`}
+        >
+          <Sun size={16} />
         </button>
 
-        <div className="size-8 rounded-xl bg-cream-border overflow-hidden shrink-0">
-          <div className="size-full bg-gradient-to-br from-slate to-brown opacity-60 rounded-xl" />
-        </div>
+        <button
+          onClick={() => switchTheme("dark")}
+          title="Modo escuro"
+          className={`p-2 rounded-lg transition-colors ${
+            theme === "dark"
+              ? "bg-cream text-brown shadow-sm"
+              : "text-slate hover:bg-cream-active"
+          }`}
+        >
+          <Moon size={16} />
+        </button>
+
+        <button
+          title="Plano Premium"
+          className="p-2 rounded-lg text-terra hover:bg-cream-active transition-colors"
+        >
+          <Crown size={16} />
+        </button>
       </div>
+
+      {/* Auth */}
+      {user ? (
+        <div className="flex items-center gap-3">
+          <span className="text-brown-soft text-sm font-medium">{user.username}</span>
+          <button
+            onClick={logout}
+            title="Sair"
+            className="p-2 rounded-lg text-slate hover:bg-cream-active transition-colors"
+          >
+            <LogOut size={16} />
+          </button>
+        </div>
+      ) : (
+        <button
+          onClick={openLoginModal}
+          className="text-sm font-semibold text-brown hover:text-terra transition-colors"
+        >
+          Entrar
+        </button>
+      )}
     </header>
   );
 }

@@ -4,6 +4,8 @@ import { use, useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, BookOpen, Plus } from "lucide-react";
 import { getBookById, addUserBook, getAuthorDisplay, type BookApiResponse } from "@/lib/api";
+import { useAuth } from "@/contexts/AuthContext";
+import { useAuthModal } from "@/contexts/AuthModalContext";
 
 export default function BookDetailPage({
   params,
@@ -16,6 +18,8 @@ export default function BookDetailPage({
   const [error, setError] = useState(false);
   const [adding, setAdding] = useState(false);
   const [added, setAdded] = useState(false);
+  const { user } = useAuth();
+  const { openLoginModal } = useAuthModal();
 
   useEffect(() => {
     getBookById(Number(id))
@@ -52,6 +56,10 @@ export default function BookDetailPage({
   }
 
   async function handleAddToLibrary() {
+    if (!user) {
+      openLoginModal();
+      return;
+    }
     setAdding(true);
     try {
       await addUserBook(book!.id);
