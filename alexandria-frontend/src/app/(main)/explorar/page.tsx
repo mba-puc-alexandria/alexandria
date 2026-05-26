@@ -62,13 +62,13 @@ export default function ExplorarPage() {
   }
 
   return (
-    <div className="flex flex-col items-center px-4 pt-10 pb-16 gap-6 min-h-screen">
-      {/* Logo + frase */}
+    <div className="flex flex-col items-center px-4 pt-4 md:pt-10 pb-16 gap-6 min-h-screen">
+      {/* Logo + frase — oculto no mobile pois o MobileHeader já tem o branding */}
       <div className="flex flex-col items-center gap-2">
         <div className="flex items-center gap-3">
           <BookMarked size={36} className="text-brown" />
           <h1 className="font-brand font-bold text-brown text-5xl tracking-tight select-none">
-            alexandria
+            Alexandria
           </h1>
         </div>
         <p className="font-serif text-brown-soft text-base tracking-wide">
