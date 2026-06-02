@@ -9,6 +9,7 @@ import com.pucsp.alexandria.application.userbooks.RemoveUserBooksUseCase;
 import com.pucsp.alexandria.application.userbooks.UpdateUserBooksUseCase;
 import com.pucsp.alexandria.application.userbooks.dto.AddUserBooksInput;
 import com.pucsp.alexandria.application.userbooks.dto.UpdateUserBooksInput;
+import com.pucsp.alexandria.domain.shared.valueobject.AuthenticatedUser;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -51,8 +52,8 @@ public class UserBooksController {
       Authentication authentication,
       @RequestParam(required = false) String status,
       Pageable pageable) {
-    Long userId = (Long) authentication.getPrincipal();
-    var page = listUserBooksUseCase.execute(userId, status, pageable);
+        AuthenticatedUser user = (AuthenticatedUser) authentication.getPrincipal();
+    var page = listUserBooksUseCase.execute(user.id(), status, pageable);
     return ResponseEntity.ok(page.map(UserBooksResponse::from));
   }
 
@@ -60,9 +61,9 @@ public class UserBooksController {
   public ResponseEntity<UserBooksResponse> add(
       Authentication authentication,
       @RequestBody AddUserBooksRequest request) {
-    Long userId = (Long) authentication.getPrincipal();
+        AuthenticatedUser user = (AuthenticatedUser) authentication.getPrincipal();
     var input = new AddUserBooksInput(request.bookId(), request.status());
-    var output = addUserBooksUseCase.execute(userId, input);
+    var output = addUserBooksUseCase.execute(user.id(), input);
     return ResponseEntity.status(HttpStatus.CREATED).body(UserBooksResponse.from(output));
   }
 
@@ -71,9 +72,9 @@ public class UserBooksController {
       Authentication authentication,
       @PathVariable Long id,
       @RequestBody UpdateUserBooksRequest request) {
-    Long userId = (Long) authentication.getPrincipal();
+        AuthenticatedUser user = (AuthenticatedUser) authentication.getPrincipal();
     var input = new UpdateUserBooksInput(request.status(), request.progress(), request.rating());
-    var output = updateUserBooksUseCase.execute(userId, id, input);
+    var output = updateUserBooksUseCase.execute(user.id(), id, input);
     return ResponseEntity.ok(UserBooksResponse.from(output));
   }
 
@@ -81,8 +82,8 @@ public class UserBooksController {
   public ResponseEntity<Void> remove(
       Authentication authentication,
       @PathVariable Long id) {
-    Long userId = (Long) authentication.getPrincipal();
-    removeUserBooksUseCase.execute(userId, id);
+        AuthenticatedUser user = (AuthenticatedUser) authentication.getPrincipal();
+    removeUserBooksUseCase.execute(user.id(), id);
     return ResponseEntity.noContent().build();
   }
 }

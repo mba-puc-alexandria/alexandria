@@ -3,6 +3,7 @@ package com.pucsp.alexandria.config.jwt;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
+import com.pucsp.alexandria.domain.shared.valueobject.AuthenticatedUser;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -46,7 +47,9 @@ class JwtAuthenticationFilterTest {
         filter.doFilterInternal(request, response, filterChain);
 
         assertNotNull(SecurityContextHolder.getContext().getAuthentication());
-        assertEquals(1L, SecurityContextHolder.getContext().getAuthentication().getPrincipal());
+        AuthenticatedUser user = (AuthenticatedUser) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        assertEquals(1L, user.id());
+        assertEquals("john_doe", user.username());
         verify(filterChain).doFilter(request, response);
     }
 
