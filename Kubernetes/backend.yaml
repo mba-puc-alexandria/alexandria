@@ -31,10 +31,8 @@ spec:
               value: jdbc:mysql://mysql:3306/alexandriadb
             - name: SPRING_DATASOURCE_USERNAME
               value: alexandria
-            - name: SPRING_DATA_REDIS_HOST
-              value: redis
-            - name: SPRING_DATA_REDIS_PORT
-              value: "6379"
+            - name: DB_USER
+              value: alexandria
           envFrom:
             - secretRef:
                 name: backend-secret
