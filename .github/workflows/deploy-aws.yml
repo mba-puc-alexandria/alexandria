@@ -1,0 +1,139 @@
+﻿name: Deploy AWS
+
+on:
+  push:
+    branches: [ develop, main ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Backend Docker Image
+        run: docker build -t alexandria-backend ./alexandria-backend
+
+      - name: Build Frontend Docker Image
+        run: docker build -t alexandria-frontend --build-arg NEXT_PUBLIC_API_URL=https://api.bibliotecaalexandria.com.br ./alexandria-frontend
+
+      - name: Salvar imagens
+        run: |
+          docker save alexandria-backend | gzip > /tmp/backend.tar.gz
+          docker save alexandria-frontend | gzip > /tmp/frontend.tar.gz
+
+      - name: Configurar chave SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/ec2_key
+          chmod 600 ~/.ssh/ec2_key
+          ssh-keyscan ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Copiar imagens para EC2
+        run: |
+          scp -i ~/.ssh/ec2_key /tmp/backend.tar.gz ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/tmp/
+          scp -i ~/.ssh/ec2_key /tmp/frontend.tar.gz ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/tmp/
+
+      - name: Limpar disco na EC2 antes do deploy
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          command_timeout: 2m
+          script: |
+            echo "Limpando disco antes do deploy..."
+            sudo docker system prune -af --volumes || true
+            echo "Espaco em disco:"
+            df -h /
+
+      - name: Deploy Backend na EC2
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          command_timeout: 10m
+          script: |
+            set -e
+            echo "Carregando imagem do backend..."
+            gunzip -c /tmp/backend.tar.gz | docker load
+            echo "Atualizando codigo..."
+            cd ~/app/alexandria
+            git checkout ${{ github.ref_name }}
+            git pull origin ${{ github.ref_name }}
+            echo "Subindo container..."
+            docker rm -f alexandria-backend 2>/dev/null || true
+            CONTAINER_ID=$(docker run -d \
+              --name alexandria-backend \
+              --restart unless-stopped \
+              -p 8080:8080 \
+              -e SPRING_PROFILES_ACTIVE=rds \
+              -e DB_HOST=alexandria-db.c9qs2asg26uk.us-east-2.rds.amazonaws.com \
+              -e DB_PORT=3306 \
+              -e DB_NAME=alexandriadb \
+              -e DB_USER=admin \
+              -e DB_PASSWORD=${{ secrets.DB_PASSWORD }} \
+              -e JWT_SECRET=${{ secrets.JWT_SECRET }} \
+              -e CORS_ALLOWED_ORIGINS=https://bibliotecaalexandria.com.br,https://api.bibliotecaalexandria.com.br,http://localhost:3000 \
+              alexandria-backend)
+            echo "Container ID: $CONTAINER_ID"
+            sleep 5
+            STATUS=$(docker inspect --format '{{.State.Status}}' alexandria-backend 2>/dev/null || echo "not_found")
+            echo "Status do container: $STATUS"
+            if [ "$STATUS" != "running" ]; then
+              echo "Container nao esta rodando! Coletando logs..."
+              docker logs alexandria-backend 2>&1 || true
+              exit 1
+            fi
+            echo "Container esta rodando! Aguardando aplicacao subir..."
+
+      - name: Aguardar Backend
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          command_timeout: 10m
+          script: |
+            set -e
+            echo "Aguardando backend subir..."
+            for i in $(seq 1 36); do
+              sleep 10
+              if curl -sf http://localhost:8080/actuator/health > /dev/null 2>&1; then
+                echo "Backend no ar!"
+                break
+              fi
+              if [ "$i" -eq 36 ]; then
+                echo "Backend nao subiu a tempo! Coletando logs para diagnostico..."
+                echo "=== docker ps ==="
+                docker ps -a --filter name=alexandria-backend
+                echo "=== docker logs alexandria-backend ==="
+                docker logs alexandria-backend 2>&1 || echo "Container nao encontrado ou sem logs"
+                echo "=== docker inspect alexandria-backend ==="
+                docker inspect alexandria-backend --format '{{.State.Status}} {{.State.ExitCode}} {{.State.Error}}' 2>/dev/null || echo "Container nao encontrado"
+                exit 1
+              fi
+              echo "Tentativa $i/36..."
+            done
+
+      - name: Deploy Frontend na EC2
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          command_timeout: 5m
+          script: |
+            set -e
+            echo "Carregando imagem do frontend..."
+            gunzip -c /tmp/frontend.tar.gz | docker load
+            echo "Subindo container..."
+            docker rm -f alexandria-frontend 2>/dev/null || true
+            docker run -d \
+              --name alexandria-frontend \
+              --restart unless-stopped \
+              -p 80:3000 \
+              alexandria-frontend
+            echo "Frontend no ar!"
+            rm -f /tmp/backend.tar.gz /tmp/frontend.tar.gz
