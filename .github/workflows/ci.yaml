@@ -127,7 +127,7 @@ jobs:
           SPRING_DATASOURCE_PASSWORD: alexandria123
           SPRING_DATA_REDIS_HOST: localhost
           SPRING_DATA_REDIS_PORT: 6379
-          #JWT_SECRET: ${{ secrets.JWT_SECRET_CI }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET_CI }}
         run: ./mvnw clean verify
       - name: Upload relatórios backend
         if: always()
@@ -234,7 +234,7 @@ jobs:
           echo -e "\n=== Testando login ==="
           curl -X POST http://localhost:8080/auth/login \
             -H "Content-Type: application/json" \
-            -d '{"email":"danilo@anga.com","password":"123456"}' \
+            -d '{"email":"tamiris@alexandrina.com","password":"123456"}' \
             -v
 
           echo -e "\n=== Logs do Docker ==="
