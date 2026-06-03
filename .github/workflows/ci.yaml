@@ -91,7 +91,7 @@ jobs:
         ports:
           - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U analexandria -d alexandria_test"
+          --health-cmd "pg_isready -U alexandria -d alexandria_test"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5

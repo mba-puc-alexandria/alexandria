@@ -60,7 +60,7 @@ jobs:
       - name: Build e push — Backend
         uses: docker/build-push-action@v5
         with:
-          context: ./alexandria-backend/backend
+          context: ./alexandria-backend/
           push: true
           tags: ${{ steps.meta_backend.outputs.tags }}
           labels: ${{ steps.meta_backend.outputs.labels }}
@@ -68,7 +68,7 @@ jobs:
       - name: Build e push — Frontend
         uses: docker/build-push-action@v5
         with:
-          context: ./aalexandria-frontend
+          context: ./alexandria-frontend
           push: true
           tags: ${{ steps.meta_frontend.outputs.tags }}
           labels: ${{ steps.meta_frontend.outputs.labels }}
@@ -105,7 +105,7 @@ jobs:
         id: meta_backend
         uses: docker/metadata-action@v5
         with:
-          images: ${{ secrets.DOCKER_USERNAME }}/analexandria-backend
+          images: ${{ secrets.DOCKER_USERNAME }}/alexandria-backend
           tags: |
             type=raw,value=develop
             type=sha
@@ -122,7 +122,7 @@ jobs:
       - name: Build e push — Backend
         uses: docker/build-push-action@v5
         with:
-          context: ./alexandria-backend/backend
+          context: ./alexandria-backend/
           push: true
           tags: ${{ steps.meta_backend.outputs.tags }}
           labels: ${{ steps.meta_backend.outputs.labels }}
@@ -167,7 +167,7 @@ jobs:
         id: meta_backend
         uses: docker/metadata-action@v5
         with:
-          images: ${{ secrets.DOCKER_USERNAME }}/anga-backend
+          images: ${{ secrets.DOCKER_USERNAME }}/alexandria-backend
           tags: |
             type=raw,value=latest
             type=raw,value=stable
@@ -186,7 +186,7 @@ jobs:
       - name: Build e push — Backend
         uses: docker/build-push-action@v5
         with:
-          context: ./alexandria-backend/backend
+          context: ./alexandria-backend/
           push: true
           tags: ${{ steps.meta_backend.outputs.tags }}
           labels: ${{ steps.meta_backend.outputs.labels }}
@@ -211,7 +211,7 @@ jobs:
       - name: Scan Frontend image com Trivy
         uses: aquasecurity/trivy-action@v0.35.0
         with:
-          image-ref: ${{ secrets.DOCKER_USERNAME }}/anga-frontend:latest
+          image-ref: ${{ secrets.DOCKER_USERNAME }}/alexandria-frontend:latest
           format: table
           severity: CRITICAL,HIGH
           ignore-unfixed: true
