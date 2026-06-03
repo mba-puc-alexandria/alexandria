@@ -1,0 +1,61 @@
+name: Scan Organization Repositories
+
+on:
+  workflow_dispatch:
+    inputs:
+      library:
+        description: 'Biblioteca a procurar'
+        required: true
+        default: 'lombok'
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Instalar GitHub CLI
+        run: |
+          sudo apt update
+          sudo apt install gh -y
+
+      - name: Autenticar
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh auth status
+
+      - name: Procurar biblioteca
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LIBRARY: ${{ github.event.inputs.library }}
+          ORG: mba-puc-alexandria
+        run: |
+          mkdir repos
+          touch resultado.csv
+
+          echo "repositorio,encontrado" > resultado.csv
+
+          gh repo list $ORG --limit 1000 --json name -q '.[].name' |
+          while read repo
+          do
+            echo "A analisar $repo"
+
+            git clone --depth 1 \
+              https://x-access-token:${GH_TOKEN}@github.com/$ORG/$repo.git \
+              repos/$repo >/dev/null 2>&1
+
+            if grep -R -i "$LIBRARY" repos/$repo >/dev/null 2>&1
+            then
+              echo "$repo,SIM" >> resultado.csv
+            else
+              echo "$repo,NAO" >> resultado.csv
+            fi
+
+            rm -rf repos/$repo
+          done
+
+      - name: Publicar relatório
+        uses: actions/upload-artifact@v4
+        with:
+          name: scan-results
+          path: resultado.csv

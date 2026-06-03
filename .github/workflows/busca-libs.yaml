@@ -1,0 +1,66 @@
+name: Scan Library Usage
+
+on:
+  workflow_dispatch:
+    inputs:
+      library:
+        description: "Biblioteca a procurar"
+        required: true
+        #default: "lombok"
+        type: string
+
+env:
+  ORG_NAME: mba-puc-alexandria
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Configurar GitHub CLI
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh auth status
+
+      - name: Procurar biblioteca nos repositórios
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LIBRARY: ${{ github.event.inputs.library }}
+        run: |
+          mkdir -p repos
+
+          echo "# Resultado da pesquisa: $LIBRARY" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Repositório | Encontrado |" >> $GITHUB_STEP_SUMMARY
+          echo "|------------|------------|" >> $GITHUB_STEP_SUMMARY
+
+          FOUND=0
+
+          gh repo list $ORG_NAME --limit 1000 --json name -q '.[].name' |
+          while read REPO
+          do
+            echo ""
+            echo "================================="
+            echo "Analisando: $REPO"
+            echo "================================="
+
+            git clone --depth 1 \
+              "https://x-access-token:${GH_TOKEN}@github.com/${ORG_NAME}/${REPO}.git" \
+              "repos/${REPO}" >/dev/null 2>&1
+
+            if grep -R -i "$LIBRARY" "repos/${REPO}" >/dev/null 2>&1
+            then
+              echo "✅ ENCONTRADO em ${REPO}"
+              echo "| ${REPO} | ✅ |" >> $GITHUB_STEP_SUMMARY
+              FOUND=$((FOUND+1))
+            else
+              echo "❌ Não encontrado em ${REPO}"
+              echo "| ${REPO} | ❌ |" >> $GITHUB_STEP_SUMMARY
+            fi
+
+            rm -rf "repos/${REPO}"
+          done
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Pesquisa concluída para:** ${LIBRARY}" >> $GITHUB_STEP_SUMMARY
