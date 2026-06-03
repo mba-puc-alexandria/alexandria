@@ -96,22 +96,12 @@ jobs:
           --health-timeout 5s
           --health-retries 5
 
-      redis:
-        image: redis:7-alpine
-        ports:
-          - 6379:6379
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
       - name: Verificar arquivo de teste
-        working-directory: analexandria-backend/backend
+        working-directory: alexandria-backend/
         run: |
           echo "=== Conteudo do application-test.yml ==="
           cat src/test/resources/application-test.yml || echo "ARQUIVO NAO ENCONTRADO"
@@ -126,11 +116,11 @@ jobs:
           cache: maven
 
       - name: Dar permissão ao Maven Wrapper
-        working-directory: alexandria-backend/backend
+        working-directory: alexandria-backend/
         run: chmod +x mvnw
 
       - name: Build e testes
-        working-directory: alexandria-backend/backend
+        working-directory: alexandria-backend/
         env:
           SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/alexandria_test
           SPRING_DATASOURCE_USERNAME: alexandria
