@@ -108,10 +108,10 @@ jobs:
           echo "=== Listando src/test/resources ==="
           ls -la src/test/resources/ || echo "PASTA NAO EXISTE"
 
-      - name: Set up Java 21
+      - name: Set up Java 17
         uses: actions/setup-java@v4
         with:
-          java-version: '21'
+          java-version: '17'
           distribution: 'temurin'
           cache: maven
 
@@ -127,7 +127,7 @@ jobs:
           SPRING_DATASOURCE_PASSWORD: alexandria123
           SPRING_DATA_REDIS_HOST: localhost
           SPRING_DATA_REDIS_PORT: 6379
-          JWT_SECRET: ${{ secrets.JWT_SECRET_CI }}
+          #JWT_SECRET: ${{ secrets.JWT_SECRET_CI }}
         run: ./mvnw clean verify
       - name: Upload relatórios backend
         if: always()
