@@ -6,7 +6,8 @@ on:
       library:
         description: "Biblioteca a procurar"
         required: true
-        default: "lombok"
+        #default: "lombok"
+        type: string
 
 env:
   ORG_NAME: mba-puc-alexandria
