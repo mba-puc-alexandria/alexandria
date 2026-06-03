@@ -43,7 +43,7 @@ jobs:
         id: meta_backend
         uses: docker/metadata-action@v5
         with:
-          images: ${{ secrets.DOCKER_USERNAME }}/anga-backend
+          images: ${{ secrets.DOCKER_USERNAME }}/alexandria-backend
           tags: |
             type=raw,value=feature
             type=sha
