@@ -7,6 +7,7 @@ import org.springframework.core.task.TaskRejectedException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -22,9 +23,10 @@ public class JobController {
     }
 
     @PostMapping("/sync-gutendex")
-    public ResponseEntity<Void> triggerSync() {
+    public ResponseEntity<Void> triggerSync(
+            @RequestParam(required = false, defaultValue = "1") Integer page) {
         try {
-            syncGutendexJobService.triggerSync();
+            syncGutendexJobService.triggerSync(page);
             return ResponseEntity.accepted().build();
         } catch (TaskRejectedException e) {
             log.warn("Job de sincronização já está em execução. Requisição rejeitada.");
