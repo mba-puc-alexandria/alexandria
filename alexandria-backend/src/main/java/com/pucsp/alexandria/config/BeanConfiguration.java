@@ -1,6 +1,7 @@
 package com.pucsp.alexandria.config;
 
 import com.pucsp.alexandria.application.auth.AuthenticateUserUseCase;
+import com.pucsp.alexandria.application.auth.GoogleAuthUseCase;
 import com.pucsp.alexandria.application.auth.RegisterUserUseCase;
 import com.pucsp.alexandria.application.book.CreateBookUseCase;
 import com.pucsp.alexandria.application.book.DeleteBookUseCase;
@@ -18,6 +19,7 @@ import com.pucsp.alexandria.domain.book.BookRepository;
 import com.pucsp.alexandria.domain.book.external.BookApiClient;
 import com.pucsp.alexandria.domain.user.UserRepository;
 import com.pucsp.alexandria.domain.userbook.UserBooksRepository;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -105,6 +107,15 @@ public class BeanConfiguration {
   @Bean
   public RegisterUserUseCase registerUserUseCase(UserRepository userRepository) {
     return new RegisterUserUseCase(userRepository);
+  }
+
+  @Bean
+  public GoogleAuthUseCase googleAuthUseCase(
+      UserRepository userRepository,
+      PasswordEncoder passwordEncoder,
+      RestTemplate restTemplate,
+      @Value("${google.client-id}") String googleClientId) {
+    return new GoogleAuthUseCase(userRepository, passwordEncoder, restTemplate, googleClientId);
   }
 
   @Bean

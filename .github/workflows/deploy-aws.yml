@@ -60,8 +60,9 @@ jobs:
             gunzip -c /tmp/backend.tar.gz | docker load
             echo "Atualizando codigo..."
             cd ~/app/alexandria
+            git fetch origin ${{ github.ref_name }}
             git checkout ${{ github.ref_name }}
-            git pull origin ${{ github.ref_name }}
+            git reset --hard origin/${{ github.ref_name }}
             echo "Subindo container..."
             docker rm -f alexandria-backend 2>/dev/null || true
             CONTAINER_ID=$(docker run -d \

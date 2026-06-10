@@ -8,6 +8,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.pucsp.alexandria.adapter.in.rest.auth.dto.AuthRequest;
 import com.pucsp.alexandria.adapter.in.rest.auth.dto.RegisterRequest;
 import com.pucsp.alexandria.application.auth.AuthenticateUserUseCase;
+import com.pucsp.alexandria.application.auth.GoogleAuthUseCase;
 import com.pucsp.alexandria.application.auth.RegisterUserUseCase;
 import com.pucsp.alexandria.application.auth.dto.AuthInput;
 import com.pucsp.alexandria.application.auth.dto.AuthOutput;
@@ -34,6 +35,9 @@ class AuthControllerIntegrationTest {
     private MockMvc mockMvc;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
+
+    @MockitoBean
+    private GoogleAuthUseCase googleAuthUseCase;
 
     @MockitoBean
     private RegisterUserUseCase registerUserUseCase;

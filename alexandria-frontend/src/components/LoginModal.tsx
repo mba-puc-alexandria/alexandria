@@ -3,12 +3,13 @@
 import { useState, useEffect, FormEvent } from "react";
 import Link from "next/link";
 import { X } from "lucide-react";
+import { GoogleLogin } from "@react-oauth/google";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAuthModal } from "@/contexts/AuthModalContext";
 
 export default function LoginModal() {
   const { isOpen, closeLoginModal } = useAuthModal();
-  const { login } = useAuth();
+  const { login, loginWithGoogle } = useAuth();
 
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -32,6 +33,19 @@ export default function LoginModal() {
   }, [isOpen]);
 
   if (!isOpen) return null;
+
+  async function handleGoogleSuccess(credential: string) {
+    setError("");
+    setLoading(true);
+    try {
+      await loginWithGoogle(credential);
+      closeLoginModal();
+    } catch {
+      setError("Falha no login com Google. Tente novamente.");
+    } finally {
+      setLoading(false);
+    }
+  }
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -120,6 +134,21 @@ export default function LoginModal() {
             {loading ? "Entrando..." : "Entrar"}
           </button>
         </form>
+
+        <div className="flex items-center gap-3">
+          <div className="flex-1 h-px bg-cream-border" />
+          <span className="text-brown-soft/50 text-xs">ou</span>
+          <div className="flex-1 h-px bg-cream-border" />
+        </div>
+
+        <div className="flex justify-center">
+          <GoogleLogin
+            onSuccess={({ credential }) => credential && handleGoogleSuccess(credential)}
+            onError={() => setError("Falha no login com Google. Tente novamente.")}
+            theme="outline"
+            shape="rectangular"
+          />
+        </div>
 
         <p className="text-center text-brown-soft text-sm">
           Não tem conta?{" "}

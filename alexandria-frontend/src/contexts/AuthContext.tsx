@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useState, useEffect, useMemo, ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
-import { login as apiLogin, LoginRequest } from '@/lib/api';
+import { login as apiLogin, loginWithGoogle as apiLoginWithGoogle, LoginRequest, LoginResponse } from '@/lib/api';
 
 interface AuthUser {
   userId: number;
@@ -12,6 +12,7 @@ interface AuthUser {
 interface AuthContextType {
   user: AuthUser | null;
   login: (data: LoginRequest) => Promise<void>;
+  loginWithGoogle: (credential: string) => Promise<void>;
   logout: () => void;
   isLoading: boolean;
 }
@@ -31,17 +32,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsLoading(false);
   }, []);
 
-  async function login(data: LoginRequest) {
-    const response = await apiLogin(data);
-
+  function persistSession(response: LoginResponse) {
     const authUser: AuthUser = { userId: response.userId, username: response.username };
-
     localStorage.setItem('auth-token', response.token);
     localStorage.setItem('auth-user', JSON.stringify(authUser));
     document.cookie = `auth-token=${response.token}; path=/; max-age=${60 * 60 * 24}; SameSite=Lax`;
-
     setUser(authUser);
     router.push('/explorar');
+  }
+
+  async function login(data: LoginRequest) {
+    const response = await apiLogin(data);
+    persistSession(response);
+  }
+
+  async function loginWithGoogle(credential: string) {
+    const response = await apiLoginWithGoogle(credential);
+    persistSession(response);
   }
 
   function logout() {
@@ -52,7 +59,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     router.push('/explorar');
   }
 
-  const value = useMemo(() => ({ user, login, logout, isLoading }), [user, isLoading]);
+  const value = useMemo(() => ({ user, login, loginWithGoogle, logout, isLoading }), [user, isLoading]);
 
   return (
     <AuthContext.Provider value={value}>

@@ -26,6 +26,20 @@ export async function login(data: LoginRequest): Promise<LoginResponse> {
   return res.json();
 }
 
+export async function loginWithGoogle(credential: string): Promise<LoginResponse> {
+  const res = await fetch(`${API_URL_LOCAL}/auth/google`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ credential }),
+  });
+
+  if (!res.ok) {
+    throw new Error('Falha no login com Google');
+  }
+
+  return res.json();
+}
+
 export interface RegisterRequest {
   username: string;
   firstName: string;
