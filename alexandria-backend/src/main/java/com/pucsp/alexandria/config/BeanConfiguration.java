@@ -113,8 +113,9 @@ public class BeanConfiguration {
   public GoogleAuthUseCase googleAuthUseCase(
       UserRepository userRepository,
       PasswordEncoder passwordEncoder,
+      RestTemplate restTemplate,
       @Value("${google.client-id}") String googleClientId) {
-    return new GoogleAuthUseCase(userRepository, passwordEncoder, googleClientId);
+    return new GoogleAuthUseCase(userRepository, passwordEncoder, restTemplate, googleClientId);
   }
 
   @Bean

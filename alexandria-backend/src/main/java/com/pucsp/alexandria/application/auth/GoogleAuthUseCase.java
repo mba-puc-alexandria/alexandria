@@ -1,33 +1,51 @@
 package com.pucsp.alexandria.application.auth;
 
-import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
-import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
-import com.google.api.client.http.javanet.NetHttpTransport;
-import com.google.api.client.json.gson.GsonFactory;
 import com.pucsp.alexandria.domain.user.User;
 import com.pucsp.alexandria.domain.user.UserRepository;
-import java.util.Collections;
+import java.util.Map;
 import java.util.UUID;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.web.client.RestTemplate;
 
 public class GoogleAuthUseCase {
 
+  private static final String GOOGLE_TOKENINFO_URL =
+      "https://oauth2.googleapis.com/tokeninfo?id_token=";
+
   private final UserRepository userRepository;
   private final PasswordEncoder passwordEncoder;
+  private final RestTemplate restTemplate;
   private final String googleClientId;
 
-  public GoogleAuthUseCase(UserRepository userRepository, PasswordEncoder passwordEncoder, String googleClientId) {
+  public GoogleAuthUseCase(UserRepository userRepository, PasswordEncoder passwordEncoder,
+      RestTemplate restTemplate, String googleClientId) {
     this.userRepository = userRepository;
     this.passwordEncoder = passwordEncoder;
+    this.restTemplate = restTemplate;
     this.googleClientId = googleClientId;
   }
 
   public record Output(Long userId, String username) {}
 
-  public Output execute(String idTokenString) {
-    GoogleIdToken.Payload payload = verifyToken(idTokenString);
+  @SuppressWarnings("unchecked")
+  public Output execute(String idToken) {
+    Map<String, Object> payload;
+    try {
+      payload = restTemplate.getForObject(GOOGLE_TOKENINFO_URL + idToken, Map.class);
+    } catch (Exception e) {
+      throw new RuntimeException("Token Google inválido ou expirado");
+    }
 
-    String email = payload.getEmail();
+    if (payload == null) {
+      throw new RuntimeException("Token Google inválido ou expirado");
+    }
+
+    String aud = (String) payload.get("aud");
+    if (!googleClientId.equals(aud)) {
+      throw new RuntimeException("Token Google não pertence a esta aplicação");
+    }
+
+    String email = (String) payload.get("email");
     String firstName = (String) payload.get("given_name");
     String lastName = (String) payload.get("family_name");
 
@@ -46,24 +64,6 @@ public class GoogleAuthUseCase {
           User saved = userRepository.save(newUser);
           return new Output(saved.getId().getValue(), saved.getUsername());
         });
-  }
-
-  private GoogleIdToken.Payload verifyToken(String idTokenString) {
-    try {
-      GoogleIdTokenVerifier verifier = new GoogleIdTokenVerifier.Builder(
-          new NetHttpTransport(), new GsonFactory())
-          .setAudience(Collections.singletonList(googleClientId))
-          .build();
-      GoogleIdToken idToken = verifier.verify(idTokenString);
-      if (idToken == null) {
-        throw new RuntimeException("Token Google inválido ou expirado");
-      }
-      return idToken.getPayload();
-    } catch (RuntimeException e) {
-      throw e;
-    } catch (Exception e) {
-      throw new RuntimeException("Erro ao verificar token Google: " + e.getMessage(), e);
-    }
   }
 
   private String generateUsername(String email) {
