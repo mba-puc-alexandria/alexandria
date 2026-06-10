@@ -22,6 +22,7 @@ public class SyncGutendexJobService {
         triggerSync(1);
     }
 
+    @Async("gutendexSyncExecutor")
     public void triggerSync(int startPage) {
         log.info("Job de sincronização iniciado em thread separada, começando da página {}.", startPage);
         syncAllGutendexBooksUseCase.execute(startPage);
