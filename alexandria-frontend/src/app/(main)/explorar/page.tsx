@@ -1,11 +1,20 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { Search, Plus, Check, Loader2, BookMarked } from "lucide-react";
 import { getBooks, searchBooks, addUserBook, getAuthorDisplay, type BookApiResponse } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAuthModal } from "@/contexts/AuthModalContext";
+
+const LANGUAGES = [
+  { code: "pt", label: "Português" },
+  { code: "en", label: "Inglês" },
+  { code: "es", label: "Espanhol" },
+  { code: "fr", label: "Francês" },
+  { code: "de", label: "Alemão" },
+  { code: "it", label: "Italiano" },
+];
 
 export default function ExplorarPage() {
   const [books, setBooks] = useState<BookApiResponse[]>([]);
@@ -15,25 +24,41 @@ export default function ExplorarPage() {
   const [searching, setSearching] = useState(false);
   const [page, setPage] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
+  const [language, setLanguage] = useState<string | undefined>(undefined);
+  const languageRef = useRef(language);
 
+  // Reinicia lista quando idioma ou modo de busca muda
   useEffect(() => {
     if (searching) return;
-    if (page === 0) {
-      setLoading(true);
-    } else {
-      setLoadingMore(true);
-    }
-    getBooks(page, 30)
+    languageRef.current = language;
+    setBooks([]);
+    setPage(0);
+    setLoading(true);
+    getBooks(0, 30, language)
       .then((data) => {
-        setBooks((prev) => page === 0 ? data.content : [...prev, ...data.content]);
+        setBooks(data.content);
         setTotalPages(data.totalPages);
       })
       .catch(console.error)
-      .finally(() => {
-        setLoading(false);
-        setLoadingMore(false);
-      });
+      .finally(() => setLoading(false));
+  }, [language, searching]);
+
+  // Carrega mais páginas (não repete página 0)
+  useEffect(() => {
+    if (searching || page === 0) return;
+    setLoadingMore(true);
+    getBooks(page, 30, languageRef.current)
+      .then((data) => {
+        setBooks((prev) => [...prev, ...data.content]);
+        setTotalPages(data.totalPages);
+      })
+      .catch(console.error)
+      .finally(() => setLoadingMore(false));
   }, [page, searching]);
+
+  function handleLanguageSelect(code: string) {
+    setLanguage((prev) => (prev === code ? undefined : code));
+  }
 
   useEffect(() => {
     const trimmed = query.trim();
@@ -90,6 +115,33 @@ export default function ExplorarPage() {
           className="w-full bg-cream-dark border border-cream-border rounded-xl pl-11 pr-4 py-3 text-sm text-brown placeholder:text-brown-soft/60 outline-none focus:border-brown-soft transition-colors"
         />
       </form>
+
+      {/* Filtros de idioma */}
+      {!searching && (
+        <div className="w-full max-w-5xl flex flex-wrap items-center gap-2">
+          {LANGUAGES.map((lang) => (
+            <button
+              key={lang.code}
+              onClick={() => handleLanguageSelect(lang.code)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${
+                language === lang.code
+                  ? "bg-brown text-cream border-brown"
+                  : "bg-cream-dark text-brown-soft border-cream-border hover:bg-cream-active"
+              }`}
+            >
+              {lang.label}
+            </button>
+          ))}
+          {language && (
+            <button
+              onClick={() => setLanguage(undefined)}
+              className="px-3 py-1.5 rounded-lg text-xs font-semibold text-terra underline"
+            >
+              Limpar filtro
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Grade de livros */}
       <section className="w-full max-w-5xl">

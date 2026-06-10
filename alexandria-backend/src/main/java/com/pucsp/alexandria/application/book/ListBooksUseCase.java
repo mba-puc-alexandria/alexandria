@@ -25,7 +25,13 @@ public class ListBooksUseCase {
   }
 
   public Page<BookOutput> execute(Pageable pageable) {
-    Page<Book> books = bookRepository.findAll(pageable);
+    return execute(null, pageable);
+  }
+
+  public Page<BookOutput> execute(String language, Pageable pageable) {
+    Page<Book> books = (language != null && !language.isBlank())
+        ? bookRepository.findByLanguage(language, pageable)
+        : bookRepository.findAll(pageable);
 
     Set<AuthorId> allAuthorIds = books.stream()
         .flatMap(b -> b.getAuthorIds().stream())

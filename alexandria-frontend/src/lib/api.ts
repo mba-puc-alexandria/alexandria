@@ -89,10 +89,10 @@ export interface BooksPage {
   size: number;
 }
 
-export async function getBooks(page = 0, size = 10): Promise<BooksPage> {
-  const res = await fetch(
-    `${API_URL_LOCAL}/books?page=${page}&size=${size}`
-  );
+export async function getBooks(page = 0, size = 10, language?: string): Promise<BooksPage> {
+  const params = new URLSearchParams({ page: String(page), size: String(size) });
+  if (language) params.set('language', language);
+  const res = await fetch(`${API_URL_LOCAL}/books?${params}`);
   if (!res.ok) throw new Error('Falha ao buscar livros');
   return res.json();
 }

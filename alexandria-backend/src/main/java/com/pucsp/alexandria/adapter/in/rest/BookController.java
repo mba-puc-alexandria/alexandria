@@ -65,8 +65,10 @@ public class BookController {
   }
 
   @GetMapping
-  public ResponseEntity<Page<BookResponse>> getAll(Pageable pageable) {
-    var page = listBooksUseCase.execute(pageable);
+  public ResponseEntity<Page<BookResponse>> getAll(
+      @RequestParam(required = false) String language,
+      Pageable pageable) {
+    var page = listBooksUseCase.execute(language, pageable);
     return ResponseEntity.ok(page.map(BookResponse::from));
   }
 

@@ -63,6 +63,12 @@ public class BookRepositoryImpl implements BookRepository {
   }
 
   @Override
+  public Page<Book> findByLanguage(String language, Pageable pageable) {
+    return jpaRepository.findByLanguage(language, pageable)
+        .map(mapper::toDomain);
+  }
+
+  @Override
   public void delete(Book book) {
     BookEntity entity = mapper.toPersistence(book);
     entity.setAuthors(book.getAuthorIds().stream()

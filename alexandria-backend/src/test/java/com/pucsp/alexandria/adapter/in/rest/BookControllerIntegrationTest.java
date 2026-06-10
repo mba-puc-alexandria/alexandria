@@ -101,7 +101,7 @@ class BookControllerIntegrationTest {
                 2L, "Book 2", authors2, null, null, null, null, null, null, 1L, BookSource.LOCAL.name());
         Page<BookOutput> page = new PageImpl<>(List.of(book1, book2));
 
-        when(listBooksUseCase.execute(any(Pageable.class))).thenReturn(page);
+        when(listBooksUseCase.execute(isNull(), any(Pageable.class))).thenReturn(page);
 
         mockMvc.perform(get("/books")
                         .param("page", "0")
