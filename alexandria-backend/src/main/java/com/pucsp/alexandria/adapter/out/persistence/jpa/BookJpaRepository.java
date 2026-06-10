@@ -20,4 +20,7 @@ public interface BookJpaRepository extends JpaRepository<BookEntity, Long> {
       "WHERE LOWER(b.title) LIKE LOWER(CONCAT('%', :searchTerm, '%')) " +
       "OR LOWER(a.name) LIKE LOWER(CONCAT('%', :searchTerm, '%'))")
   Page<BookEntity> searchByTitleOrAuthor(@Param("searchTerm") String query, Pageable pageable);
+
+  @Query("SELECT b FROM BookEntity b WHERE LOWER(b.languages) LIKE LOWER(CONCAT('%', :language, '%'))")
+  Page<BookEntity> findByLanguage(@Param("language") String language, Pageable pageable);
 }

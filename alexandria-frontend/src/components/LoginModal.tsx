@@ -3,12 +3,13 @@
 import { useState, useEffect, FormEvent } from "react";
 import Link from "next/link";
 import { X } from "lucide-react";
+import { GoogleLogin, CredentialResponse } from "@react-oauth/google";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAuthModal } from "@/contexts/AuthModalContext";
 
 export default function LoginModal() {
   const { isOpen, closeLoginModal } = useAuthModal();
-  const { login } = useAuth();
+  const { login, loginWithGoogle } = useAuth();
 
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -32,6 +33,20 @@ export default function LoginModal() {
   }, [isOpen]);
 
   if (!isOpen) return null;
+
+  async function handleGoogleSuccess(response: CredentialResponse) {
+    if (!response.credential) return;
+    setError("");
+    setLoading(true);
+    try {
+      await loginWithGoogle(response.credential);
+      closeLoginModal();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Falha ao entrar com Google");
+    } finally {
+      setLoading(false);
+    }
+  }
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -120,6 +135,24 @@ export default function LoginModal() {
             {loading ? "Entrando..." : "Entrar"}
           </button>
         </form>
+
+        {/* Divisor */}
+        <div className="flex items-center gap-3">
+          <div className="flex-1 h-px bg-cream-border" />
+          <span className="text-brown-soft/50 text-xs">ou</span>
+          <div className="flex-1 h-px bg-cream-border" />
+        </div>
+
+        {/* Google */}
+        <div className="flex justify-center">
+          <GoogleLogin
+            onSuccess={handleGoogleSuccess}
+            onError={() => setError("Falha ao autenticar com Google")}
+            theme="outline"
+            shape="rectangular"
+            locale="pt-BR"
+          />
+        </div>
 
         <p className="text-center text-brown-soft text-sm">
           Não tem conta?{" "}

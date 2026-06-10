@@ -48,6 +48,8 @@ export default function LeitorPage({
   const totalLocationsRef = useRef<number>(0);
   const sessionStartTimeRef = useRef<number | null>(null);
   const sessionStartProgressRef = useRef<number | null>(null);
+  // FIX: timestamp do último resize para ignorar reflows causados por zoom do browser
+  const lastResizeMsRef = useRef<number>(0);
 
   useEffect(() => {
     async function init() {
@@ -86,8 +88,18 @@ export default function LeitorPage({
     };
   }, [id]);
 
+  // FIX: captura zoom do browser (dispara window.resize) para proteger o progresso
+  useEffect(() => {
+    const onResize = () => { lastResizeMsRef.current = Date.now(); };
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
   const handleLocationChange = useCallback(
     (loc: string) => {
+      // FIX: zoom do browser causa reflow no epub.js que dispara locationChanged
+      // com um CFI diferente — ignoramos mudanças dentro de 500ms de um resize
+      if (Date.now() - lastResizeMsRef.current < 500) return;
       setLocation(loc);
       localStorage.setItem(`epub-location-${id}`, loc);
     },
@@ -112,6 +124,10 @@ export default function LeitorPage({
     });
 
     rendition.on('relocated', (loc: any) => {
+      // FIX: zoom do browser dispara relocated com CFI errado (epub.js faz page-snap
+      // na nova paginação) — ignoramos reflows dentro de 500ms de um resize
+      if (Date.now() - lastResizeMsRef.current < 500) return;
+
       let percent = 0;
 
       if (locationsReadyRef.current) {
@@ -253,6 +269,7 @@ export default function LeitorPage({
             location={location}
             locationChanged={handleLocationChange}
             getRendition={handleRendition}
+            epubOptions={{ spread: 'auto' }}
           />
         ) : (
           <div className="flex items-center justify-center h-full">

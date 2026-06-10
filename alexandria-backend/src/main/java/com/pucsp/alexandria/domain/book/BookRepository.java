@@ -14,6 +14,8 @@ public interface BookRepository {
 
   Page<Book> findAll(Pageable pageable);
 
+  Page<Book> findByLanguage(String language, Pageable pageable);
+
   Page<Book> searchBookByQuery(String query, Pageable pageable);
 
   void delete(Book book);

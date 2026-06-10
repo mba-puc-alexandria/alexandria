@@ -1,11 +1,20 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { Search, Plus, Check, Loader2, BookMarked } from "lucide-react";
 import { getBooks, searchBooks, addUserBook, getAuthorDisplay, type BookApiResponse } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAuthModal } from "@/contexts/AuthModalContext";
+
+const LANGUAGES = [
+  { code: "pt", label: "Português" },
+  { code: "en", label: "English" },
+  { code: "fr", label: "Français" },
+  { code: "de", label: "Deutsch" },
+  { code: "es", label: "Español" },
+  { code: "it", label: "Italiano" },
+];
 
 export default function ExplorarPage() {
   const [books, setBooks] = useState<BookApiResponse[]>([]);
@@ -15,25 +24,43 @@ export default function ExplorarPage() {
   const [searching, setSearching] = useState(false);
   const [page, setPage] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
+  const [language, setLanguage] = useState<string | undefined>(undefined);
+  const languageRef = useRef(language);
+  useEffect(() => { languageRef.current = language; });
 
+  // Efeito 1: carrega do zero quando idioma ou estado de busca muda
   useEffect(() => {
     if (searching) return;
-    if (page === 0) {
-      setLoading(true);
-    } else {
-      setLoadingMore(true);
-    }
-    getBooks(page, 30)
+    setLoading(true);
+    getBooks(0, 30, language)
       .then((data) => {
-        setBooks((prev) => page === 0 ? data.content : [...prev, ...data.content]);
+        setBooks(data.content);
         setTotalPages(data.totalPages);
       })
       .catch(console.error)
-      .finally(() => {
-        setLoading(false);
-        setLoadingMore(false);
-      });
+      .finally(() => setLoading(false));
+  }, [language, searching]);
+
+  // Efeito 2: carrega mais páginas (apenas page > 0)
+  useEffect(() => {
+    if (page === 0 || searching) return;
+    setLoadingMore(true);
+    getBooks(page, 30, languageRef.current)
+      .then((data) => {
+        setBooks((prev) => [...prev, ...data.content]);
+        setTotalPages(data.totalPages);
+      })
+      .catch(console.error)
+      .finally(() => setLoadingMore(false));
   }, [page, searching]);
+
+  function handleLanguageSelect(code: string) {
+    const next = language === code ? undefined : code;
+    setLanguage(next);
+    setPage(0);
+    setSearching(false);
+    setQuery("");
+  }
 
   useEffect(() => {
     const trimmed = query.trim();
@@ -43,8 +70,8 @@ export default function ExplorarPage() {
       return;
     }
     const timer = setTimeout(() => {
-      setSearching(true);
       setLoading(true);
+      setSearching(true);
       setPage(0);
       searchBooks(trimmed, 0, 30)
         .then((data) => {
@@ -91,11 +118,41 @@ export default function ExplorarPage() {
         />
       </form>
 
+      {/* Filtro por idioma */}
+      <div className="flex flex-wrap gap-2 w-full max-w-5xl">
+        {LANGUAGES.map((lang) => (
+          <button
+            key={lang.code}
+            onClick={() => handleLanguageSelect(lang.code)}
+            className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
+              language === lang.code
+                ? "bg-brown text-cream border-brown"
+                : "bg-cream-dark text-brown-soft border-cream-border hover:border-brown-soft"
+            }`}
+          >
+            {lang.label}
+          </button>
+        ))}
+        {language && (
+          <button
+            onClick={() => { setLanguage(undefined); setPage(0); }}
+            className="px-3 py-1.5 rounded-lg text-xs font-medium border border-cream-border text-brown-soft hover:border-brown-soft transition-colors"
+          >
+            Limpar filtro ×
+          </button>
+        )}
+      </div>
+
       {/* Grade de livros */}
       <section className="w-full max-w-5xl">
         {searching && (
           <p className="text-brown-soft text-xs mb-4">
             Resultados para <span className="font-semibold text-brown">"{query}"</span>
+          </p>
+        )}
+        {!searching && language && (
+          <p className="text-brown-soft text-xs mb-4">
+            Filtrando por idioma: <span className="font-semibold text-brown">{LANGUAGES.find(l => l.code === language)?.label}</span>
           </p>
         )}
 

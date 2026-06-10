@@ -73,6 +73,13 @@
 			<scope>runtime</scope>
 		</dependency>
 
+		<!-- Google OAuth -->
+		<dependency>
+			<groupId>com.google.api-client</groupId>
+			<artifactId>google-api-client</artifactId>
+			<version>2.2.0</version>
+		</dependency>
+
 		<!-- OpenAPI -->
 		<dependency>
 			<groupId>org.springdoc</groupId>
