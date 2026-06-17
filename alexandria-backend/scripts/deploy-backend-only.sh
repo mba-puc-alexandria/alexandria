@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-EC2_DNS="ec2-18-225-37-127.us-east-2.compute.amazonaws.com"
+EC2_DNS="ec2-3-138-110-168.us-east-2.compute.amazonaws.com"
 SSH_KEY="ec2-login.pem"
 REMOTE_DIR="/home/ec2-user/app"
 
