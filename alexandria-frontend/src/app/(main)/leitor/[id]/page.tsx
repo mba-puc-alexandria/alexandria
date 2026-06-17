@@ -43,6 +43,7 @@ export default function LeitorPage({
 
   const userBookIdRef = useRef<number | null>(null);
   const lastSavedProgressRef = useRef<number>(0);
+  const currentProgressRef = useRef<number>(0);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const locationsReadyRef = useRef(false);
   const totalLocationsRef = useRef<number>(0);
@@ -82,7 +83,17 @@ export default function LeitorPage({
     init().catch(console.error).finally(() => setLoading(false));
 
     return () => {
-      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+      // Salva o progresso pendente antes de desmontar o componente
+      if (saveTimerRef.current) {
+        clearTimeout(saveTimerRef.current);
+        saveTimerRef.current = null;
+      }
+      if (userBookIdRef.current && currentProgressRef.current !== lastSavedProgressRef.current) {
+        updateUserBook(userBookIdRef.current, {
+          status: 'reading',
+          progress: currentProgressRef.current,
+        }).catch(() => {});
+      }
     };
   }, [id]);
 
@@ -152,6 +163,7 @@ export default function LeitorPage({
       }
 
       setProgress(percent);
+      currentProgressRef.current = percent;
 
       if (!userBookIdRef.current || percent === lastSavedProgressRef.current) return;
 
