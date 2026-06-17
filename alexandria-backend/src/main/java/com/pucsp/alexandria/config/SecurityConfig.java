@@ -36,7 +36,8 @@ public class SecurityConfig {
         .exceptionHandling(ex -> ex.authenticationEntryPoint(jwtAuthenticationEntryPoint))
         .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
         .authorizeHttpRequests(auth -> auth
-            .requestMatchers("/auth/**", "/api/jobs/**").permitAll()
+            .requestMatchers("/auth/register", "/auth/login", "/auth/google").permitAll()
+            .requestMatchers("/api/jobs/**").permitAll()
             .requestMatchers("/actuator/health").permitAll()
             .requestMatchers("/error").permitAll()
             .requestMatchers("/swagger-ui/**", "/api-docs/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()

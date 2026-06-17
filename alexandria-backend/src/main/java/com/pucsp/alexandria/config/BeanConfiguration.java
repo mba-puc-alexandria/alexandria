@@ -10,6 +10,9 @@ import com.pucsp.alexandria.application.book.GetBookUseCase;
 import com.pucsp.alexandria.application.book.ListBooksUseCase;
 import com.pucsp.alexandria.application.book.SearchBookByTitleUseCase;
 import com.pucsp.alexandria.application.book.UpdateBookUseCase;
+import com.pucsp.alexandria.application.profile.GetProfileUseCase;
+import com.pucsp.alexandria.application.profile.UpdatePasswordUseCase;
+import com.pucsp.alexandria.application.profile.UpdateProfileUseCase;
 import com.pucsp.alexandria.application.userbooks.AddUserBooksUseCase;
 import com.pucsp.alexandria.application.userbooks.ListUserBooksUseCase;
 import com.pucsp.alexandria.application.userbooks.RemoveUserBooksUseCase;
@@ -128,5 +131,22 @@ public class BeanConfiguration {
   public SyncAllGutendexBooksUseCase syncAllGutendexBooksUseCase(
       CreateBookUseCase createBookUseCase) {
     return new SyncAllGutendexBooksUseCase(createBookUseCase);
+  }
+
+  @Bean
+  public GetProfileUseCase getProfileUseCase(UserRepository userRepository) {
+    return new GetProfileUseCase(userRepository);
+  }
+
+  @Bean
+  public UpdateProfileUseCase updateProfileUseCase(UserRepository userRepository) {
+    return new UpdateProfileUseCase(userRepository);
+  }
+
+  @Bean
+  public UpdatePasswordUseCase updatePasswordUseCase(
+      UserRepository userRepository,
+      PasswordEncoder passwordEncoder) {
+    return new UpdatePasswordUseCase(userRepository, passwordEncoder);
   }
 }
