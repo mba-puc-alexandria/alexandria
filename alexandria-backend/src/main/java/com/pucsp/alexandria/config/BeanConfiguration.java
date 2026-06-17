@@ -14,6 +14,7 @@ import com.pucsp.alexandria.application.profile.GetProfileUseCase;
 import com.pucsp.alexandria.application.profile.UpdatePasswordUseCase;
 import com.pucsp.alexandria.application.profile.UpdateProfileUseCase;
 import com.pucsp.alexandria.application.userbooks.AddUserBooksUseCase;
+import com.pucsp.alexandria.application.userbooks.GetUserBookByBookIdUseCase;
 import com.pucsp.alexandria.application.userbooks.ListUserBooksUseCase;
 import com.pucsp.alexandria.application.userbooks.RemoveUserBooksUseCase;
 import com.pucsp.alexandria.application.userbooks.UpdateUserBooksUseCase;
@@ -101,10 +102,18 @@ public class BeanConfiguration {
     return new UpdateUserBooksUseCase(userBooksRepository, bookRepository, authorRepository);
   }
 
-  @Bean
+    @Bean
   public RemoveUserBooksUseCase removeUserBooksUseCase(
       UserBooksRepository userBooksRepository) {
     return new RemoveUserBooksUseCase(userBooksRepository);
+  }
+
+  @Bean
+  public GetUserBookByBookIdUseCase getUserBookByBookIdUseCase(
+      UserBooksRepository userBooksRepository,
+      BookRepository bookRepository,
+      AuthorRepository authorRepository) {
+    return new GetUserBookByBookIdUseCase(userBooksRepository, bookRepository, authorRepository);
   }
 
   @Bean
