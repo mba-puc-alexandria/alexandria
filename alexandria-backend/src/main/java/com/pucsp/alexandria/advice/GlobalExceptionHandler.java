@@ -3,6 +3,8 @@ package com.pucsp.alexandria.advice;
 import com.pucsp.alexandria.domain.book.exception.BookNotFoundException;
 import com.pucsp.alexandria.domain.user.exception.DuplicateUserException;
 import com.pucsp.alexandria.domain.user.exception.InvalidCredentialsException;
+import com.pucsp.alexandria.domain.user.exception.InvalidUserException;
+import com.pucsp.alexandria.domain.user.exception.UserNotFoundException;
 import com.pucsp.alexandria.domain.userbook.exception.DuplicateUserBooksException;
 import com.pucsp.alexandria.domain.userbook.exception.InvalidUserBooksException;
 import com.pucsp.alexandria.domain.userbook.exception.UserBooksNotFoundException;
@@ -61,6 +63,20 @@ public class GlobalExceptionHandler {
     return ResponseEntity
         .status(HttpStatus.UNAUTHORIZED)
         .body(new ErrorResponse(ex.getMessage(), HttpStatus.UNAUTHORIZED.value()));
+  }
+
+  @ExceptionHandler(UserNotFoundException.class)
+  public ResponseEntity<ErrorResponse> handleUserNotFound(UserNotFoundException ex) {
+    return ResponseEntity
+        .status(HttpStatus.NOT_FOUND)
+        .body(new ErrorResponse(ex.getMessage(), HttpStatus.NOT_FOUND.value()));
+  }
+
+  @ExceptionHandler(InvalidUserException.class)
+  public ResponseEntity<ErrorResponse> handleInvalidUser(InvalidUserException ex) {
+    return ResponseEntity
+        .status(HttpStatus.BAD_REQUEST)
+        .body(new ErrorResponse(ex.getMessage(), HttpStatus.BAD_REQUEST.value()));
   }
 
   @ExceptionHandler(Exception.class)
