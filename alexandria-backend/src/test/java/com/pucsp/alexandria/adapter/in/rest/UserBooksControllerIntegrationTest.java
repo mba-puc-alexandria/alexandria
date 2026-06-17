@@ -3,6 +3,7 @@ package com.pucsp.alexandria.adapter.in.rest;
 import static org.junit.jupiter.api.Assertions.*;
 
 import com.pucsp.alexandria.application.userbooks.AddUserBooksUseCase;
+import com.pucsp.alexandria.application.userbooks.GetUserBookByBookIdUseCase;
 import com.pucsp.alexandria.application.userbooks.ListUserBooksUseCase;
 import com.pucsp.alexandria.application.userbooks.RemoveUserBooksUseCase;
 import com.pucsp.alexandria.application.userbooks.UpdateUserBooksUseCase;
@@ -20,7 +21,7 @@ import org.springframework.test.web.servlet.MockMvc;
 @AutoConfigureMockMvc
 class UserBooksControllerIntegrationTest {
 
-        @Autowired
+    @Autowired
     private MockMvc mockMvc;
 
     @MockitoBean
@@ -34,6 +35,9 @@ class UserBooksControllerIntegrationTest {
 
     @MockitoBean
     private RemoveUserBooksUseCase removeUserBooksUseCase;
+
+    @MockitoBean
+    private GetUserBookByBookIdUseCase getUserBookByBookIdUseCase;
 
     @Test
     void contextLoads() {

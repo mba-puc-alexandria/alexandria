@@ -23,7 +23,7 @@ function formatMinutes(minutes: number): string {
   return m > 0 ? `~${h}h ${m}min` : `~${h}h`;
 }
 
-type DisplayMode = 'percent' | 'minutes' | 'pages';
+type DisplayMode = "percent" | "minutes" | "pages";
 
 export default function LeitorPage({
   params,
@@ -39,14 +39,14 @@ export default function LeitorPage({
   const [progress, setProgress] = useState<number>(0);
   const [minutesLeft, setMinutesLeft] = useState<number | null>(null);
   const [pagesLeft, setPagesLeft] = useState<number | null>(null);
-  const [displayMode, setDisplayMode] = useState<DisplayMode>('percent');
+  const [displayMode, setDisplayMode] = useState<DisplayMode>("percent");
 
   const userBookIdRef = useRef<number | null>(null);
   const lastSavedProgressRef = useRef<number>(0);
   const currentProgressRef = useRef<number>(0);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const locationsReadyRef = useRef(false);
   const totalLocationsRef = useRef<number>(0);
+  const restoreLocationRef = useRef<string | null>(null);
   const sessionStartTimeRef = useRef<number | null>(null);
   const sessionStartProgressRef = useRef<number | null>(null);
 
@@ -59,20 +59,24 @@ export default function LeitorPage({
 
       setBook(b);
 
+      // 1. Carrega progresso salvo na API (fonte primária)
       const userBook = userBooks.find((ub) => ub.book.id === Number(id));
       if (userBook) {
         userBookIdRef.current = userBook.id;
         const savedProgress = userBook.progress ?? 0;
         lastSavedProgressRef.current = savedProgress;
+        currentProgressRef.current = savedProgress;
         setProgress(savedProgress);
 
-        if (userBook.status === 'toread') {
-          updateUserBook(userBook.id, { status: 'reading', progress: 0 }).catch(() => {});
+        if (userBook.status === "toread") {
+          updateUserBook(userBook.id, { status: "reading", progress: 0 }).catch(() => {});
         }
       }
 
+      // 2. Guarda localização salva para restaurar manualmente
+      // após as locations estarem prontas (evita relocated indesejado)
       const saved = localStorage.getItem(`epub-location-${id}`);
-      if (saved) setLocation(saved);
+      if (saved) restoreLocationRef.current = saved;
 
       if (b.downloadUrl) {
         const res = await fetch(`/api/epub?url=${encodeURIComponent(b.downloadUrl)}`);
@@ -83,14 +87,13 @@ export default function LeitorPage({
     init().catch(console.error).finally(() => setLoading(false));
 
     return () => {
-      // Salva o progresso pendente antes de desmontar o componente
       if (saveTimerRef.current) {
         clearTimeout(saveTimerRef.current);
         saveTimerRef.current = null;
       }
       if (userBookIdRef.current && currentProgressRef.current !== lastSavedProgressRef.current) {
         updateUserBook(userBookIdRef.current, {
-          status: 'reading',
+          status: "reading",
           progress: currentProgressRef.current,
         }).catch(() => {});
       }
@@ -101,89 +104,88 @@ export default function LeitorPage({
     (loc: string) => {
       setLocation(loc);
       localStorage.setItem(`epub-location-${id}`, loc);
+      localStorage.setItem(`epub-progress-${id}`, String(currentProgressRef.current));
     },
     [id]
   );
 
   function persistProgress(percent: number) {
     lastSavedProgressRef.current = percent;
+    localStorage.setItem(`epub-progress-${id}`, String(percent));
     updateUserBook(userBookIdRef.current!, {
-      status: 'reading',
+      status: "reading",
       progress: percent,
     }).catch(() => {});
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const handleRendition = useCallback((rendition: any) => {
+
     rendition.book.ready.then(() => {
       rendition.book.locations.generate(1600).then(() => {
-        locationsReadyRef.current = true;
         totalLocationsRef.current = rendition.book.locations.length();
-      });
-    });
 
-    rendition.on('relocated', (loc: any) => {
-      let percent = 0;
-
-      if (locationsReadyRef.current) {
-        percent = Math.round(
-          rendition.book.locations.percentageFromCfi(loc.start.cfi) * 100
-        );
-
-        // páginas restantes via locations
-        const currentLocation = rendition.book.locations.locationFromCfi(loc.start.cfi);
-        const total = totalLocationsRef.current;
-        const remaining = Math.max(total - currentLocation, 0);
-        setPagesLeft(remaining);
-
-        // minutos via velocidade real ou fallback de velocidade média
-        const now = Date.now();
-        if (sessionStartTimeRef.current === null) {
-          sessionStartTimeRef.current = now;
-          sessionStartProgressRef.current = percent;
-          // fallback: estimativa por velocidade média de leitura
-          setMinutesLeft(Math.round(remaining * MINUTES_PER_LOCATION));
-        } else {
-          const elapsedMin = (now - sessionStartTimeRef.current) / 60000;
-          const progressDelta = percent - (sessionStartProgressRef.current ?? percent);
-
-          if (elapsedMin >= 1 && progressDelta > 0) {
-            const speedPerMin = progressDelta / elapsedMin;
-            setMinutesLeft(Math.round((100 - percent) / speedPerMin));
-          } else {
-            // ainda aguardando dados suficientes: usa velocidade média
-            setMinutesLeft(Math.round(remaining * MINUTES_PER_LOCATION));
-          }
+        // Restaura posição salva. O listener de relocated ainda não
+        // foi registrado, então esse display() não causa recálculo.
+        if (restoreLocationRef.current) {
+          rendition.display(restoreLocationRef.current);
+          restoreLocationRef.current = null;
         }
-      } else if (loc.start.percentage > 0) {
-        percent = Math.round(loc.start.percentage * 100);
-      } else {
-        const total = rendition.book.spine?.items?.length ?? 1;
-        percent = Math.round(((loc.start.index ?? 0) / Math.max(total - 1, 1)) * 100);
-      }
 
-      setProgress(percent);
-      currentProgressRef.current = percent;
+        // Registra o listener DEPOIS da restauração — só captura
+        // navegações reais do usuário.
+        rendition.on("relocated", (loc: any) => {
+          const percent = Math.round(
+            rendition.book.locations.percentageFromCfi(loc.start.cfi) * 100
+          );
 
-      if (!userBookIdRef.current || percent === lastSavedProgressRef.current) return;
+          const currentLocation = rendition.book.locations.locationFromCfi(loc.start.cfi);
+          const total = totalLocationsRef.current;
+          const remaining = Math.max(total - currentLocation, 0);
+          setPagesLeft(remaining);
 
-      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
-      saveTimerRef.current = setTimeout(() => persistProgress(percent), 2000);
+          const now = Date.now();
+          if (sessionStartTimeRef.current === null) {
+            sessionStartTimeRef.current = now;
+            sessionStartProgressRef.current = percent;
+            setMinutesLeft(Math.round(remaining * MINUTES_PER_LOCATION));
+          } else {
+            const elapsedMin = (now - sessionStartTimeRef.current) / 60000;
+            const progressDelta = percent - (sessionStartProgressRef.current ?? percent);
+
+            if (elapsedMin >= 1 && progressDelta > 0) {
+              const speedPerMin = progressDelta / elapsedMin;
+              setMinutesLeft(Math.round((100 - percent) / speedPerMin));
+            } else {
+              setMinutesLeft(Math.round(remaining * MINUTES_PER_LOCATION));
+            }
+          }
+
+          setProgress(percent);
+          currentProgressRef.current = percent;
+          localStorage.setItem(`epub-progress-${id}`, String(percent));
+
+          if (!userBookIdRef.current || percent === lastSavedProgressRef.current) return;
+
+          if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+          saveTimerRef.current = setTimeout(() => persistProgress(percent), 2000);
+        });
+      });
     });
   }, []);
 
   function cycleDisplayMode() {
     setDisplayMode((prev) => {
-      if (prev === 'percent') return 'minutes';
-      if (prev === 'minutes') return 'pages';
-      return 'percent';
+      if (prev === "percent") return "minutes";
+      if (prev === "minutes") return "pages";
+      return "percent";
     });
   }
 
   function renderReadingInfo() {
     if (!userBookIdRef.current) return null;
 
-    if (displayMode === 'minutes' && minutesLeft !== null) {
+    if (displayMode === "minutes" && minutesLeft !== null) {
       return (
         <button
           onClick={cycleDisplayMode}
@@ -194,7 +196,7 @@ export default function LeitorPage({
       );
     }
 
-    if (displayMode === 'pages' && pagesLeft !== null) {
+    if (displayMode === "pages" && pagesLeft !== null) {
       return (
         <button
           onClick={cycleDisplayMode}
