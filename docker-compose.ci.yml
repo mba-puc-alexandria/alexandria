@@ -18,6 +18,10 @@ services:
     build:
       context: ./alexandria-backend
       dockerfile: Dockerfile
+      cache_from:
+        - type=gha
+      cache_to:
+        - type=gha,mode=max
     container_name: alexandria-ci-backend
     restart: unless-stopped
     ports:
@@ -40,6 +44,10 @@ services:
     build:
       context: ./alexandria-frontend
       dockerfile: Dockerfile
+      cache_from:
+        - type=gha
+      cache_to:
+        - type=gha,mode=max
       args:
         NEXT_PUBLIC_API_URL: http://localhost:8080
     container_name: alexandria-ci-frontend
