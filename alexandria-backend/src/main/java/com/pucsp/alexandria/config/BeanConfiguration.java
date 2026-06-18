@@ -1,6 +1,7 @@
 package com.pucsp.alexandria.config;
 
 import com.pucsp.alexandria.application.auth.AuthenticateUserUseCase;
+import com.pucsp.alexandria.application.auth.GoogleAuthUseCase;
 import com.pucsp.alexandria.application.auth.RegisterUserUseCase;
 import com.pucsp.alexandria.application.book.CreateBookUseCase;
 import com.pucsp.alexandria.application.book.DeleteBookUseCase;
@@ -9,7 +10,11 @@ import com.pucsp.alexandria.application.book.GetBookUseCase;
 import com.pucsp.alexandria.application.book.ListBooksUseCase;
 import com.pucsp.alexandria.application.book.SearchBookByTitleUseCase;
 import com.pucsp.alexandria.application.book.UpdateBookUseCase;
+import com.pucsp.alexandria.application.profile.GetProfileUseCase;
+import com.pucsp.alexandria.application.profile.UpdatePasswordUseCase;
+import com.pucsp.alexandria.application.profile.UpdateProfileUseCase;
 import com.pucsp.alexandria.application.userbooks.AddUserBooksUseCase;
+import com.pucsp.alexandria.application.userbooks.GetUserBookByBookIdUseCase;
 import com.pucsp.alexandria.application.userbooks.ListUserBooksUseCase;
 import com.pucsp.alexandria.application.userbooks.RemoveUserBooksUseCase;
 import com.pucsp.alexandria.application.userbooks.UpdateUserBooksUseCase;
@@ -18,6 +23,7 @@ import com.pucsp.alexandria.domain.book.BookRepository;
 import com.pucsp.alexandria.domain.book.external.BookApiClient;
 import com.pucsp.alexandria.domain.user.UserRepository;
 import com.pucsp.alexandria.domain.userbook.UserBooksRepository;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -96,15 +102,32 @@ public class BeanConfiguration {
     return new UpdateUserBooksUseCase(userBooksRepository, bookRepository, authorRepository);
   }
 
-  @Bean
+    @Bean
   public RemoveUserBooksUseCase removeUserBooksUseCase(
       UserBooksRepository userBooksRepository) {
     return new RemoveUserBooksUseCase(userBooksRepository);
   }
 
   @Bean
+  public GetUserBookByBookIdUseCase getUserBookByBookIdUseCase(
+      UserBooksRepository userBooksRepository,
+      BookRepository bookRepository,
+      AuthorRepository authorRepository) {
+    return new GetUserBookByBookIdUseCase(userBooksRepository, bookRepository, authorRepository);
+  }
+
+  @Bean
   public RegisterUserUseCase registerUserUseCase(UserRepository userRepository) {
     return new RegisterUserUseCase(userRepository);
+  }
+
+  @Bean
+  public GoogleAuthUseCase googleAuthUseCase(
+      UserRepository userRepository,
+      PasswordEncoder passwordEncoder,
+      RestTemplate restTemplate,
+      @Value("${google.client-id}") String googleClientId) {
+    return new GoogleAuthUseCase(userRepository, passwordEncoder, restTemplate, googleClientId);
   }
 
   @Bean
@@ -117,5 +140,22 @@ public class BeanConfiguration {
   public SyncAllGutendexBooksUseCase syncAllGutendexBooksUseCase(
       CreateBookUseCase createBookUseCase) {
     return new SyncAllGutendexBooksUseCase(createBookUseCase);
+  }
+
+  @Bean
+  public GetProfileUseCase getProfileUseCase(UserRepository userRepository) {
+    return new GetProfileUseCase(userRepository);
+  }
+
+  @Bean
+  public UpdateProfileUseCase updateProfileUseCase(UserRepository userRepository) {
+    return new UpdateProfileUseCase(userRepository);
+  }
+
+  @Bean
+  public UpdatePasswordUseCase updatePasswordUseCase(
+      UserRepository userRepository,
+      PasswordEncoder passwordEncoder) {
+    return new UpdatePasswordUseCase(userRepository, passwordEncoder);
   }
 }

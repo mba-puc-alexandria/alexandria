@@ -55,6 +55,15 @@ public class User {
     return new User(this.id, finalUsername, finalFirstName, finalLastName, this.email, finalPassword, this.createdAt);
   }
 
+  public User updateProfile(String username, String firstName, String lastName) {
+    return updateWith(username, firstName, lastName, null);
+  }
+
+  public User updatePassword(String newPassword) {
+    validatePassword(newPassword);
+    return new User(this.id, this.username, this.firstName, this.lastName, this.email, newPassword, this.createdAt);
+  }
+
   private static void validateUsername(String username) {
     if (username == null || username.isBlank()) {
       throw new InvalidUserException("Username is required");
@@ -82,7 +91,7 @@ public class User {
     }
   }
 
-  private static void validatePassword(String password) {
+  public static void validatePassword(String password) {
     if (password == null || password.isBlank()) {
       throw new InvalidUserException("Password is required");
     }

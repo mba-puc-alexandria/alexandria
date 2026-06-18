@@ -4,6 +4,7 @@ import com.pucsp.alexandria.adapter.in.rest.dto.AddUserBooksRequest;
 import com.pucsp.alexandria.adapter.in.rest.dto.UpdateUserBooksRequest;
 import com.pucsp.alexandria.adapter.in.rest.dto.UserBooksResponse;
 import com.pucsp.alexandria.application.userbooks.AddUserBooksUseCase;
+import com.pucsp.alexandria.application.userbooks.GetUserBookByBookIdUseCase;
 import com.pucsp.alexandria.application.userbooks.ListUserBooksUseCase;
 import com.pucsp.alexandria.application.userbooks.RemoveUserBooksUseCase;
 import com.pucsp.alexandria.application.userbooks.UpdateUserBooksUseCase;
@@ -35,16 +36,19 @@ public class UserBooksController {
   private final ListUserBooksUseCase listUserBooksUseCase;
   private final UpdateUserBooksUseCase updateUserBooksUseCase;
   private final RemoveUserBooksUseCase removeUserBooksUseCase;
+  private final GetUserBookByBookIdUseCase getUserBookByBookIdUseCase;
 
   public UserBooksController(
       AddUserBooksUseCase addUserBooksUseCase,
       ListUserBooksUseCase listUserBooksUseCase,
       UpdateUserBooksUseCase updateUserBooksUseCase,
-      RemoveUserBooksUseCase removeUserBooksUseCase) {
+      RemoveUserBooksUseCase removeUserBooksUseCase,
+      GetUserBookByBookIdUseCase getUserBookByBookIdUseCase) {
     this.addUserBooksUseCase = addUserBooksUseCase;
     this.listUserBooksUseCase = listUserBooksUseCase;
     this.updateUserBooksUseCase = updateUserBooksUseCase;
     this.removeUserBooksUseCase = removeUserBooksUseCase;
+    this.getUserBookByBookIdUseCase = getUserBookByBookIdUseCase;
   }
 
   @GetMapping
@@ -52,16 +56,25 @@ public class UserBooksController {
       Authentication authentication,
       @RequestParam(required = false) String status,
       Pageable pageable) {
-        AuthenticatedUser user = (AuthenticatedUser) authentication.getPrincipal();
+    AuthenticatedUser user = (AuthenticatedUser) authentication.getPrincipal();
     var page = listUserBooksUseCase.execute(user.id(), status, pageable);
     return ResponseEntity.ok(page.map(UserBooksResponse::from));
+  }
+
+  @GetMapping("/book/{bookId}")
+  public ResponseEntity<UserBooksResponse> getByBookId(
+      Authentication authentication,
+      @PathVariable Long bookId) {
+    AuthenticatedUser user = (AuthenticatedUser) authentication.getPrincipal();
+    var output = getUserBookByBookIdUseCase.execute(user.id(), bookId);
+    return ResponseEntity.ok(UserBooksResponse.from(output));
   }
 
   @PostMapping
   public ResponseEntity<UserBooksResponse> add(
       Authentication authentication,
       @RequestBody AddUserBooksRequest request) {
-        AuthenticatedUser user = (AuthenticatedUser) authentication.getPrincipal();
+    AuthenticatedUser user = (AuthenticatedUser) authentication.getPrincipal();
     var input = new AddUserBooksInput(request.bookId(), request.status());
     var output = addUserBooksUseCase.execute(user.id(), input);
     return ResponseEntity.status(HttpStatus.CREATED).body(UserBooksResponse.from(output));
@@ -72,7 +85,7 @@ public class UserBooksController {
       Authentication authentication,
       @PathVariable Long id,
       @RequestBody UpdateUserBooksRequest request) {
-        AuthenticatedUser user = (AuthenticatedUser) authentication.getPrincipal();
+    AuthenticatedUser user = (AuthenticatedUser) authentication.getPrincipal();
     var input = new UpdateUserBooksInput(request.status(), request.progress(), request.rating());
     var output = updateUserBooksUseCase.execute(user.id(), id, input);
     return ResponseEntity.ok(UserBooksResponse.from(output));
@@ -82,7 +95,7 @@ public class UserBooksController {
   public ResponseEntity<Void> remove(
       Authentication authentication,
       @PathVariable Long id) {
-        AuthenticatedUser user = (AuthenticatedUser) authentication.getPrincipal();
+    AuthenticatedUser user = (AuthenticatedUser) authentication.getPrincipal();
     removeUserBooksUseCase.execute(user.id(), id);
     return ResponseEntity.noContent().build();
   }
