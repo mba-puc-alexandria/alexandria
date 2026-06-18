@@ -124,7 +124,6 @@ jobs:
         env:
           SPRING_DATA_REDIS_HOST: localhost
           SPRING_DATA_REDIS_PORT: 6379
-          JWT_SECRET: ${{ secrets.JWT_SECRET_CI }}
         run: ./mvnw clean verify
       - name: Upload relatórios backend
         if: always()
