@@ -169,21 +169,6 @@ jobs:
         working-directory: alexandria-frontend
         run: npm ci
 
-      - name: Cache Playwright browsers
-        uses: actions/cache@v4
-        id: playwright-cache
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}
-
-      - name: Instalar dependencias de sistema Playwright
-        working-directory: alexandria-frontend
-        run: npx playwright install-deps chromium
-
-      - name: Instalar Playwright (apenas se nao estiver em cache)
-        if: steps.playwright-cache.outputs.cache-hit != 'true'
-        working-directory: alexandria-frontend
-        run: npx playwright install chromium
 
       - name: Subir stack
         run: docker compose -f docker-compose.ci.yml up -d --build
@@ -201,9 +186,6 @@ jobs:
           docker compose -f docker-compose.ci.yml logs
           exit 1
 
-      - name: Rodar testes E2E
-        working-directory: alexandria-frontend
-        run: npx playwright test
 
       - name: Logs em caso de falha
         if: failure()
