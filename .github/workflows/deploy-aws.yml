@@ -1,15 +1,23 @@
 ﻿name: Deploy AWS
 
 on:
-  push:
-    branches: [ develop, main ]
+  workflow_run:
+    workflows: ["CI"]
+    types:
+      - completed
 
 jobs:
   deploy:
+    if: >
+      github.event.workflow_run.conclusion == 'success' &&
+      (github.event.workflow_run.head_branch == 'develop' ||
+       github.event.workflow_run.head_branch == 'main')
     runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
 
       - name: Build Backend Docker Image
         run: docker build -t alexandria-backend ./alexandria-backend
@@ -60,9 +68,9 @@ jobs:
             gunzip -c /tmp/backend.tar.gz | docker load
             echo "Atualizando codigo..."
             cd ~/app/alexandria
-            git fetch origin ${{ github.ref_name }}
-            git checkout ${{ github.ref_name }}
-            git reset --hard origin/${{ github.ref_name }}
+            git fetch origin ${{ github.event.workflow_run.head_branch }}
+            git checkout ${{ github.event.workflow_run.head_branch }}
+            git reset --hard origin/${{ github.event.workflow_run.head_branch }}
             echo "Subindo container..."
             docker rm -f alexandria-backend 2>/dev/null || true
             CONTAINER_ID=$(docker run -d \
