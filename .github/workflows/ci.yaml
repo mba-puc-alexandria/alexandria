@@ -186,8 +186,6 @@ jobs:
         run: npx playwright install chromium
 
       - name: Subir stack
-        env:
-          JWT_SECRET: "12345678901234567890123456789012"
         run: docker compose -f docker-compose.ci.yml up -d --build
 
       - name: Aguardar backend ficar pronto
