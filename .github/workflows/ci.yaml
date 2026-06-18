@@ -76,7 +76,7 @@ jobs:
           echo "::notice title=Sem ação::Evento fora da política principal."
 
   backend:
-    name: Backend — Testes e Build
+    name: Backend — Build, Test & Package
     runs-on: ubuntu-latest
     timeout-minutes: 20
     needs: guardrails
