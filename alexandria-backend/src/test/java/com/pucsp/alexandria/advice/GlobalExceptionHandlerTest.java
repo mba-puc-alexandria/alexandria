@@ -3,7 +3,10 @@ package com.pucsp.alexandria.advice;
 import static org.junit.jupiter.api.Assertions.*;
 
 import com.pucsp.alexandria.domain.book.exception.BookNotFoundException;
+import com.pucsp.alexandria.domain.user.exception.DuplicateUserException;
 import com.pucsp.alexandria.domain.user.exception.InvalidCredentialsException;
+import com.pucsp.alexandria.domain.user.exception.InvalidUserException;
+import com.pucsp.alexandria.domain.user.exception.UserNotFoundException;
 import com.pucsp.alexandria.domain.userbook.exception.DuplicateUserBooksException;
 import com.pucsp.alexandria.domain.userbook.exception.InvalidUserBooksException;
 import com.pucsp.alexandria.domain.userbook.exception.UserBooksNotFoundException;
@@ -65,6 +68,24 @@ class GlobalExceptionHandlerTest {
         assertEquals(HttpStatus.UNAUTHORIZED, response.getStatusCode());
         assertEquals("Invalid username or password", response.getBody().getMessage());
         assertEquals(401, response.getBody().getStatus());
+    }
+
+    @Test
+    void shouldHandleUserNotFound() {
+        UserNotFoundException ex = new UserNotFoundException(99L);
+        ResponseEntity<ErrorResponse> response = handler.handleUserNotFound(ex);
+        assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
+        assertEquals("User with id 99 not found", response.getBody().getMessage());
+        assertEquals(404, response.getBody().getStatus());
+    }
+
+    @Test
+    void shouldHandleInvalidUser() {
+        InvalidUserException ex = new InvalidUserException("First name is required");
+        ResponseEntity<ErrorResponse> response = handler.handleInvalidUser(ex);
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        assertEquals("First name is required", response.getBody().getMessage());
+        assertEquals(400, response.getBody().getStatus());
     }
 
     @Test

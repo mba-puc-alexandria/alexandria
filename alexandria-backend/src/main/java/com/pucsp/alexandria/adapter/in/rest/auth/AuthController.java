@@ -2,9 +2,11 @@ package com.pucsp.alexandria.adapter.in.rest.auth;
 
 import com.pucsp.alexandria.adapter.in.rest.auth.dto.AuthRequest;
 import com.pucsp.alexandria.adapter.in.rest.auth.dto.AuthResponse;
+import com.pucsp.alexandria.adapter.in.rest.auth.dto.GoogleAuthRequest;
 import com.pucsp.alexandria.adapter.in.rest.auth.dto.RegisterRequest;
 import com.pucsp.alexandria.adapter.in.rest.auth.dto.RegisterResponse;
 import com.pucsp.alexandria.application.auth.AuthenticateUserUseCase;
+import com.pucsp.alexandria.application.auth.GoogleAuthUseCase;
 import com.pucsp.alexandria.application.auth.RegisterUserUseCase;
 import com.pucsp.alexandria.application.auth.dto.AuthInput;
 import com.pucsp.alexandria.application.auth.dto.AuthOutput;
@@ -24,15 +26,18 @@ public class AuthController {
 
   private final RegisterUserUseCase registerUserUseCase;
   private final AuthenticateUserUseCase authenticateUserUseCase;
+  private final GoogleAuthUseCase googleAuthUseCase;
   private final PasswordEncoder passwordEncoder;
   private final JwtTokenProvider jwtTokenProvider;
 
   public AuthController(RegisterUserUseCase registerUserUseCase,
                         AuthenticateUserUseCase authenticateUserUseCase,
+                        GoogleAuthUseCase googleAuthUseCase,
                         PasswordEncoder passwordEncoder,
                         JwtTokenProvider jwtTokenProvider) {
     this.registerUserUseCase = registerUserUseCase;
     this.authenticateUserUseCase = authenticateUserUseCase;
+    this.googleAuthUseCase = googleAuthUseCase;
     this.passwordEncoder = passwordEncoder;
     this.jwtTokenProvider = jwtTokenProvider;
   }
@@ -46,6 +51,19 @@ public class AuthController {
     var output = registerUserUseCase.execute(input);
     return ResponseEntity.status(HttpStatus.CREATED)
         .body(RegisterResponse.from(output));
+  }
+
+  @PostMapping("/google")
+  public ResponseEntity<AuthResponse> googleLogin(@RequestBody GoogleAuthRequest request) {
+    try {
+      var output = googleAuthUseCase.execute(request.credential());
+      String token = jwtTokenProvider.generateToken(output.userId(), output.username());
+      return ResponseEntity.ok(AuthResponse.from(
+          AuthOutput.of(token, output.userId(), output.username())
+      ));
+    } catch (RuntimeException e) {
+      return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+    }
   }
 
   @PostMapping("/login")

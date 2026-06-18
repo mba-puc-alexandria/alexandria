@@ -16,7 +16,11 @@ public class SyncAllGutendexBooksUseCase {
     }
 
     public void execute() {
-        int currentPage = 1;
+        execute(1);
+    }
+
+    public void execute(int startPage) {
+        int currentPage = startPage;
 
         while (true) {
             try {

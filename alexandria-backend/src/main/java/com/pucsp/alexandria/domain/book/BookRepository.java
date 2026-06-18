@@ -16,6 +16,8 @@ public interface BookRepository {
 
   Page<Book> searchBookByQuery(String query, Pageable pageable);
 
+  Page<Book> findByLanguage(String language, Pageable pageable);
+
   void delete(Book book);
 
   boolean existsByGutendexId(Long gutendexId);

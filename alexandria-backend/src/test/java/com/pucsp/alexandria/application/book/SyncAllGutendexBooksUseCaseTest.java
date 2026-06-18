@@ -46,4 +46,25 @@ class SyncAllGutendexBooksUseCaseTest {
 
         verify(createBookUseCase, times(4)).execute(any(CreateBookInput.class));
     }
+
+    @Test
+    void shouldStartFromGivenPage() {
+        when(createBookUseCase.execute(any(CreateBookInput.class)))
+                .thenReturn(new CreateBookOutput(List.of(1L)))
+                .thenThrow(new RuntimeException("Page not found in Gutendex: 583"));
+
+        syncUseCase.execute(582);
+
+        verify(createBookUseCase, times(2)).execute(any(CreateBookInput.class));
+    }
+
+    @Test
+    void shouldStartFromPage1ByDefault() {
+        when(createBookUseCase.execute(any(CreateBookInput.class)))
+                .thenThrow(new RuntimeException("Page not found in Gutendex: 1"));
+
+        syncUseCase.execute();
+
+        verify(createBookUseCase, times(1)).execute(any(CreateBookInput.class));
+    }
 }

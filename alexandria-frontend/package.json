@@ -6,9 +6,12 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui"
   },
   "dependencies": {
+    "@react-oauth/google": "^0.13.5",
     "lucide-react": "^1.9.0",
     "next": "16.2.4",
     "react": "19.2.4",
@@ -16,6 +19,7 @@
     "react-reader": "^2.0.15"
   },
   "devDependencies": {
+    "@playwright/test": "^1.60.0",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
