@@ -180,10 +180,14 @@ jobs:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}
 
-      - name: Instalar Playwright
+      - name: Instalar dependencias de sistema Playwright
+        working-directory: alexandria-frontend
+        run: npx playwright install-deps chromium
+
+      - name: Instalar Playwright (apenas se nao estiver em cache)
         if: steps.playwright-cache.outputs.cache-hit != 'true'
         working-directory: alexandria-frontend
-        run: npx playwright install --with-deps
+        run: npx playwright install chromium
 
       - name: Subir stack
         env:
