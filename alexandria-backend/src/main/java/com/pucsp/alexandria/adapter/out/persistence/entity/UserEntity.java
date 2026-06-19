@@ -1,7 +1,10 @@
 package com.pucsp.alexandria.adapter.out.persistence.entity;
 
+import com.pucsp.alexandria.domain.user.User.Role;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -30,12 +33,16 @@ public class UserEntity {
   @Column(nullable = false)
   private String password;
 
-  @Column(name = "created_at", updatable = false)
+    @Column(name = "created_at", updatable = false)
   private LocalDateTime createdAt = LocalDateTime.now();
+
+  @Enumerated(EnumType.STRING)
+  @Column(nullable = false)
+  private Role role = Role.USER;
 
   public UserEntity() {}
 
-  public UserEntity(Long id, String username, String firstName, String lastName, String email, String password, LocalDateTime createdAt) {
+  public UserEntity(Long id, String username, String firstName, String lastName, String email, String password, LocalDateTime createdAt, Role role) {
     this.id = id;
     this.username = username;
     this.firstName = firstName;
@@ -43,6 +50,7 @@ public class UserEntity {
     this.email = email;
     this.password = password;
     this.createdAt = createdAt;
+    this.role = role;
   }
 
   public Long getId() {
@@ -93,7 +101,15 @@ public class UserEntity {
     return createdAt;
   }
 
-  public void setCreatedAt(LocalDateTime createdAt) {
+    public void setCreatedAt(LocalDateTime createdAt) {
     this.createdAt = createdAt;
+  }
+
+  public Role getRole() {
+    return role;
+  }
+
+  public void setRole(Role role) {
+    this.role = role;
   }
 }

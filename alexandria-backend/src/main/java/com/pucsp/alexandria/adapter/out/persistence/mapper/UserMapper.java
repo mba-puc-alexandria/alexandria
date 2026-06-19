@@ -9,27 +9,29 @@ public class UserMapper {
 
   public User toDomain(UserEntity entity) {
     if (entity == null) return null;
-    return User.restore(
+        return User.restore(
         entity.getId(),
         entity.getUsername(),
         entity.getFirstName(),
         entity.getLastName(),
         entity.getEmail(),
         entity.getPassword(),
-        entity.getCreatedAt()
+        entity.getCreatedAt(),
+        entity.getRole()
     );
   }
 
   public UserEntity toPersistence(User user) {
     if (user == null) return null;
-    return new UserEntity(
+        return new UserEntity(
         user.getId() != null ? user.getId().getValue() : null,
         user.getUsername(),
         user.getFirstName(),
         user.getLastName(),
         user.getEmail().getValue(),
         user.getPassword(),
-        user.getCreatedAt()
+        user.getCreatedAt(),
+        user.getRole()
     );
   }
 }

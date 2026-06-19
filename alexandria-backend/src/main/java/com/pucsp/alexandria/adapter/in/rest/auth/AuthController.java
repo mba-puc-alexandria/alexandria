@@ -53,13 +53,13 @@ public class AuthController {
         .body(RegisterResponse.from(output));
   }
 
-  @PostMapping("/google")
+    @PostMapping("/google")
   public ResponseEntity<AuthResponse> googleLogin(@RequestBody GoogleAuthRequest request) {
     try {
       var output = googleAuthUseCase.execute(request.credential());
-      String token = jwtTokenProvider.generateToken(output.userId(), output.username());
+      String token = jwtTokenProvider.generateToken(output.userId(), output.username(), output.role());
       return ResponseEntity.ok(AuthResponse.from(
-          AuthOutput.of(token, output.userId(), output.username())
+          AuthOutput.of(token, output.userId(), output.username(), output.role())
       ));
     } catch (RuntimeException e) {
       return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
@@ -71,10 +71,10 @@ public class AuthController {
     var input = new AuthInput(request.username(), request.password());
     var userOutput = authenticateUserUseCase.execute(input);
 
-    String token = jwtTokenProvider.generateToken(userOutput.userId(), userOutput.username());
+    String token = jwtTokenProvider.generateToken(userOutput.userId(), userOutput.username(), userOutput.role());
 
     return ResponseEntity.ok(AuthResponse.from(
-        AuthOutput.of(token, userOutput.userId(), userOutput.username())
+        AuthOutput.of(token, userOutput.userId(), userOutput.username(), userOutput.role())
     ));
   }
 }

@@ -71,11 +71,12 @@ class ProfileControllerIntegrationTest {
   @MockitoBean
   private UpdatePasswordUseCase updatePasswordUseCase;
 
-  @Test
+    @Test
   void shouldGetProfile() throws Exception {
     when(jwtTokenProvider.validateToken("valid-token")).thenReturn(true);
     when(jwtTokenProvider.getUsernameFromToken("valid-token")).thenReturn("john_doe");
     when(jwtTokenProvider.getUserIdFromToken("valid-token")).thenReturn(1L);
+    when(jwtTokenProvider.getRoleFromToken("valid-token")).thenReturn("USER");
     when(getProfileUseCase.execute(1L))
         .thenReturn(new ProfileOutput(1L, "john_doe", "John", "Doe",
             "john@example.com", LocalDateTime.now()));
@@ -96,11 +97,12 @@ class ProfileControllerIntegrationTest {
         .andExpect(status().isUnauthorized());
   }
 
-  @Test
+    @Test
   void shouldUpdateProfile() throws Exception {
     when(jwtTokenProvider.validateToken("valid-token")).thenReturn(true);
     when(jwtTokenProvider.getUsernameFromToken("valid-token")).thenReturn("john_doe");
     when(jwtTokenProvider.getUserIdFromToken("valid-token")).thenReturn(1L);
+    when(jwtTokenProvider.getRoleFromToken("valid-token")).thenReturn("USER");
     when(updateProfileUseCase.execute(eq(1L), any(UpdateProfileInput.class)))
         .thenReturn(new ProfileOutput(1L, "john_novo", "John", "Silva",
             "john@example.com", LocalDateTime.now()));
@@ -119,7 +121,8 @@ class ProfileControllerIntegrationTest {
   void shouldReturn409WhenUsernameDuplicated() throws Exception {
     when(jwtTokenProvider.validateToken("valid-token")).thenReturn(true);
     when(jwtTokenProvider.getUsernameFromToken("valid-token")).thenReturn("john_doe");
-    when(jwtTokenProvider.getUserIdFromToken("valid-token")).thenReturn(1L);
+        when(jwtTokenProvider.getUserIdFromToken("valid-token")).thenReturn(1L);
+    when(jwtTokenProvider.getRoleFromToken("valid-token")).thenReturn("USER");
     when(updateProfileUseCase.execute(eq(1L), any(UpdateProfileInput.class)))
         .thenThrow(new DuplicateUserException("Este nome de usuário já está em uso"));
 
@@ -131,11 +134,12 @@ class ProfileControllerIntegrationTest {
         .andExpect(status().isConflict());
   }
 
-  @Test
+    @Test
   void shouldUpdatePassword() throws Exception {
     when(jwtTokenProvider.validateToken("valid-token")).thenReturn(true);
     when(jwtTokenProvider.getUsernameFromToken("valid-token")).thenReturn("john_doe");
     when(jwtTokenProvider.getUserIdFromToken("valid-token")).thenReturn(1L);
+    when(jwtTokenProvider.getRoleFromToken("valid-token")).thenReturn("USER");
     doNothing().when(updatePasswordUseCase).execute(eq(1L), any(UpdatePasswordInput.class));
 
     mockMvc.perform(put("/profile/password")
@@ -146,11 +150,12 @@ class ProfileControllerIntegrationTest {
         .andExpect(status().isNoContent());
   }
 
-  @Test
+    @Test
   void shouldReturn401WhenPasswordIncorrect() throws Exception {
     when(jwtTokenProvider.validateToken("valid-token")).thenReturn(true);
     when(jwtTokenProvider.getUsernameFromToken("valid-token")).thenReturn("john_doe");
     when(jwtTokenProvider.getUserIdFromToken("valid-token")).thenReturn(1L);
+    when(jwtTokenProvider.getRoleFromToken("valid-token")).thenReturn("USER");
     doThrow(new InvalidCredentialsException("Senha atual incorreta"))
         .when(updatePasswordUseCase).execute(eq(1L), any(UpdatePasswordInput.class));
 

@@ -25,6 +25,6 @@ public class AuthenticateUserUseCase {
       throw new InvalidCredentialsException("Invalid username or password");
     }
 
-    return AuthOutput.of(null, user.getId().getValue(), user.getUsername());
+    return AuthOutput.of(null, user.getId().getValue(), user.getUsername(), user.getRole().name());
   }
 }

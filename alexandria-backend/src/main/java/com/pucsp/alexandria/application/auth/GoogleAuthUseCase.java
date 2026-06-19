@@ -25,7 +25,7 @@ public class GoogleAuthUseCase {
     this.googleClientId = googleClientId;
   }
 
-  public record Output(Long userId, String username) {}
+    public record Output(Long userId, String username, String role) {}
 
   @SuppressWarnings("unchecked")
   public Output execute(String idToken) {
@@ -50,7 +50,7 @@ public class GoogleAuthUseCase {
     String lastName = (String) payload.get("family_name");
 
     return userRepository.findByEmail(email)
-        .map(user -> new Output(user.getId().getValue(), user.getUsername()))
+        .map(user -> new Output(user.getId().getValue(), user.getUsername(), user.getRole().name()))
         .orElseGet(() -> {
           String username = generateUsername(email);
           String randomPassword = passwordEncoder.encode(UUID.randomUUID().toString());
@@ -61,8 +61,8 @@ public class GoogleAuthUseCase {
               email,
               randomPassword
           );
-          User saved = userRepository.save(newUser);
-          return new Output(saved.getId().getValue(), saved.getUsername());
+                    User saved = userRepository.save(newUser);
+          return new Output(saved.getId().getValue(), saved.getUsername(), saved.getRole().name());
         });
   }
 

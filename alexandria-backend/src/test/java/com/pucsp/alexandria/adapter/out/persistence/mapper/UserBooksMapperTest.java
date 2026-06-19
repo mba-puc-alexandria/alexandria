@@ -19,7 +19,7 @@ class UserBooksMapperTest {
     void shouldMapEntityToDomain() {
         AuthorEntity author = new AuthorEntity(1L, "Author", null, null);
         BookEntity book = new BookEntity(1L, "Title", Set.of(author), null, null, null, null, null, null, null, "GUTENDEX");
-        UserEntity user = new UserEntity(1L, "user", "First", "Last", "email", "pass", LocalDateTime.now());
+        UserEntity user = new UserEntity(1L, "user", "First", "Last", "email", "pass", LocalDateTime.now(), com.pucsp.alexandria.domain.user.User.Role.USER);
         UserBooksEntity entity = new UserBooksEntity(1L, user, book, "done", null, 4, LocalDateTime.now());
 
         UserBooks userBooks = mapper.toDomain(entity);

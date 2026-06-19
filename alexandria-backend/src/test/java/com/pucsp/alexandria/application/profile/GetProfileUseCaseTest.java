@@ -25,8 +25,8 @@ class GetProfileUseCaseTest {
 
   @Test
   void shouldGetProfile() {
-    User user = User.restore(1L, "john_doe", "John", "Doe",
-        "john@example.com", "password123", LocalDateTime.now());
+        User user = User.restore(1L, "john_doe", "John", "Doe",
+        "john@example.com", "password123", LocalDateTime.now(), com.pucsp.alexandria.domain.user.User.Role.USER);
     when(userRepository.findById(1L)).thenReturn(java.util.Optional.of(user));
 
     ProfileOutput output = getProfileUseCase.execute(1L);

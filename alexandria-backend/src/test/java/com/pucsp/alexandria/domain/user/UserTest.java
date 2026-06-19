@@ -16,9 +16,10 @@ class UserTest {
         assertEquals("john_doe", user.getUsername());
         assertEquals("John", user.getFirstName());
         assertEquals("Doe", user.getLastName());
-        assertEquals("john@example.com", user.getEmail().getValue());
+                assertEquals("john@example.com", user.getEmail().getValue());
         assertEquals("password123", user.getPassword());
         assertNotNull(user.getCreatedAt());
+        assertEquals(User.Role.USER, user.getRole());
     }
 
     @ParameterizedTest
@@ -89,10 +90,10 @@ class UserTest {
                 () -> User.create("user", "John", "Doe", "invalid-email", "password123"));
     }
 
-    @Test
+        @Test
     void shouldRestoreUser() {
         User user = User.restore(1L, "john_doe", "John", "Doe",
-                "john@example.com", "password123", java.time.LocalDateTime.now());
+                "john@example.com", "password123", java.time.LocalDateTime.now(), User.Role.USER);
         assertNotNull(user.getId());
         assertEquals(1L, user.getId().getValue());
         assertEquals("john_doe", user.getUsername());
@@ -121,16 +122,16 @@ class UserTest {
 
     @Test
     void usersWithSameIdShouldBeEqual() {
-        User user1 = User.restore(1L, "user1", "A", "B", "a@b.com", "pass1234", java.time.LocalDateTime.now());
-        User user2 = User.restore(1L, "user2", "C", "D", "c@d.com", "otherpass", java.time.LocalDateTime.now());
+                User user1 = User.restore(1L, "user1", "A", "B", "a@b.com", "pass1234", java.time.LocalDateTime.now(), User.Role.USER);
+        User user2 = User.restore(1L, "user2", "C", "D", "c@d.com", "otherpass", java.time.LocalDateTime.now(), User.Role.USER);
         assertEquals(user1, user2);
         assertEquals(user1.hashCode(), user2.hashCode());
     }
 
     @Test
     void usersWithDifferentIdsShouldNotBeEqual() {
-        User user1 = User.restore(1L, "user1", "A", "B", "a@b.com", "pass1234", java.time.LocalDateTime.now());
-        User user2 = User.restore(2L, "user1", "A", "B", "a@b.com", "pass1234", java.time.LocalDateTime.now());
+        User user1 = User.restore(1L, "user1", "A", "B", "a@b.com", "pass1234", java.time.LocalDateTime.now(), User.Role.USER);
+        User user2 = User.restore(2L, "user1", "A", "B", "a@b.com", "pass1234", java.time.LocalDateTime.now(), User.Role.USER);
         assertNotEquals(user1, user2);
     }
 }

@@ -34,7 +34,7 @@ class UserBooksJpaRepositoryTest {
     @Test
     void shouldSaveAndFindUserBooks() {
         UserEntity user = userJpaRepository.save(
-                new UserEntity(null, "user", "First", "Last", "email@test.com", "pass", LocalDateTime.now()));
+                new UserEntity(null, "user", "First", "Last", "email@test.com", "pass", LocalDateTime.now(), com.pucsp.alexandria.domain.user.User.Role.USER));
         AuthorEntity author = authorJpaRepository.save(new AuthorEntity(null, "Author", null, null));
         BookEntity book = bookJpaRepository.save(
                 new BookEntity(null, "Title", Set.of(author), null, null, null, null, null, null, null, "GUTENDEX"));
