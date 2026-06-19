@@ -23,7 +23,7 @@ public class UpdatePasswordUseCase {
         .orElseThrow(() -> new UserNotFoundException(userId));
 
     if (!passwordEncoder.matches(input.currentPassword(), user.getPassword())) {
-      throw new InvalidCredentialsException("Current password is incorrect");
+      throw new InvalidCredentialsException("Senha atual incorreta");
     }
 
     User.validatePassword(input.newPassword());

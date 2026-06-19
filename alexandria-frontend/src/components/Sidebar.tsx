@@ -22,8 +22,11 @@ const privateLinks = [
   { href: "/dashboard", label: "Painel", icon: LayoutDashboard },
 ];
 
-const bottomLinks = [
+const privateBottomLinks = [
   { href: "/configuracoes", label: "Configurações", icon: Settings },
+];
+
+const bottomLinks = [
   { href: "/suporte", label: "Suporte", icon: HelpCircle },
 ];
 
@@ -68,7 +71,7 @@ export default function Sidebar() {
       </nav>
 
       <div className="border-t border-cream-border pt-6 flex flex-col gap-1">
-        {bottomLinks.map(({ href, label, icon: Icon }) => (
+        {[...(user ? privateBottomLinks : []), ...bottomLinks].map(({ href, label, icon: Icon }) => (
           <Link
             key={href}
             href={href}
