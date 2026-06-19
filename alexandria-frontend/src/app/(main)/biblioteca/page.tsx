@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Search, Star, BookOpen } from "lucide-react";
-import { getUserBooks, getAuthorDisplay, type UserBookResponse } from "@/lib/api";
+import { Search, Star, BookOpen, X } from "lucide-react";
+import { getUserBooks, removeUserBook, getAuthorDisplay, type UserBookResponse } from "@/lib/api";
 
 const filters = ["Todos", "Lendo", "Concluído", "Para Ler"];
 const SKELETON_KEYS = ["sk-a", "sk-b", "sk-c", "sk-d", "sk-e", "sk-f", "sk-g", "sk-h"];
@@ -25,7 +25,7 @@ function getBadgeLabel(status: string, progress: number | null): string | null {
   return null;
 }
 
-function BookCover({ ub }: { ub: UserBookResponse }) {
+function BookCover({ ub, onRemove }: { ub: UserBookResponse; onRemove: (ub: UserBookResponse) => void }) {
   const badgeStyle = STATUS_BADGE[ub.status];
   const badgeLabel = getBadgeLabel(ub.status, ub.progress);
   const badge = badgeStyle && badgeLabel ? { label: badgeLabel, className: badgeStyle.className } : null;
@@ -53,6 +53,22 @@ function BookCover({ ub }: { ub: UserBookResponse }) {
     </>
   );
 
+  const removeButton = (
+    <button
+      type="button"
+      onClick={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        onRemove(ub);
+      }}
+      title="Remover da biblioteca"
+      aria-label="Remover da biblioteca"
+      className="absolute top-2 right-2 z-10 size-7 rounded-full bg-brown/70 text-cream flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-terra"
+    >
+      <X size={14} />
+    </button>
+  );
+
   if (ub.book.downloadUrl) {
     return (
       <Link href={`/leitor/${ub.book.id}`} className="relative mb-4 overflow-hidden rounded block group">
@@ -61,6 +77,7 @@ function BookCover({ ub }: { ub: UserBookResponse }) {
           <BookOpen size={32} className="text-cream opacity-0 group-hover:opacity-100 transition-opacity" />
         </div>
         {indicators}
+        {removeButton}
       </Link>
     );
   }
@@ -74,6 +91,7 @@ function BookCover({ ub }: { ub: UserBookResponse }) {
         </span>
       </div>
       {indicators}
+      {removeButton}
     </div>
   );
 }
@@ -90,6 +108,17 @@ export default function BibliotecaPage() {
       .catch(console.error)
       .finally(() => setLoading(false));
   }, []);
+
+  async function handleRemove(ub: UserBookResponse) {
+    if (!window.confirm(`Remover "${ub.book.title}" da sua biblioteca?`)) return;
+    try {
+      await removeUserBook(ub.id);
+      setBooks((prev) => prev.filter((b) => b.id !== ub.id));
+    } catch (err) {
+      console.error(err);
+      window.alert("Não foi possível remover o livro. Tente novamente.");
+    }
+  }
 
   const filtered = books.filter((ub) => {
     const matchesQuery =
@@ -133,7 +162,7 @@ export default function BibliotecaPage() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-10">
         {filtered.map((ub) => (
           <div key={ub.id} className="flex flex-col">
-            <BookCover ub={ub} />
+            <BookCover ub={ub} onRemove={handleRemove} />
             <h3 className="font-brand font-bold text-brown text-lg leading-[22px]">{ub.book.title}</h3>
             <p className="text-slate/70 text-xs mt-1">{getAuthorDisplay(ub.book)}</p>
           </div>
