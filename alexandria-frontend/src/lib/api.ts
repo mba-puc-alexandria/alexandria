@@ -171,6 +171,55 @@ export async function updateUserBook(
   return res.json();
 }
 
+export interface ProfileResponse {
+  userId: number;
+  username: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  createdAt: string;
+}
+
+export async function getProfile(): Promise<ProfileResponse> {
+  const res = await apiFetch('/profile/me');
+  if (!res.ok) throw new Error('Falha ao buscar perfil');
+  return res.json();
+}
+
+export interface UpdateProfileRequest {
+  username: string;
+  firstName: string;
+  lastName: string;
+}
+
+export async function updateProfile(data: UpdateProfileRequest): Promise<ProfileResponse> {
+  const res = await apiFetch('/profile/me', {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error((error as { message?: string }).message || 'Falha ao atualizar perfil');
+  }
+  return res.json();
+}
+
+export interface UpdatePasswordRequest {
+  currentPassword: string;
+  newPassword: string;
+}
+
+export async function updatePassword(data: UpdatePasswordRequest): Promise<void> {
+  const res = await apiFetch('/profile/password', {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error((error as { message?: string }).message || 'Falha ao atualizar senha');
+  }
+}
+
 export function getAuthHeaders(): HeadersInit {
   const token = typeof window !== 'undefined' ? localStorage.getItem('auth-token') : null;
   return token ? { Authorization: `Bearer ${token}` } : {};

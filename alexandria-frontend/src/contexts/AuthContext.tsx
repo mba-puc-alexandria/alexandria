@@ -14,6 +14,7 @@ interface AuthContextType {
   login: (data: LoginRequest) => Promise<void>;
   loginWithGoogle: (credential: string) => Promise<void>;
   logout: () => void;
+  updateUsername: (username: string) => void;
   isLoading: boolean;
 }
 
@@ -39,6 +40,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     document.cookie = `auth-token=${response.token}; path=/; max-age=${60 * 60 * 24}; SameSite=Lax`;
     setUser(authUser);
     router.push('/explorar');
+    router.refresh();
   }
 
   async function login(data: LoginRequest) {
@@ -57,9 +59,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     document.cookie = 'auth-token=; path=/; max-age=0';
     setUser(null);
     router.push('/explorar');
+    router.refresh();
   }
 
-  const value = useMemo(() => ({ user, login, loginWithGoogle, logout, isLoading }), [user, isLoading]);
+  function updateUsername(username: string) {
+    setUser((prev) => {
+      if (!prev) return prev;
+      const updated = { ...prev, username };
+      localStorage.setItem('auth-user', JSON.stringify(updated));
+      return updated;
+    });
+  }
+
+  const value = useMemo(
+    () => ({ user, login, loginWithGoogle, logout, updateUsername, isLoading }),
+    [user, isLoading]
+  );
 
   return (
     <AuthContext.Provider value={value}>

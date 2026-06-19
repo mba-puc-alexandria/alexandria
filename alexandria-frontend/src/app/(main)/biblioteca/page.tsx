@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Search, Plus, Star, BookOpen } from "lucide-react";
+import { Search, Star, BookOpen } from "lucide-react";
 import { getUserBooks, getAuthorDisplay, type UserBookResponse } from "@/lib/api";
 
 const filters = ["Todos", "Lendo", "Concluído", "Para Ler"];
@@ -176,10 +176,6 @@ export default function BibliotecaPage() {
       </div>
 
       {renderContent()}
-
-      <button className="fixed bottom-20 md:bottom-8 right-6 bg-brown text-cream size-14 rounded-xl flex items-center justify-center shadow-xl hover:bg-brown/90 transition-colors">
-        <Plus size={14} />
-      </button>
     </div>
   );
 }

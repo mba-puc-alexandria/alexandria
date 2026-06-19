@@ -3,6 +3,7 @@ package com.pucsp.alexandria.adapter.out.persistence.jpa;
 import static org.junit.jupiter.api.Assertions.*;
 
 import com.pucsp.alexandria.adapter.out.persistence.entity.UserEntity;
+import com.pucsp.alexandria.domain.user.User.Role;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -16,8 +17,8 @@ class UserJpaRepositoryTest {
 
     @Test
     void shouldSaveAndFindUserById() {
-        UserEntity entity = new UserEntity(null, "john_doe", "John", "Doe",
-                "john@example.com", "password", java.time.LocalDateTime.now());
+                UserEntity entity = new UserEntity(null, "john_doe", "John", "Doe",
+                "john@example.com", "password", java.time.LocalDateTime.now(), Role.USER);
         UserEntity saved = userJpaRepository.save(entity);
 
         Optional<UserEntity> found = userJpaRepository.findById(saved.getId());
@@ -30,7 +31,7 @@ class UserJpaRepositoryTest {
     @Test
     void shouldFindByUsername() {
         userJpaRepository.save(new UserEntity(null, "jane_doe", "Jane", "Doe",
-                "jane@example.com", "pass", java.time.LocalDateTime.now()));
+                "jane@example.com", "pass", java.time.LocalDateTime.now(), Role.USER));
 
         Optional<UserEntity> found = userJpaRepository.findByUsername("jane_doe");
 
@@ -41,7 +42,7 @@ class UserJpaRepositoryTest {
     @Test
     void shouldCheckExistenceByUsername() {
         userJpaRepository.save(new UserEntity(null, "existing", "Ex", "User",
-                "ex@test.com", "pass", java.time.LocalDateTime.now()));
+                "ex@test.com", "pass", java.time.LocalDateTime.now(), Role.USER));
 
         assertTrue(userJpaRepository.existsByUsername("existing"));
         assertFalse(userJpaRepository.existsByUsername("nonexistent"));
@@ -50,7 +51,7 @@ class UserJpaRepositoryTest {
     @Test
     void shouldCheckExistenceByEmail() {
         userJpaRepository.save(new UserEntity(null, "user1", "A", "B",
-                "unique@test.com", "pass", java.time.LocalDateTime.now()));
+                "unique@test.com", "pass", java.time.LocalDateTime.now(), Role.USER));
 
         assertTrue(userJpaRepository.existsByEmail("unique@test.com"));
         assertFalse(userJpaRepository.existsByEmail("other@test.com"));
@@ -60,7 +61,7 @@ class UserJpaRepositoryTest {
     void shouldDeleteUserById() {
         UserEntity saved = userJpaRepository.save(
                 new UserEntity(null, "delete_me", "Del", "Eter",
-                        "del@test.com", "pass", java.time.LocalDateTime.now()));
+                        "del@test.com", "pass", java.time.LocalDateTime.now(), Role.USER));
 
         userJpaRepository.deleteById(saved.getId());
 
