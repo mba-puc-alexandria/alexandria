@@ -77,7 +77,13 @@ class JobControllerIntegrationTest {
 
     @Test
     void shouldReturn202WhenTriggeredWithPage() throws Exception {
+        when(jwtTokenProvider.validateToken("admin-token")).thenReturn(true);
+        when(jwtTokenProvider.getUsernameFromToken("admin-token")).thenReturn("admin");
+        when(jwtTokenProvider.getUserIdFromToken("admin-token")).thenReturn(1L);
+        when(jwtTokenProvider.getRoleFromToken("admin-token")).thenReturn("ADMIN");
+
         mockMvc.perform(post("/api/jobs/sync-gutendex")
+                        .header("Authorization", ADMIN_TOKEN)
                         .param("page", "582"))
                 .andExpect(status().isAccepted());
     }
