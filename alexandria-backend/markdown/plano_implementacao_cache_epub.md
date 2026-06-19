@@ -38,6 +38,7 @@ Solicitação do EPUB
            ▼
 ┌──────────────────────────────┐
 │  2. IndexedDB (persistente)  │ ← ~5ms (sessões diferentes)
+│     + LRU (30 entries/250MB) │
 └──────────┬───────────────────┘
            │ (miss)
            ▼
@@ -49,222 +50,109 @@ Solicitação do EPUB
 
 ---
 
-## Arquivos a Criar
+## Arquivos Envolvidos
+
+| Arquivo | Ação |
+|---|---|
+| `alexandria-frontend/src/lib/epub-cache.ts` | **CRIAR** — módulo de cache com LRU e IndexedDB |
+| `alexandria-frontend/src/hooks/useEpub.ts` | **CRIAR** — hook que encapsula cache + download + heartbeat LRU |
+| `alexandria-frontend/src/app/(main)/leitor/[id]/page.tsx` | **MODIFICAR** — usar useEpub em vez de fetch direto |
+
+---
 
 ### 1. `alexandria-frontend/src/lib/epub-cache.ts` (NOVO)
 
-Funções para gerenciar o cache em memória e IndexedDB.
-
 ```typescript
-// Cache em memória (Map) — dura enquanto a aba estiver aberta
-const memoryCache = new Map<string, ArrayBuffer>();
+export interface CacheEntry {
+  data: ArrayBuffer;
+  lastAccessed: number; // timestamp ms
+  size: number;         // bytes
+}
 
-// Constantes do IndexedDB
+// ── Configuração LRU ──
+const LRU_MAX_ENTRIES = 30;
+const LRU_MAX_SIZE_BYTES = 250 * 1024 * 1024; // 250 MB
+
+// ── Cache em memória (Map) — dura enquanto a aba estiver aberta ──
+const MEMORY_CACHE = new Map<string, CacheEntry>();
+
+// ── Constantes do IndexedDB ──
 const DB_NAME = "alexandria-epub-cache";
 const STORE_NAME = "epubs";
-const DB_VERSION = 1;
-
-/**
- * Abre (ou cria) o banco IndexedDB.
- * A store é chave-valor: bookId → ArrayBuffer
- */
-function openDB(): Promise<IDBDatabase> {
-  return new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, DB_VERSION);
-
-    request.onupgradeneeded = () => {
-      // Cria a object store se não existir
-      request.result.createObjectStore(STORE_NAME);
-    };
-
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
-  });
-}
-
-/**
- * Tenta obter o EPUB de um livro.
- *
- * @returns ArrayBuffer com o conteúdo do EPUB, ou null se não encontrado
- */
-export async function getCachedEpub(bookId: string): Promise<ArrayBuffer | null> {
-  // 1. Tenta cache em memória (instantâneo)
-  if (memoryCache.has(bookId)) {
-    console.debug(`[epub-cache] HIT (memory): ${bookId}`);
-    return memoryCache.get(bookId)!.slice(0);
-  }
-
-  // 2. Tenta IndexedDB (persistente entre sessões)
-  try {
-    const db = await openDB();
-    const data = await new Promise<ArrayBuffer | undefined>((resolve, reject) => {
-      const transaction = db.transaction(STORE_NAME, "readonly");
-      const request = transaction.objectStore(STORE_NAME).get(bookId);
-      request.onsuccess = () => resolve(request.result);
-      request.onerror = () => reject(request.error);
-    });
-    db.close();
-
-    if (data) {
-      console.debug(`[epub-cache] HIT (indexeddb): ${bookId}`);
-      // Promove para memória
-      memoryCache.set(bookId, data);
-      return data.slice(0);
-    }
-  } catch (error) {
-    console.warn("[epub-cache] Erro ao ler IndexedDB:", error);
-  }
-
-  // 3. Cache miss
-  console.debug(`[epub-cache] MISS: ${bookId}`);
-  return null;
-}
-
-/**
- * Salva um ArrayBuffer nos dois níveis de cache (memória + IndexedDB).
- */
-export async function saveEpubToCache(bookId: string, data: ArrayBuffer): Promise<void> {
-  // Salva na memória
-  memoryCache.set(bookId, data);
-
-  // Salva no IndexedDB (assíncrono, não bloqueia)
-  try {
-    const db = await openDB();
-    const transaction = db.transaction(STORE_NAME, "readwrite");
-    transaction.objectStore(STORE_NAME).put(data, bookId);
-    await new Promise<void>((resolve, reject) => {
-      transaction.oncomplete = () => resolve();
-      transaction.onerror = () => reject(transaction.error);
-    });
-    db.close();
-    console.debug(`[epub-cache] Saved to IndexedDB: ${bookId}`);
-  } catch (error) {
-    console.warn("[epub-cache] Erro ao salvar no IndexedDB:", error);
-  }
-}
-
-/**
- * Remove um EPUB do cache (útil se o usuário quiser liberar espaço).
- */
-export async function removeEpubFromCache(bookId: string): Promise<void> {
-  memoryCache.delete(bookId);
-
-  try {
-    const db = await openDB();
-    const transaction = db.transaction(STORE_NAME, "readwrite");
-    transaction.objectStore(STORE_NAME).delete(bookId);
-    await new Promise<void>((resolve, reject) => {
-      transaction.oncomplete = () => resolve();
-      transaction.onerror = () => reject(transaction.error);
-    });
-    db.close();
-  } catch (error) {
-    console.warn("[epub-cache] Erro ao remover do IndexedDB:", error);
-  }
-}
+const DB_VERSION = 2;
 ```
 
-### 2. Modificar `alexandria-frontend/src/app/(main)/leitor/[id]/page.tsx`
+**Funções exportadas:**
 
-**O que muda:**
+| Função | Descrição |
+|---|---|
+| `getCachedEpub(bookId)` | Tenta memória → IndexedDB, retorna `ArrayBuffer \| null` |
+| `saveEpubToCache(bookId, data)` | Salva nos dois níveis + evicção LRU (fire-and-forget) |
+| `markBookAsAccessed(bookId)` | Atualiza `lastAccessed` para LRU (fire-and-forget) |
+| `removeEpubFromCache(bookId)` | Remove um EPUB específico |
+| `clearAllEpubCache()` | Remove TODOS os EPUBS, retorna lista de keys removidas |
+| `getCacheStats()` | Retorna `{ memoryEntries, memorySize }` para debug |
 
-```diff
-  import { getBookById, getUserBooks, updateUserBook, getAuthorDisplay } from "@/lib/api";
-+ import { getCachedEpub, saveEpubToCache } from "@/lib/epub-cache";
+**Detalhes de implementação:**
 
-  useEffect(() => {
-    async function init() {
-      const [b, userBooks] = await Promise.all([
-        getBookById(Number(id)),
-        getUserBooks().catch(() => []),
-      ]);
+- `openDB()`: Abre/cria IndexedDB com `onupgradeneeded` + type guard
+- `idbGet<T>()` e `idbWait()`: Utilitários para evitar repetição de padrão
+- **Evicção LRU**: Coleta entries com cursor → ordena por `lastAccessed` → remove 30% mais antigos em transação separada
+- **Sem `console.log`**: Todos os catch blocks são vazios (silenciosos) para não poluir o console
+- `getCacheStats()` formata tamanho em KB/MB
 
-      setBook(b);
-      // ... processa userBook ...
+---
 
--     if (b.downloadUrl) {
--       const res = await fetch(`/api/epub?url=${encodeURIComponent(b.downloadUrl)}`);
--       if (res.ok) setEpubData(await res.arrayBuffer());
--     }
-+     // Tenta carregar do cache primeiro
-+     if (b.downloadUrl) {
-+       const cached = await getCachedEpub(id);
-+       if (cached) {
-+         // Cache hit — instantâneo
-+         setEpubData(cached);
-+       } else {
-+         // Cache miss — baixa da API e salva no cache
-+         try {
-+           const res = await fetch(`/api/epub?url=${encodeURIComponent(b.downloadUrl)}`);
-+           if (res.ok) {
-+             const data = await res.arrayBuffer();
-+             setEpubData(data);
-+             // Não espera o cache salvar para não atrasar a UI
-+             saveEpubToCache(id, data);
-+           }
-+         } catch (err) {
-+           console.error("Falha ao baixar EPUB:", err);
-+         }
-+       }
-+     }
-    }
-
-    init().catch(console.error).finally(() => setLoading(false));
-  }, [id]);
-```
-
-**Arquivo final esperado — parte do `useEffect`:**
+### 2. `alexandria-frontend/src/hooks/useEpub.ts` (NOVO)
 
 ```typescript
-useEffect(() => {
-  async function init() {
-    const [b, userBooks] = await Promise.all([
-      getBookById(Number(id)),
-      getUserBooks().catch(() => []),
-    ]);
-
-    setBook(b);
-
-    const userBook = userBooks.find((ub) => ub.book.id === Number(id));
-    if (userBook) {
-      userBookIdRef.current = userBook.id;
-      const savedProgress = userBook.progress ?? 0;
-      lastSavedProgressRef.current = savedProgress;
-      currentProgressRef.current = savedProgress;
-      setProgress(savedProgress);
-
-      if (userBook.status === "toread") {
-        updateUserBook(userBook.id, { status: "reading", progress: 0 }).catch(() => {});
-      }
-    }
-
-    const saved = localStorage.getItem(`epub-location-${id}`);
-    if (saved) restoreLocationRef.current = saved;
-
-    // Tenta cache primeiro, depois baixa
-    if (b.downloadUrl) {
-      const cached = await getCachedEpub(id);
-      if (cached) {
-        setEpubData(cached);
-      } else {
-        try {
-          const res = await fetch(`/api/epub?url=${encodeURIComponent(b.downloadUrl)}`);
-          if (res.ok) {
-            const data = await res.arrayBuffer();
-            setEpubData(data);
-            saveEpubToCache(id, data);
-          }
-        } catch (err) {
-          console.error("Falha ao baixar EPUB:", err);
-        }
-      }
-    }
-  }
-
-  init().catch(console.error).finally(() => setLoading(false));
-  // ... cleanup ...
-}, [id]);
+interface UseEpubResult {
+  epubData: ArrayBuffer | null;
+  loading: boolean;
+  error: Error | null;
+}
 ```
+
+**Fluxo:**
+1. Inicia com `loading = true`
+2. Tenta `getCachedEpub(bookId)` — se hit, `setEpubData` + `markBookAsAccessed`
+3. Se miss, faz `fetch(/api/epub?url=...)` → `setEpubData` + `saveEpubToCache` (fire-and-forget)
+4. Se erro, `setError`
+5. `loading = false` após sucesso ou erro
+
+**Heartbeat LRU:** `setInterval` a cada 2 minutos chamando `markBookAsAccessed`. Cleanup ao desmontar (limpa intervalo + marca último acesso).
+
+**Observação:** O hook aceita `downloadUrl: string | null`. Quando `null` (book sem downloadUrl), apenas seta `loading = false`.
+
+---
+
+### 3. Modificar `alexandria-frontend/src/app/(main)/leitor/[id]/page.tsx`
+
+**O que mudou (diff resumido):**
+
+| Ação | Detalhe |
+|---|---|
+| **+1** | `import { useEpub } from "@/hooks/useEpub"` |
+| **-2** | Removido `const [epubData, setEpubData] = useState<ArrayBuffer \| null>(null)` |
+| **-1** | Removido `const [loading, setLoading] = useState(true)` |
+| **+3** | Adicionado `const { epubData, loading: epubLoading, error: epubError } = useEpub(id, book?.downloadUrl ?? null)` |
+| **-4** | Removido bloco `if (b.downloadUrl) { fetch... }` do `init()` |
+| **~1** | `init().catch(console.error)` — sem `.finally()` (não há estado de loading da página) |
+| **~1** | `if (!book)` — carregando dados do livro |
+| **+9** | Bloco `if (epubError)` — mensagem de erro amigável + link "Voltar para o livro" |
+| **~1** | `if (epubLoading \|\| !epubData)` — "Carregando livro..." |
+
+**Loading states no JSX (ordem de avaliação):**
+
+```
+1. if (!book)                          → "Carregando leitor..."
+2. if (epubError)                      → "Erro ao carregar o livro." + link
+3. if (!book?.downloadUrl)             → "Arquivo de leitura indisponível." + link
+4. if (epubLoading || !epubData)       → "Carregando livro..."
+5. else                                → ReactReader com header, barra de progresso
+```
+
+> **Nota:** Diferente do plano original, não foi criado um estado `pageLoading` separado. A lógica de loading usa combinação dos estados `book`, `epubLoading` e `epubData` diretamente.
 
 ---
 
@@ -279,17 +167,19 @@ Usuário clica em "Ler agora"
 getBookById(id) + getUserBooks()     ← ~200ms
         │
         ▼
-getCachedEpub(id)                    ← ~5ms → MISS
+book carregado → useEpub detecta downloadUrl → setLoading(true)
+        │
+        ▼
+getCachedEpub(id) → MISS
         │
         ▼
 fetch(/api/epub?url=...)             ← ~2s (download)
         │
         ▼
-setEpubData(data)                    ← renderiza o ReactReader
-saveEpubToCache(id, data)            ← salva em memória + IndexedDB (paralelo)
+setEpubData(data) + loading=false
         │
         ▼
-✅ Leitor pronto
+ReactReader renderiza                  ✅
 ```
 
 ### Segunda vez (mesma sessão)
@@ -301,13 +191,16 @@ Usuário clica em "Ler agora"
 getBookById(id) + getUserBooks()     ← ~200ms
         │
         ▼
-getCachedEpub(id)                    ← instantâneo → HIT (memória)
+book carregado → useEpub detecta downloadUrl
         │
         ▼
-setEpubData(data)                    ← renderiza o ReactReader
+getCachedEpub(id) → HIT (memória)   ← instantâneo
         │
         ▼
-✅ Leitor pronto — sem download
+setEpubData + loading=false
+        │
+        ▼
+ReactReader renderiza                  ✅ (sem download)
 ```
 
 ### Terceira vez (sessão diferente, mesmo livro)
@@ -319,64 +212,142 @@ Usuário clica em "Ler agora"
 getBookById(id) + getUserBooks()     ← ~200ms
         │
         ▼
-getCachedEpub(id)                    ← ~5ms → HIT (IndexedDB)
-        │                                (promove para memória)
+getCachedEpub(id) → HIT (IndexedDB) ← ~5ms
+        │               (promove para memória)
         ▼
-setEpubData(data)                    ← renderiza o ReactReader
+setEpubData + loading=false
         │
         ▼
-✅ Leitor pronto — sem download
+ReactReader renderiza                  ✅ (sem download)
 ```
+
+### Falha no download (epubError)
+
+```
+Usuário clica em "Ler agora"
+        │
+        ▼
+book carregado → useEpub → MISS → fetch(/api/epub) ← erro
+        │
+        ▼
+loading=false, epubError=Error
+        │
+        ▼
+"Erro ao carregar o livro." ← usuário vê mensagem + link para voltar ✅
+```
+
+### Durante a leitura (heartbeat LRU)
+
+```
+A cada 2 minutos:
+  markBookAsAccessed(id) → atualiza lastAccessed no IndexedDB
+
+Ao sair da página:
+  markBookAsAccessed(id) → garante o último timestamp
+```
+
+### Cache estourou (evicção LRU)
+
+```
+saveEpubToCache(id, data) → detecta >30 entries ou >250 MB
+                          → cursor único: coleta entries
+                          → ordena por lastAccessed crescente
+                          → remove 30% mais antigos (transação separada)
+                          → limpa memória da aba atual
+```
+
+---
+
+## Diferenças entre o Plano Original e o Implementado
+
+| Aspecto | Plano Original | Implementado |
+|---|---|---|
+| `console.info`/`console.warn` | Vários logs de debug | Catch blocks silenciosos (vazios) |
+| `pageLoading` state | Criar `pageLoading` para separar do `epubLoading` | Não criado — usa combinação de `!book`, `epubLoading`, `epubData` |
+| `.finally(() => setPageLoading(false))` | Presente no `init()` | Ausente — `init()` só tem `.catch(console.error)` |
+| Loading "Carregando leitor..." | Exibido durante `pageLoading` | Exibido durante `!book` |
+| Tratamento de erro | Bloco `epubError` no JSX | Idem ao plano |
+| `getCacheStats()` | `formatBytes()` helper | Inline: `mb < 1 ? KB : MB` |
+
+---
+
+## Nota sobre o "flash da capa"
+
+O cache **elimina o download de ~2s**, mas o ReactReader ainda exibe brevemente a capa/posição 0 antes de restaurar a localização salva. Isso ocorre porque o parse do XML do EPUB e a geração de locations pelo `epub.js` (~200-500ms de CPU) acontecem localmente — não dependem de rede.
+
+**Este plano não inclui correção para esse flash.** É um bug pré-existente, não introduzido pelo cache. Uma solução futura seria inicializar o `location` do ReactReader com o valor salvo no `localStorage`, mas isso requer validação cuidadosa para não quebrar o tracking de progresso.
 
 ---
 
 ## Considerações
 
-### Tamanho do cache
-
-- EPUB médio: 500KB a 5MB
-- IndexedDB suporta centenas de MB sem problemas
-- O usuário pode liberar espaço manualmente limpando dados do navegador
-
 ### Tratamento de erros
 
 - Se IndexedDB falhar (disco cheio, modo anônimo restritivo), o cache em memória ainda funciona para a sessão atual
 - Se IndexedDB e memória falharem, faz o download normal (graceful degradation)
+- `markBookAsAccessed` nunca quebra a UI — erros são silenciosos
+- Se o download do EPUB falhar, `epubError` exibe mensagem amigável com link para voltar
 
 ### Cache HTTP da rota `/api/epub`
 
 Já existe `Cache-Control: public, max-age=86400` — complementa o IndexedDB. Se o usuário nunca abriu o livro antes, o proxy `/api/epub` retorna do cache HTTP do navegador se já tiver sido baixado em outra aba.
 
-### Limpeza do cache (futuro)
-
-Pode-se adicionar uma opção em "Configurações" para limpar o cache de EPUBs:
+### Limpeza do cache (página de Configurações — futura)
 
 ```typescript
-import { removeEpubFromCache } from "@/lib/epub-cache";
+import { clearAllEpubCache } from "@/lib/epub-cache";
 
-async function clearEpubCache() {
-  const keys = Object.keys(localStorage).filter(k => k.startsWith("epub-location-"));
-  for (const key of keys) {
-    const bookId = key.replace("epub-location-", "");
-    await removeEpubFromCache(bookId);
-  }
+async function handleClearCache() {
+  const removed = await clearAllEpubCache();
+  alert(`${removed.length} livros removidos do cache`);
 }
 ```
+
+### Limites do LRU
+
+| Parâmetro | Valor | Justificativa |
+|---|---|---|
+| `LRU_MAX_ENTRIES` | 30 | Usuário típico lê 1-3 livros simultaneamente; 30 é folgado |
+| `LRU_MAX_SIZE_BYTES` | 250 MB | EPUB médio: 0.5-5 MB. 30 × 5 MB = 150 MB. 250 MB é confortável |
+| `evictionRatio` | 30% | Remove os mais antigos o suficiente para não precisar evictar de novo logo em seguida |
+| `heartbeatMs` | 2 min | Intervalo baixo o bastante para LRU ser preciso; alto o bastante para não sobrecarregar IndexedDB |
+
+### Impacto em infraestrutura (RDS / EC2)
+
+**Nenhum.** Todo o cache é gerenciado no navegador do usuário via IndexedDB. O backend não é modificado. A rota `/api/epub` (Next.js API Route) continua servindo o mesmo número de requests — na verdade, será **menos chamada** porque cache hits evitam o fetch.
 
 ---
 
 ## Checklist de Implementação
 
-- [ ] Criar `alexandria-frontend/src/lib/epub-cache.ts` com funções:
-  - `openDB()` — abrir/criar IndexedDB
-  - `getCachedEpub(bookId)` — busca cache (memória → IndexedDB)
-  - `saveEpubToCache(bookId, data)` — salva nos dois níveis
-  - `removeEpubFromCache(bookId)` — remove do cache
-- [ ] Modificar `leitor/[id]/page.tsx`:
-  - Importar `getCachedEpub` e `saveEpubToCache`
-  - Substituir `fetch` direto por: cache → download → salvar
-- [ ] Testar:
+- [x] Criar `alexandria-frontend/src/lib/epub-cache.ts` com:
+  - `openDB()` com type guard e suporte a migração
+  - `getCachedEpub(bookId)` — cache em memória → IndexedDB
+  - `saveEpubToCache(bookId, data)` + `evictIfNeeded()` com cursor e transação separada
+  - `markBookAsAccessed(bookId)` — gatilho LRU (usado pelo heartbeat)
+  - `removeEpubFromCache(bookId)` — remoção individual
+  - `clearAllEpubCache()` — limpeza total via IndexedDB keys
+  - Utilitários: `idbGet`, `idbWait`, `getCacheStats`
+
+- [x] Criar `alexandria-frontend/src/hooks/useEpub.ts` com:
+  - Cache hit → `setEpubData` + `markBookAsAccessed`
+  - Cache miss → download → `saveEpubToCache` (fire-and-forget)
+  - Heartbeat LRU a cada 2 minutos
+  - Cleanup ao desmontar
+
+- [x] Modificar `leitor/[id]/page.tsx`:
+  - Importar `useEpub`
+  - **Remover** `useState` de `epubData` e `loading`
+  - **Adicionar** `useEpub(id, book?.downloadUrl ?? null)` com desestruturação de `epubData`, `epubLoading`, `epubError`
+  - Remover bloco `fetch` do `useEffect`
+  - **Adicionar** bloco de tratamento de `epubError` (mensagem amigável + link "Voltar para o livro")
+  - Lógica de loading: `!book` → "Carregando leitor...", `epubError` → "Erro...", `!downloadUrl` → "Indisponível", `epubLoading || !epubData` → "Carregando livro..."
+
+- [x] Testar:
   1. Abrir livro → esperar download → leitor carrega ✅
   2. Fechar e reabrir o mesmo livro → instantâneo ✅
   3. Fechar a aba, abrir nova aba → instantâneo (IndexedDB) ✅
-  4. Modo anônimo/privado → funciona (cai para download se IndexedDB não estiver disponível) ✅
+  4. Abrir 31+ livros → LRU remove os mais antigos (não testado exaustivamente)
+  5. Deixar livro aberto por 5 min → `lastAccessed` atualizado pelo heartbeat ✅
+  6. Modo anônimo/privado → funciona (cai para download se IndexedDB não estiver disponível) (não testado)
+  7. **Desligar internet → abrir livro → mensagem "Erro ao carregar o livro." com link para voltar** ✅
