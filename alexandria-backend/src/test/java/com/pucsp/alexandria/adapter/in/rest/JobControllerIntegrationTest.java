@@ -74,5 +74,12 @@ class JobControllerIntegrationTest {
                         .param("page", "582"))
                 .andExpect(status().isAccepted());
     }
+
+    @Test
+    void shouldReturn202WhenTriggeredWithPage() throws Exception {
+        mockMvc.perform(post("/api/jobs/sync-gutendex")
+                        .param("page", "582"))
+                .andExpect(status().isAccepted());
+    }
 }
 
