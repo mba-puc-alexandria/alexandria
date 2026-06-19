@@ -67,11 +67,11 @@ class AuthControllerIntegrationTest {
                 .andExpect(jsonPath("$.email").value("john@example.com"));
     }
 
-    @Test
+        @Test
     void shouldLoginUser() throws Exception {
         when(authenticateUserUseCase.execute(any(AuthInput.class)))
-                .thenReturn(AuthOutput.of(null, 1L, "john_doe"));
-        when(jwtTokenProvider.generateToken(1L, "john_doe")).thenReturn("jwt.token.here");
+                .thenReturn(AuthOutput.of(null, 1L, "john_doe", "USER"));
+        when(jwtTokenProvider.generateToken(1L, "john_doe", "USER")).thenReturn("jwt.token.here");
 
         mockMvc.perform(post("/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -80,7 +80,8 @@ class AuthControllerIntegrationTest {
                 .andExpect(jsonPath("$.token").value("jwt.token.here"))
                 .andExpect(jsonPath("$.type").value("Bearer"))
                 .andExpect(jsonPath("$.userId").value(1))
-                .andExpect(jsonPath("$.username").value("john_doe"));
+                .andExpect(jsonPath("$.username").value("john_doe"))
+                .andExpect(jsonPath("$.role").value("USER"));
     }
 }
 

@@ -6,6 +6,11 @@ import java.time.LocalDateTime;
 
 public class User {
 
+  public enum Role {
+    USER,
+    ADMIN
+  }
+
   private final UserId id;
   private final String username;
   private final String firstName;
@@ -13,8 +18,9 @@ public class User {
   private final Email email;
   private final String password;
   private final LocalDateTime createdAt;
+  private final Role role;
 
-  private User(UserId id, String username, String firstName, String lastName, Email email, String password, LocalDateTime createdAt) {
+  private User(UserId id, String username, String firstName, String lastName, Email email, String password, LocalDateTime createdAt, Role role) {
     this.id = id;
     this.username = username;
     this.firstName = firstName;
@@ -22,6 +28,7 @@ public class User {
     this.email = email;
     this.password = password;
     this.createdAt = createdAt;
+    this.role = role;
   }
 
   public static User create(String username, String firstName, String lastName, String email, String password) {
@@ -30,17 +37,17 @@ public class User {
     validateLastName(lastName);
     validatePassword(password);
     Email emailVO = new Email(email);
-    return new User(null, username, firstName, lastName, emailVO, password, LocalDateTime.now());
+    return new User(null, username, firstName, lastName, emailVO, password, LocalDateTime.now(), Role.USER);
   }
 
-  public static User restore(Long id, String username, String firstName, String lastName, String email, String password, LocalDateTime createdAt) {
+  public static User restore(Long id, String username, String firstName, String lastName, String email, String password, LocalDateTime createdAt, Role role) {
     validateUsername(username);
     validateFirstName(firstName);
     validateLastName(lastName);
     validatePassword(password);
     Email emailVO = new Email(email);
     UserId userId = UserId.from(id);
-    return new User(userId, username, firstName, lastName, emailVO, password, createdAt);
+    return new User(userId, username, firstName, lastName, emailVO, password, createdAt, role);
   }
 
   public User updateWith(String username, String firstName, String lastName, String password) {
@@ -52,7 +59,7 @@ public class User {
     validateFirstName(finalFirstName);
     validateLastName(finalLastName);
     validatePassword(finalPassword);
-    return new User(this.id, finalUsername, finalFirstName, finalLastName, this.email, finalPassword, this.createdAt);
+    return new User(this.id, finalUsername, finalFirstName, finalLastName, this.email, finalPassword, this.createdAt, this.role);
   }
 
   public User updateProfile(String username, String firstName, String lastName) {
@@ -61,7 +68,7 @@ public class User {
 
   public User updatePassword(String newPassword) {
     validatePassword(newPassword);
-    return new User(this.id, this.username, this.firstName, this.lastName, this.email, newPassword, this.createdAt);
+    return new User(this.id, this.username, this.firstName, this.lastName, this.email, newPassword, this.createdAt, this.role);
   }
 
   private static void validateUsername(String username) {
@@ -127,8 +134,12 @@ public class User {
     return password;
   }
 
-  public LocalDateTime getCreatedAt() {
+    public LocalDateTime getCreatedAt() {
     return createdAt;
+  }
+
+  public Role getRole() {
+    return role;
   }
 
   @Override

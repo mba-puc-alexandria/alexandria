@@ -4,10 +4,11 @@ public record AuthOutput(
     String token,
     String type,
     Long userId,
-    String username
+    String username,
+    String role
 ) {
 
-  public static AuthOutput of(String token, Long userId, String username) {
-    return new AuthOutput(token, "Bearer", userId, username);
+  public static AuthOutput of(String token, Long userId, String username, String role) {
+    return new AuthOutput(token, "Bearer", userId, username, role);
   }
 }

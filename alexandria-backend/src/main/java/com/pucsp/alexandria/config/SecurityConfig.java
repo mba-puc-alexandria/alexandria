@@ -35,15 +35,18 @@ public class SecurityConfig {
         .csrf(csrf -> csrf.disable())
         .exceptionHandling(ex -> ex.authenticationEntryPoint(jwtAuthenticationEntryPoint))
         .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-        .authorizeHttpRequests(auth -> auth
+                .authorizeHttpRequests(auth -> auth
             .requestMatchers("/auth/register", "/auth/login", "/auth/google").permitAll()
-            .requestMatchers("/api/jobs/**").permitAll()
             .requestMatchers("/actuator/health").permitAll()
             .requestMatchers("/error").permitAll()
             .requestMatchers("/swagger-ui/**", "/api-docs/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()
-            .requestMatchers("/books/search").permitAll()
-            .requestMatchers("/books").permitAll()
-            .requestMatchers("/books/{id}").permitAll()
+            .requestMatchers(org.springframework.http.HttpMethod.GET, "/books/search").permitAll()
+            .requestMatchers(org.springframework.http.HttpMethod.GET, "/books").permitAll()
+            .requestMatchers(org.springframework.http.HttpMethod.GET, "/books/{id}").permitAll()
+            .requestMatchers("/api/jobs/**").hasRole("ADMIN")
+            .requestMatchers(org.springframework.http.HttpMethod.POST, "/books").hasRole("ADMIN")
+            .requestMatchers(org.springframework.http.HttpMethod.PUT, "/books/**").hasRole("ADMIN")
+            .requestMatchers(org.springframework.http.HttpMethod.DELETE, "/books/**").hasRole("ADMIN")
             .anyRequest().authenticated()
         )
         .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);

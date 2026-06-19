@@ -5,6 +5,7 @@ import static org.mockito.Mockito.*;
 
 import com.pucsp.alexandria.application.profile.dto.UpdatePasswordInput;
 import com.pucsp.alexandria.domain.user.User;
+import com.pucsp.alexandria.domain.user.User.Role;
 import com.pucsp.alexandria.domain.user.UserRepository;
 import com.pucsp.alexandria.domain.user.exception.InvalidCredentialsException;
 import com.pucsp.alexandria.domain.user.exception.UserNotFoundException;
@@ -33,16 +34,16 @@ class UpdatePasswordUseCaseTest {
   @Captor
   private ArgumentCaptor<User> userCaptor;
 
-  @Test
+    @Test
   void shouldUpdatePassword() {
     User user = User.restore(1L, "john_doe", "John", "Doe",
-        "john@example.com", "encodedOldPassword", LocalDateTime.now());
+        "john@example.com", "encodedOldPassword", LocalDateTime.now(), Role.USER);
     when(userRepository.findById(1L)).thenReturn(java.util.Optional.of(user));
     when(passwordEncoder.matches("oldPass123", "encodedOldPassword")).thenReturn(true);
     when(passwordEncoder.encode("newPass456")).thenReturn("encodedNewPassword");
 
     User savedUser = User.restore(1L, "john_doe", "John", "Doe",
-        "john@example.com", "encodedNewPassword", LocalDateTime.now());
+        "john@example.com", "encodedNewPassword", LocalDateTime.now(), Role.USER);
     when(userRepository.save(any(User.class))).thenReturn(savedUser);
 
     UpdatePasswordInput input = new UpdatePasswordInput("oldPass123", "newPass456");
@@ -60,10 +61,10 @@ class UpdatePasswordUseCaseTest {
     assertThrows(UserNotFoundException.class, () -> updatePasswordUseCase.execute(99L, input));
   }
 
-  @Test
+    @Test
   void shouldThrowInvalidCredentialsException() {
     User user = User.restore(1L, "john_doe", "John", "Doe",
-        "john@example.com", "encodedOldPassword", LocalDateTime.now());
+        "john@example.com", "encodedOldPassword", LocalDateTime.now(), Role.USER);
     when(userRepository.findById(1L)).thenReturn(java.util.Optional.of(user));
     when(passwordEncoder.matches("wrongPass", "encodedOldPassword")).thenReturn(false);
 

@@ -6,6 +6,7 @@ import static org.mockito.Mockito.*;
 import com.pucsp.alexandria.application.auth.dto.AuthInput;
 import com.pucsp.alexandria.application.auth.dto.AuthOutput;
 import com.pucsp.alexandria.domain.user.User;
+import com.pucsp.alexandria.domain.user.User.Role;
 import com.pucsp.alexandria.domain.user.UserRepository;
 import com.pucsp.alexandria.domain.user.exception.InvalidCredentialsException;
 import java.util.Optional;
@@ -28,10 +29,10 @@ class AuthenticateUserUseCaseTest {
     @InjectMocks
     private AuthenticateUserUseCase authenticateUserUseCase;
 
-    @Test
+        @Test
     void shouldAuthenticateValidUser() {
         User user = User.restore(1L, "john_doe", "John", "Doe",
-                "john@example.com", "encodedPassword", java.time.LocalDateTime.now());
+                "john@example.com", "encodedPassword", java.time.LocalDateTime.now(), Role.USER);
         when(userRepository.findByUsername("john_doe")).thenReturn(Optional.of(user));
         when(passwordEncoder.matches("password123", "encodedPassword")).thenReturn(true);
 
@@ -41,6 +42,7 @@ class AuthenticateUserUseCaseTest {
         assertEquals("john_doe", output.username());
         assertNull(output.token());
         assertEquals("Bearer", output.type());
+        assertEquals("USER", output.role());
     }
 
     @Test
@@ -52,10 +54,10 @@ class AuthenticateUserUseCaseTest {
         assertEquals("Invalid username or password", ex.getMessage());
     }
 
-    @Test
+        @Test
     void shouldThrowExceptionForInvalidPassword() {
         User user = User.restore(1L, "john_doe", "John", "Doe",
-                "john@example.com", "encodedPassword", java.time.LocalDateTime.now());
+                "john@example.com", "encodedPassword", java.time.LocalDateTime.now(), Role.USER);
         when(userRepository.findByUsername("john_doe")).thenReturn(Optional.of(user));
         when(passwordEncoder.matches("wrong", "encodedPassword")).thenReturn(false);
 

@@ -10,8 +10,8 @@ class UserEntityTest {
     @Test
     void shouldCreateEntityWithAllFields() {
         LocalDateTime now = LocalDateTime.now();
-        UserEntity entity = new UserEntity(1L, "john_doe", "John", "Doe",
-                "john@example.com", "password", now);
+                UserEntity entity = new UserEntity(1L, "john_doe", "John", "Doe",
+                "john@example.com", "password", now, com.pucsp.alexandria.domain.user.User.Role.USER);
 
         assertEquals(1L, entity.getId());
         assertEquals("john_doe", entity.getUsername());

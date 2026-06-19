@@ -30,8 +30,8 @@ class RegisterUserUseCaseTest {
     @Test
     void shouldRegisterUser() {
         RegisterInput input = new RegisterInput("john_doe", "John", "Doe", "john@example.com", "password123");
-        User savedUser = User.restore(1L, "john_doe", "John", "Doe",
-                "john@example.com", "password123", java.time.LocalDateTime.now());
+                User savedUser = User.restore(1L, "john_doe", "John", "Doe",
+                "john@example.com", "password123", java.time.LocalDateTime.now(), com.pucsp.alexandria.domain.user.User.Role.USER);
         when(userRepository.save(any(User.class))).thenReturn(savedUser);
 
         RegisterOutput output = registerUserUseCase.execute(input);
