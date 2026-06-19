@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { Sun, Moon, Crown, Menu, X, Settings, HelpCircle } from "lucide-react";
+import { Sun, Moon, Menu, X, Settings, HelpCircle } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAuthModal } from "@/contexts/AuthModalContext";
 
@@ -70,13 +70,6 @@ export default function MobileHeader() {
           >
             <Moon size={14} />
           </button>
-
-          <button
-            title="Plano Premium"
-            className="p-1.5 rounded-lg text-terra hover:bg-cream-active transition-colors"
-          >
-            <Crown size={14} />
-          </button>
         </div>
 
         {/* Direita: Entrar + hambúrguer */}
@@ -101,18 +94,20 @@ export default function MobileHeader() {
 
             {menuOpen && (
               <div className="absolute right-0 top-full mt-2 w-44 bg-cream border border-cream-border rounded-xl shadow-lg overflow-hidden z-50">
-                <Link
-                  href="/configuracoes"
-                  onClick={() => setMenuOpen(false)}
-                  className="flex items-center gap-3 px-4 py-3 text-sm text-brown hover:bg-cream-active transition-colors"
-                >
-                  <Settings size={15} className="text-slate" />
-                  Configurações
-                </Link>
+                {user && (
+                  <Link
+                    href="/configuracoes"
+                    onClick={() => setMenuOpen(false)}
+                    className="flex items-center gap-3 px-4 py-3 text-sm text-brown hover:bg-cream-active transition-colors"
+                  >
+                    <Settings size={15} className="text-slate" />
+                    Configurações
+                  </Link>
+                )}
                 <Link
                   href="/suporte"
                   onClick={() => setMenuOpen(false)}
-                  className="flex items-center gap-3 px-4 py-3 text-sm text-brown hover:bg-cream-active transition-colors border-t border-cream-border"
+                  className={`flex items-center gap-3 px-4 py-3 text-sm text-brown hover:bg-cream-active transition-colors ${user ? "border-t border-cream-border" : ""}`}
                 >
                   <HelpCircle size={15} className="text-slate" />
                   Suporte

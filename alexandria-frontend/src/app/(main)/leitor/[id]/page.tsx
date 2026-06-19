@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { getBookById, getUserBooks, updateUserBook, getAuthorDisplay, type BookApiResponse } from "@/lib/api";
+import { useEpub } from "@/hooks/useEpub";
 
 const ReactReader = dynamic(
   () => import("react-reader").then((m) => m.ReactReader),
@@ -33,8 +34,6 @@ export default function LeitorPage({
   const { id } = use(params);
   const router = useRouter();
   const [book, setBook] = useState<BookApiResponse | null>(null);
-  const [epubData, setEpubData] = useState<ArrayBuffer | null>(null);
-  const [loading, setLoading] = useState(true);
   const [location, setLocation] = useState<string | number>(0);
   const [progress, setProgress] = useState<number>(0);
   const [minutesLeft, setMinutesLeft] = useState<number | null>(null);
@@ -49,6 +48,8 @@ export default function LeitorPage({
   const restoreLocationRef = useRef<string | null>(null);
   const sessionStartTimeRef = useRef<number | null>(null);
   const sessionStartProgressRef = useRef<number | null>(null);
+
+  const { epubData, loading: epubLoading, error: epubError } = useEpub(id, book?.downloadUrl ?? null);
 
   useEffect(() => {
     async function init() {
@@ -77,14 +78,9 @@ export default function LeitorPage({
       // após as locations estarem prontas (evita relocated indesejado)
       const saved = localStorage.getItem(`epub-location-${id}`);
       if (saved) restoreLocationRef.current = saved;
-
-      if (b.downloadUrl) {
-        const res = await fetch(`/api/epub?url=${encodeURIComponent(b.downloadUrl)}`);
-        if (res.ok) setEpubData(await res.arrayBuffer());
-      }
     }
 
-    init().catch(console.error).finally(() => setLoading(false));
+    init().catch(console.error);
 
     return () => {
       if (saveTimerRef.current) {
@@ -217,10 +213,22 @@ export default function LeitorPage({
     );
   }
 
-  if (loading) {
+  if (!book) {
     return (
       <div className="flex items-center justify-center h-full">
         <p className="text-brown-soft text-sm">Carregando leitor...</p>
+      </div>
+    );
+  }
+
+  if (epubError) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full gap-4">
+        <p className="text-brown font-serif text-xl">Erro ao carregar o livro.</p>
+        <p className="text-brown-soft text-sm">{epubError.message}</p>
+        <Link href={`/explorar/${id}`} className="text-terra text-sm font-bold underline">
+          Voltar para o livro
+        </Link>
       </div>
     );
   }
@@ -232,6 +240,14 @@ export default function LeitorPage({
         <Link href={`/explorar/${id}`} className="text-terra text-sm font-bold underline">
           Voltar para o livro
         </Link>
+      </div>
+    );
+  }
+
+  if (epubLoading || !epubData) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <p className="text-brown-soft text-sm">Carregando livro...</p>
       </div>
     );
   }

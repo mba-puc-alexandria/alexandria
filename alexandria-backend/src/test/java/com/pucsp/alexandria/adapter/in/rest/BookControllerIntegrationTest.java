@@ -18,6 +18,7 @@ import com.pucsp.alexandria.application.book.dto.BookOutput;
 import com.pucsp.alexandria.application.book.dto.BookOutput.AuthorInfo;
 import com.pucsp.alexandria.application.book.dto.CreateBookInput;
 import com.pucsp.alexandria.application.book.dto.CreateBookOutput;
+import com.pucsp.alexandria.config.jwt.JwtTokenProvider;
 import com.pucsp.alexandria.domain.book.BookSource;
 import com.pucsp.alexandria.application.book.dto.SearchBookOutput;
 import com.pucsp.alexandria.application.book.dto.UpdateBookInput;
@@ -61,18 +62,51 @@ class BookControllerIntegrationTest {
     @MockitoBean
     private DeleteBookUseCase deleteBookUseCase;
 
-    @MockitoBean
+        @MockitoBean
     private SearchBookByTitleUseCase searchBookByTitleUseCase;
 
+    @MockitoBean
+    private JwtTokenProvider jwtTokenProvider;
+
+    private final String ADMIN_TOKEN = "Bearer admin-token";
+    private final String USER_TOKEN = "Bearer user-token";
+
     @Test
-    void shouldCreateBook() throws Exception {
+    void shouldCreateBookAsAdmin() throws Exception {
+        when(jwtTokenProvider.validateToken("admin-token")).thenReturn(true);
+        when(jwtTokenProvider.getUsernameFromToken("admin-token")).thenReturn("admin");
+        when(jwtTokenProvider.getUserIdFromToken("admin-token")).thenReturn(1L);
+        when(jwtTokenProvider.getRoleFromToken("admin-token")).thenReturn("ADMIN");
         when(createBookUseCase.execute(any(CreateBookInput.class)))
                 .thenReturn(new CreateBookOutput(List.of(1L)));
 
         mockMvc.perform(post("/books")
+                        .header("Authorization", ADMIN_TOKEN)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(new CreateBookRequest(1))))
                 .andExpect(status().isNoContent());
+    }
+
+    @Test
+    void shouldNotCreateBookAsUser() throws Exception {
+        when(jwtTokenProvider.validateToken("user-token")).thenReturn(true);
+        when(jwtTokenProvider.getUsernameFromToken("user-token")).thenReturn("user");
+        when(jwtTokenProvider.getUserIdFromToken("user-token")).thenReturn(2L);
+        when(jwtTokenProvider.getRoleFromToken("user-token")).thenReturn("USER");
+
+        mockMvc.perform(post("/books")
+                        .header("Authorization", USER_TOKEN)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new CreateBookRequest(1))))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void shouldNotCreateBookWithoutToken() throws Exception {
+        mockMvc.perform(post("/books")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new CreateBookRequest(1))))
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -113,14 +147,19 @@ class BookControllerIntegrationTest {
                 .andExpect(jsonPath("$.content[1].title").value("Book 2"));
     }
 
-    @Test
-    void shouldUpdateBook() throws Exception {
+        @Test
+    void shouldUpdateBookAsAdmin() throws Exception {
+        when(jwtTokenProvider.validateToken("admin-token")).thenReturn(true);
+        when(jwtTokenProvider.getUsernameFromToken("admin-token")).thenReturn("admin");
+        when(jwtTokenProvider.getUserIdFromToken("admin-token")).thenReturn(1L);
+        when(jwtTokenProvider.getRoleFromToken("admin-token")).thenReturn("ADMIN");
         List<AuthorInfo> authors = List.of(new AuthorInfo(1L, "Author", null, null));
         BookOutput updated = new BookOutput(
                 1L, "Updated Title", authors, null, null, null, null, null, null, 1L, BookSource.LOCAL.name());
         when(updateBookUseCase.execute(eq(1L), any(UpdateBookInput.class))).thenReturn(updated);
 
         mockMvc.perform(put("/books/1")
+                        .header("Authorization", ADMIN_TOKEN)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(new UpdateBookRequest("Updated Title"))))
                 .andExpect(status().isOk())
@@ -128,11 +167,42 @@ class BookControllerIntegrationTest {
     }
 
     @Test
-    void shouldDeleteBook() throws Exception {
+    void shouldNotUpdateBookAsUser() throws Exception {
+        when(jwtTokenProvider.validateToken("user-token")).thenReturn(true);
+        when(jwtTokenProvider.getUsernameFromToken("user-token")).thenReturn("user");
+        when(jwtTokenProvider.getUserIdFromToken("user-token")).thenReturn(2L);
+        when(jwtTokenProvider.getRoleFromToken("user-token")).thenReturn("USER");
+
+        mockMvc.perform(put("/books/1")
+                        .header("Authorization", USER_TOKEN)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new UpdateBookRequest("Updated Title"))))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void shouldDeleteBookAsAdmin() throws Exception {
+        when(jwtTokenProvider.validateToken("admin-token")).thenReturn(true);
+        when(jwtTokenProvider.getUsernameFromToken("admin-token")).thenReturn("admin");
+        when(jwtTokenProvider.getUserIdFromToken("admin-token")).thenReturn(1L);
+        when(jwtTokenProvider.getRoleFromToken("admin-token")).thenReturn("ADMIN");
         doNothing().when(deleteBookUseCase).execute(1L);
 
-        mockMvc.perform(delete("/books/1"))
+        mockMvc.perform(delete("/books/1")
+                        .header("Authorization", ADMIN_TOKEN))
                 .andExpect(status().isNoContent());
+    }
+
+    @Test
+    void shouldNotDeleteBookAsUser() throws Exception {
+        when(jwtTokenProvider.validateToken("user-token")).thenReturn(true);
+        when(jwtTokenProvider.getUsernameFromToken("user-token")).thenReturn("user");
+        when(jwtTokenProvider.getUserIdFromToken("user-token")).thenReturn(2L);
+        when(jwtTokenProvider.getRoleFromToken("user-token")).thenReturn("USER");
+
+        mockMvc.perform(delete("/books/1")
+                        .header("Authorization", USER_TOKEN))
+                .andExpect(status().isForbidden());
     }
 
     @Test

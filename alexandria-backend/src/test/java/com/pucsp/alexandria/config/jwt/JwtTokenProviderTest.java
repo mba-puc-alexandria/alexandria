@@ -17,30 +17,37 @@ class JwtTokenProviderTest {
         );
     }
 
-    @Test
+        @Test
     void shouldGenerateToken() {
-        String token = jwtTokenProvider.generateToken(1L, "john_doe");
+        String token = jwtTokenProvider.generateToken(1L, "john_doe", "USER");
         assertNotNull(token);
         assertFalse(token.isBlank());
     }
 
     @Test
     void shouldExtractUserIdFromToken() {
-        String token = jwtTokenProvider.generateToken(42L, "test_user");
+        String token = jwtTokenProvider.generateToken(42L, "test_user", "USER");
         Long userId = jwtTokenProvider.getUserIdFromToken(token);
         assertEquals(42L, userId);
     }
 
     @Test
     void shouldExtractUsernameFromToken() {
-        String token = jwtTokenProvider.generateToken(1L, "john_doe");
+        String token = jwtTokenProvider.generateToken(1L, "john_doe", "USER");
         String username = jwtTokenProvider.getUsernameFromToken(token);
         assertEquals("john_doe", username);
     }
 
     @Test
+    void shouldExtractRoleFromToken() {
+        String token = jwtTokenProvider.generateToken(1L, "john_doe", "ADMIN");
+        String role = jwtTokenProvider.getRoleFromToken(token);
+        assertEquals("ADMIN", role);
+    }
+
+    @Test
     void shouldValidateValidToken() {
-        String token = jwtTokenProvider.generateToken(1L, "john_doe");
+        String token = jwtTokenProvider.generateToken(1L, "john_doe", "USER");
         assertTrue(jwtTokenProvider.validateToken(token));
     }
 
@@ -61,8 +68,8 @@ class JwtTokenProviderTest {
 
     @Test
     void differentUsersShouldHaveDifferentTokens() {
-        String token1 = jwtTokenProvider.generateToken(1L, "user1");
-        String token2 = jwtTokenProvider.generateToken(2L, "user2");
+        String token1 = jwtTokenProvider.generateToken(1L, "user1", "USER");
+        String token2 = jwtTokenProvider.generateToken(2L, "user2", "ADMIN");
         assertNotEquals(token1, token2);
     }
 }

@@ -14,8 +14,8 @@ class UserMapperTest {
     @Test
     void shouldMapEntityToDomain() {
         LocalDateTime now = LocalDateTime.now();
-        UserEntity entity = new UserEntity(1L, "john_doe", "John", "Doe",
-                "john@example.com", "encodedPass", now);
+                UserEntity entity = new UserEntity(1L, "john_doe", "John", "Doe",
+                "john@example.com", "encodedPass", now, com.pucsp.alexandria.domain.user.User.Role.USER);
 
         User user = mapper.toDomain(entity);
 
@@ -31,8 +31,8 @@ class UserMapperTest {
 
     @Test
     void shouldMapDomainToEntity() {
-        User user = User.restore(1L, "jane_doe", "Jane", "Doe",
-                "jane@example.com", "pass1234", LocalDateTime.now());
+                User user = User.restore(1L, "jane_doe", "Jane", "Doe",
+                "jane@example.com", "pass1234", LocalDateTime.now(), com.pucsp.alexandria.domain.user.User.Role.USER);
 
         UserEntity entity = mapper.toPersistence(user);
 
