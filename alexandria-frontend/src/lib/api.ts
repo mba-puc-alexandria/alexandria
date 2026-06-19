@@ -171,6 +171,13 @@ export async function updateUserBook(
   return res.json();
 }
 
+export async function removeUserBook(userBookId: number): Promise<void> {
+  const res = await apiFetch(`/user-books/${userBookId}`, {
+    method: 'DELETE',
+  });
+  if (!res.ok) throw new Error('Falha ao remover livro da biblioteca');
+}
+
 export interface ProfileResponse {
   userId: number;
   username: string;
