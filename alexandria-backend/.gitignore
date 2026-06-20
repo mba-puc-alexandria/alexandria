@@ -19,6 +19,10 @@ target/
 *.iml
 *.ipr
 
+### Scripts and Logs ###
+/logs
+/scripts
+
 ### NetBeans ###
 /nbproject/private/
 /nbbuild/
@@ -33,6 +37,3 @@ build/
 .vscode/
 scripts/
 postman/
-
-markdown/plano_melhorias_apresentacao.md
-markdown/sonarcloud_integracao_ci.md

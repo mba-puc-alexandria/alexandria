@@ -310,6 +310,5 @@ graph TB
 | **Frontend** — API integration | ✅ | — |
 | **Infra** — Docker (local) | ✅ | — |
 | **Infra** — Docker (AWS) | ✅ | — |
-| **Infra** — Kubernetes (manifestos criados, não utilizado) | 📋 Plano | — |
 | **Infra** — CI/CD (.github) | ⚠️ Apenas hooks | 📋 GitHub Actions |
 | **Infra** — AWS EventBridge | ✅ | — |
