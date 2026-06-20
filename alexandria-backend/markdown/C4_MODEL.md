@@ -9,16 +9,19 @@
 ```mermaid
 graph TB
     subgraph "Sistema Alexandria"
-        FRONTEND["Site Biblioteca Alexandria<br/>Next.js<br/>✅ Implementado"]
+        FRONTEND["Site Biblioteca Alexandria<br/>Next.js + PWA<br/>✅ Implementado"]
         BACKEND["Alexandria API<br/>Spring Boot<br/>✅ Implementado"]
     end
 
-    USUARIO(["Usuário<br/>(Navegador)"])
+    USUARIO(["Usuário<br/>(Navegador / PWA)"])
     GUTENDEX_API(["Gutendex API<br/>(API pública externa)"])
+    GOOGLE(["Google OAuth 2.0<br/>(Login social)"])
     EVENTBRIDGE(["AWS EventBridge Scheduler<br/>✅ Implementado"])
 
     USUARIO -->|"Navega no site"| FRONTEND
     FRONTEND -->|"HTTP REST (JSON)"| BACKEND
+    FRONTEND -->|"OAuth (token Google)"| GOOGLE
+    BACKEND -->|"Valida token"| GOOGLE
     BACKEND -->|"Busca livros"| GUTENDEX_API
     EVENTBRIDGE -->|"POST /api/jobs/sync-gutendex"| BACKEND
 ```
@@ -29,8 +32,10 @@ graph TB
 
 ```mermaid
 graph TB
-    subgraph "📱 Frontend (Next.js)"
-        BROWSER["Navegador<br/>✅ Implementado"]
+    subgraph "📱 Frontend (Next.js + PWA)"
+        BROWSER["Navegador / PWA<br/>Service Worker + Cache<br/>✅ Implementado"]
+        EPUB_CACHE["Cache EPUB<br/>IndexedDB + LRU (30 itens, 250MB)<br/>✅ Implementado"]
+        LEITOR_EPUB["Leitor EPUB (react-reader)<br/>✅ Implementado"]
     end
 
     subgraph "☕ Backend (Spring Boot)"
@@ -47,9 +52,14 @@ graph TB
         GUTENDEX["Gutendex API<br/>✅ Implementado"]
         EVENTBRIDGE["EventBridge Scheduler<br/>✅ Implementado"]
         SWAGGER["Swagger UI<br/>✅ Implementado"]
+        GOOGLE["Google OAuth 2.0<br/>✅ Implementado"]
     end
 
     BROWSER -->|"HTTPS"| REST
+    BROWSER -->|"Validação remota"| GOOGLE
+    REST -->|"Valida token"| GOOGLE
+    LEITOR_EPUB -->|"Proxy /api/epub"| BROWSER
+    LEITOR_EPUB -->|"Salva/recupera"| EPUB_CACHE
     REST -->|"JDBC"| MYSQL_LOCAL
     REST -->|"JDBC"| MYSQL_RDS
     REST -->|"HTTP"| GUTENDEX
@@ -65,10 +75,11 @@ graph TB
 ```mermaid
 graph TB
     subgraph "adapter.in.rest — Controllers"
-        AUTH_CTRL["AuthController<br/>✅ /auth"]
+        AUTH_CTRL["AuthController<br/>✅ /auth, /auth/google"]
         BOOK_CTRL["BookController<br/>✅ /books"]
-        UB_CTRL["UserBooksController<br/>✅ /user-books 🔒"]
-        JOB_CTRL["JobController<br/>✅ /api/jobs"]
+        UB_CTRL["UserBooksController<br/>✅ /user-books 🔒<br/>✅ /user-books/book/{bookId}"]
+        JOB_CTRL["JobController<br/>✅ /api/jobs 🔑 ADMIN"]
+        PROFILE_CTRL["ProfileController<br/>✅ /profile 🔒"]
     end
 
     subgraph "adapter.in.job — Jobs"
@@ -78,6 +89,7 @@ graph TB
     subgraph "application — Use Cases"
         AUTH_UC["AuthenticateUserUseCase<br/>✅"]
         REG_UC["RegisterUserUseCase<br/>✅"]
+        GOOGLE_AUTH_UC["GoogleAuthUseCase<br/>✅"]
         CR_BOOK_UC["CreateBookUseCase<br/>✅"]
         GET_BOOK_UC["GetBookUseCase<br/>✅"]
         LIST_BOOK_UC["ListBooksUseCase<br/>✅"]
@@ -89,13 +101,18 @@ graph TB
         LIST_UB_UC["ListUserBooksUseCase<br/>✅"]
         UPD_UB_UC["UpdateUserBooksUseCase<br/>✅"]
         REM_UB_UC["RemoveUserBooksUseCase<br/>✅"]
+        GET_UB_BOOK_UC["GetUserBookByBookIdUseCase<br/>✅"]
+        GET_PROFILE_UC["GetProfileUseCase<br/>✅"]
+        UPD_PROFILE_UC["UpdateProfileUseCase<br/>✅"]
+        UPD_PASSWORD_UC["UpdatePasswordUseCase<br/>✅"]
     end
 
     subgraph "domain — Núcleo"
         BOOK_DOMAIN["Book<br/>✅"]
         AUTHOR_DOMAIN["Author<br/>✅"]
-        USER_DOMAIN["User<br/>✅"]
+        USER_DOMAIN["User (com Role: USER|ADMIN)<br/>✅"]
         USERBOOKS_DOMAIN["UserBooks<br/>✅"]
+        AUTHENTICATED_USER["AuthenticatedUser (record)<br/>✅"]
         PORTS["BookRepository (port)<br/>AuthorRepository (port)<br/>UserRepository (port)<br/>UserBooksRepository (port)<br/>BookApiClient (port)<br/>✅"]
     end
 
@@ -110,7 +127,7 @@ graph TB
 
     subgraph "config — Infraestrutura"
         BEANS["BeanConfiguration<br/>✅"]
-        SECURITY["SecurityConfig<br/>✅"]
+        SECURITY["SecurityConfig (role-based)<br/>✅"]
         CORS["CorsConfig<br/>✅"]
         JWT["JwtTokenProvider<br/>JwtAuthenticationFilter<br/>JwtAuthenticationEntryPoint<br/>✅"]
         ASYNC["AsyncConfig<br/>✅"]
@@ -123,6 +140,7 @@ graph TB
 
     AUTH_CTRL --> AUTH_UC
     AUTH_CTRL --> REG_UC
+    AUTH_CTRL --> GOOGLE_AUTH_UC
     BOOK_CTRL --> CR_BOOK_UC
     BOOK_CTRL --> GET_BOOK_UC
     BOOK_CTRL --> LIST_BOOK_UC
@@ -136,6 +154,10 @@ graph TB
     UB_CTRL --> LIST_UB_UC
     UB_CTRL --> UPD_UB_UC
     UB_CTRL --> REM_UB_UC
+    UB_CTRL --> GET_UB_BOOK_UC
+    PROFILE_CTRL --> GET_PROFILE_UC
+    PROFILE_CTRL --> UPD_PROFILE_UC
+    PROFILE_CTRL --> UPD_PASSWORD_UC
 
     CR_BOOK_UC --> PORTS
     GET_BOOK_UC --> PORTS
@@ -147,8 +169,13 @@ graph TB
     LIST_UB_UC --> PORTS
     UPD_UB_UC --> PORTS
     REM_UB_UC --> PORTS
+    GET_UB_BOOK_UC --> PORTS
+    GET_PROFILE_UC --> PORTS
+    UPD_PROFILE_UC --> PORTS
+    UPD_PASSWORD_UC --> PORTS
     AUTH_UC --> PORTS
     REG_UC --> PORTS
+    GOOGLE_AUTH_UC --> PORTS
 
     PORTS --> REPOS
     REPOS --> JPA
@@ -165,18 +192,18 @@ graph TB
 ```mermaid
 graph TB
     subgraph "📱 Páginas (Next.js App Router)"
-        LANDING["/ (Landing Page)<br/>✅ page.tsx"]
+        HOME["/ (redireciona → /explorar)<br/>✅ page.tsx"]
         LOGIN["/login<br/>✅ page.tsx"]
         REGISTER["/registrar<br/>✅ page.tsx"]
-        EXPLORE["/explorar<br/>✅ page.tsx (com busca)"]
-        BOOK_DETAIL["/explorar/[id]<br/>✅ page.tsx"]
-        BIBLIOTECA["/biblioteca<br/>✅ page.tsx (coleção pessoal)"]
-        LEITOR["/leitor<br/>✅ page.tsx"]
-        LEITOR_ID["/leitor/[id]<br/>✅ page.tsx"]
-        DASHBOARD["/dashboard<br/>✅ page.tsx"]
-        EMPRESTIMOS["/emprestimos<br/>✅ page.tsx"]
-        CONFIG["/configuracoes<br/>✅ page.tsx"]
-        SUPORTE["/suporte<br/>✅ page.tsx"]
+        EXPLORE["/explorar<br/>✅ page.tsx (com busca e top books)"]
+        BOOK_DETAIL["/explorar/[id]<br/>✅ page.tsx (add to library + leitor link)"]
+        BIBLIOTECA["/biblioteca<br/>✅ page.tsx (filtros, progresso, remoção)"]
+        LEITOR["/leitor<br/>✅ page.tsx (placeholder estático)"]
+        LEITOR_ID["/leitor/[id]<br/>✅ page.tsx (react-reader + progresso real)"]
+        DASHBOARD["/dashboard<br/>✅ page.tsx (stats reais da API)"]
+        EMPRESTIMOS["/emprestimos<br/>✅ page.tsx (mock estático)"]
+        CONFIG["/configuracoes<br/>✅ page.tsx (perfil + senha reais)"]
+        SUPORTE["/suporte<br/>✅ page.tsx (FAQ + contato)"]
     end
 
     subgraph "🧩 Componentes"
@@ -184,15 +211,30 @@ graph TB
         SIDEBAR["Sidebar<br/>✅"]
         HEADER["Header / MobileHeader<br/>✅"]
         BOTTOM_NAV["BottomNav<br/>✅"]
+        LOGIN_MODAL["LoginModal<br/>✅ (modal de login com Google)"]
+        AUTH_MODAL_TRIGGER["AuthModalTrigger<br/>✅ (?auth=1)"]
+        GOOGLE_PROVIDER["GoogleProvider<br/>✅ (GoogleOAuthProvider)"]
+        SERVICE_WORKER["ServiceWorkerRegister<br/>✅ (PWA)"]
     end
 
     subgraph "🔧 Contextos"
-        AUTH_CTX["AuthContext<br/>✅"]
+        AUTH_CTX["AuthContext<br/>✅ (login, logout, loginWithGoogle, updateUsername)"]
+        AUTH_MODAL_CTX["AuthModalContext<br/>✅ (modal login tracking)"]
     end
 
     subgraph "📡 API Layer"
-        API_LIB["api.ts<br/>✅ login, register, getBooks,<br/>searchBooks, getBookById,<br/>addUserBook, getUserBooks,<br/>updateUserBook"]
+        API_LIB["api.ts<br/>✅ login, register, loginWithGoogle,<br/>getBooks, searchBooks, getBookById,<br/>addUserBook, getUserBooks, updateUserBook,<br/>removeUserBook, getProfile, updateProfile,<br/>updatePassword, getTopBooks, apiFetch"]
         PROXY["proxy.ts<br/>✅"]
+        EPUB_ROUTE["/api/epub/route.ts<br/>✅ proxy download EPUB"]
+    end
+
+    subgraph "📚 Hooks / Utilitários"
+        USE_EPUB["useEpub<br/>✅ (cache + IndexedDB)"]
+        EPUB_CACHE["epub-cache<br/>✅ (LRU + IndexedDB)"]
+    end
+
+    subgraph "📁 Dados Mockados"
+        BOOKS_DATA["data/books.ts<br/>✅ (mock estático p/ leitor sem API)"]
     end
 
     EXPLORE --> BOOK_CARD
@@ -202,8 +244,19 @@ graph TB
     REGISTER --> API_LIB
     EXPLORE --> API_LIB
     BIBLIOTECA --> API_LIB
+    CONFIG --> API_LIB
+    DASHBOARD --> API_LIB
+    BOOK_DETAIL --> API_LIB
+    LEITOR_ID --> USE_EPUB
+    LEITOR_ID --> API_LIB
+    USE_EPUB --> EPUB_CACHE
+    USE_EPUB --> EPUB_ROUTE
     LOGIN --> AUTH_CTX
     REGISTER --> AUTH_CTX
+    LOGIN_MODAL --> AUTH_CTX
+    LOGIN_MODAL --> AUTH_MODAL_CTX
+    AUTH_MODAL_TRIGGER --> AUTH_MODAL_CTX
+    BOOK_DETAIL --> AUTH_MODAL_CTX
 ```
 
 ---
@@ -211,16 +264,17 @@ graph TB
 ## 📋 Planos (Não Implementados)
 
 ### 🔮 Autenticação Seletiva
-**Arquivo:** `markdown/plano_autenticacao_seletiva.md`
+✅ **Implementado!** A segurança por roles foi aplicada:
 
-| Endpoint | Hoje | Plano |
-|---|---|---|
-| `GET /books/**` | ✅ Público | ✅ Público (mantém) |
-| `POST /books` | ✅ Público | 🔒 **Autenticado** |
-| `PUT /books/{id}` | ✅ Público | 🔒 **Autenticado** |
-| `DELETE /books/{id}` | ✅ Público | 🔒 **Autenticado** |
-| `POST /api/jobs/sync-gutendex` | ✅ Público | 🔑 **API Key** |
-| `/user-books/**` | 🔒 Autenticado | 🔒 Autenticado (mantém) |
+| Endpoint | Hoje |
+|---|---|
+| `GET /books/**` | ✅ Público |
+| `POST /books` | 🔒 **ROLE_ADMIN** |
+| `PUT /books/{id}` | 🔒 **ROLE_ADMIN** |
+| `DELETE /books/{id}` | 🔒 **ROLE_ADMIN** |
+| `POST /api/jobs/sync-gutendex` | 🔒 **ROLE_ADMIN** |
+| `/user-books/**` | 🔒 Autenticado |
+| `/profile/**` | 🔒 Autenticado |
 
 ---
 
@@ -238,16 +292,23 @@ graph TB
 | Componente | Implementado | Em Plano |
 |---|---|---|
 | **Backend** — Domain, Application, Adapters | ✅ 100% | — |
-| **Backend** — Controllers REST | ✅ 4 controllers | — |
-| **Backend** — Security (JWT) | ✅ | 🔒 Reforçar escrita |
+| **Backend** — Controllers REST | ✅ 5 controllers (Auth, Book, UserBooks, Job, Profile) | — |
+| **Backend** — Google OAuth | ✅ | — |
+| **Backend** — Profile (GET/PUT /profile/me, PUT /profile/password) | ✅ | — |
+| **Backend** — Security (Role-based: ADMIN x USER) | ✅ | — |
 | **Backend** — Job Sincronização | ✅ | — |
 | **Backend** — Flyway | ✅ Migrações | 📋 Ativar pós-MVP |
 | **Backend** — Swagger | ✅ | Ajustes finos |
-| **Backend** — Testes | ✅ 237 testes | — |
-| **Frontend** — Páginas | ✅ 12 páginas | — |
+| **Backend** — Testes | ✅ | — |
+| **Frontend** — Páginas | ✅ 12 páginas (incl. leitor real com react-reader) | — |
+| **Frontend** — Leitor EPUB com cache (IndexedDB + LRU) | ✅ | — |
+| **Frontend** — Login modal com Google OAuth | ✅ | — |
+| **Frontend** — PWA (Service Worker + Manifest) | ✅ | — |
+| **Frontend** — Dashboard com stats reais | ✅ | — |
+| **Frontend** — Biblioteca com filtros, progresso e remoção | ✅ | — |
+| **Frontend** — Configurações (perfil e senha reais) | ✅ | — |
 | **Frontend** — API integration | ✅ | — |
 | **Infra** — Docker (local) | ✅ | — |
 | **Infra** — Docker (AWS) | ✅ | — |
-| **Infra** — Kubernetes | ✅ | — |
 | **Infra** — CI/CD (.github) | ⚠️ Apenas hooks | 📋 GitHub Actions |
 | **Infra** — AWS EventBridge | ✅ | — |
