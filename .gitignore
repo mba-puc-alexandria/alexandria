@@ -63,9 +63,9 @@ alexandria-backend/build/
 alexandria-backend/.vscode/
 .vscode/
 ### Scripts de deploy ###
-scripts/
+/scripts
 
-alexandria-frontend/docs/doc_backend.md
+docs/doc_backend.md
 .claude/settings.local.json
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
@@ -110,4 +110,3 @@ yarn-error.log*
 next-env.d.ts
 /src/aulas
 alexandria-frontend/.gitignore
-/docs
