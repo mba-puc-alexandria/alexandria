@@ -9,10 +9,10 @@
 | Maven | - | Gerenciamento de dependências |
 | MySQL 8 | - | Banco de dados relacional |
 | Spring Data JPA + Hibernate | - | ORM e acesso a dados |
-| Flyway | - | Migrações de banco (habilitado no perfil `rds`) |
-| RestTemplate | - | HTTP Client (Gutendex API) |
+| Flyway | - | Migrações de banco (habilitado no perfil `rds` post-MVP) |
+| RestTemplate | - | HTTP Client (Gutendex API + Google TokenInfo) |
 | Jackson | - | Serialização JSON |
-| Spring Security | - | Autenticação e autorização (JWT) |
+| Spring Security | - | Autenticação e autorização (JWT + role-based) |
 | Spring Boot Validation | - | Validação de beans com Jakarta Validation |
 | JWT (jjwt) | 0.12.6 | Geração/validação de tokens JWT |
 | SpringDoc OpenAPI | 2.7.0 | Documentação Swagger |
@@ -62,7 +62,8 @@ com.pucsp.alexandria
 │   │   │   └── DomainException.java        # Exceção base do domínio
 │   │   └── valueobject/
 │   │       ├── Id.java                     # Value Object genérico de ID
-│   │       └── Email.java                  # Value Object de email c/ validação
+│   │       ├── Email.java                  # Value Object de email c/ validação
+│   │       └── AuthenticatedUser.java      # Record (id, username) p/ Authentication principal
 │   │
 │   ├── book/                               # Agregado: Book
 │   │   ├── Book.java                       # Aggregate Root
@@ -86,13 +87,14 @@ com.pucsp.alexandria
 │   │       └── InvalidAuthorException.java
 │   │
 │   ├── user/                               # Agregado: User
-│   │   ├── User.java                       # Aggregate Root
+│   │   ├── User.java                       # Aggregate Root (com Role: USER | ADMIN)
 │   │   ├── UserId.java                     # Value Object: id do usuário
 │   │   ├── UserRepository.java             # Porta de saída (interface)
 │   │   └── exception/
 │   │       ├── InvalidUserException.java
 │   │       ├── DuplicateUserException.java
-│   │       └── InvalidCredentialsException.java
+│   │       ├── InvalidCredentialsException.java
+│   │       └── UserNotFoundException.java
 │   │
 │   └── userbook/                           # Agregado: UserBook (relação user-livro)
 │       ├── UserBooks.java                  # Aggregate Root
@@ -124,17 +126,28 @@ com.pucsp.alexandria
 │   ├── auth/                               # Casos de uso de Autenticação
 │   │   ├── RegisterUserUseCase.java
 │   │   ├── AuthenticateUserUseCase.java
+│   │   ├── GoogleAuthUseCase.java          # Login social com Google
 │   │   └── dto/
 │   │       ├── AuthInput.java
 │   │       ├── AuthOutput.java
 │   │       ├── RegisterInput.java
 │   │       └── RegisterOutput.java
 │   │
+│   ├── profile/                            # Casos de uso de Perfil
+│   │   ├── GetProfileUseCase.java
+│   │   ├── UpdateProfileUseCase.java
+│   │   ├── UpdatePasswordUseCase.java
+│   │   └── dto/
+│   │       ├── ProfileOutput.java
+│   │       ├── UpdateProfileInput.java
+│   │       └── UpdatePasswordInput.java
+│   │
 │   └── userbooks/                          # Casos de uso de UserBooks
 │       ├── AddUserBooksUseCase.java
 │       ├── ListUserBooksUseCase.java
 │       ├── UpdateUserBooksUseCase.java
 │       ├── RemoveUserBooksUseCase.java
+│       ├── GetUserBookByBookIdUseCase.java  # Retorna UserBook para um bookId específico
 │       └── dto/
 │           ├── UserBooksOutput.java
 │           ├── AddUserBooksInput.java
@@ -149,12 +162,19 @@ com.pucsp.alexandria
 │   │       ├── JobController.java          # REST Controller (/api/jobs)
 │   │       ├── UserBooksController.java    # REST Controller (/user-books)
 │   │       ├── auth/
-│   │       │   ├── AuthController.java     # REST Controller (/auth)
+│   │       │   ├── AuthController.java     # REST Controller (/auth, /auth/google)
 │   │       │   └── dto/
 │   │       │       ├── AuthRequest.java
 │   │       │       ├── AuthResponse.java
+│   │       │       ├── GoogleAuthRequest.java
 │   │       │       ├── RegisterRequest.java
 │   │       │       └── RegisterResponse.java
+│   │       ├── profile/
+│   │       │   ├── ProfileController.java  # REST Controller (/profile)
+│   │       │   └── dto/
+│   │       │       ├── ProfileResponse.java
+│   │       │       ├── UpdateProfileRequest.java
+│   │       │       └── UpdatePasswordRequest.java
 │   │       └── dto/
 │   │           ├── BookResponse.java
 │   │           ├── BookSummaryResponse.java # Resumo do livro (p/ listas)
@@ -201,7 +221,7 @@ com.pucsp.alexandria
 ├── config/                                 # ⚙️ Configurações Spring
 │   ├── AsyncConfig.java                    # Thread pool p/ execução assíncrona de jobs
 │   ├── BeanConfiguration.java              # Beans: Use Cases + RestTemplate
-│   ├── SecurityConfig.java                 # Security Filter Chain + CORS
+│   ├── SecurityConfig.java                 # Security Filter Chain + CORS + role-based
 │   ├── CorsConfig.java                     # Configuração CORS
 │   ├── OpenApiConfig.java                  # Configuração Swagger/OpenAPI
 │   ├── UserDetailsServiceImpl.java         # UserDetailsService p/ Spring Security
@@ -216,7 +236,7 @@ com.pucsp.alexandria
 │
 └── resources/
     ├── application.properties              # Config padrão (MySQL local/Flyway desligado)
-    ├── application-rds.properties          # Config RDS (Flyway ligado, SSL)
+    ├── application-rds.properties          # Config RDS (Flyway desligado, ddl-auto=validate)
     └── db/migration/
                 ├── V0__Create_initial_tables.sql       # Criação das tabelas iniciais
         ├── V001__Add_Gutendex_Fields_And_Remove_Genre.sql
@@ -231,6 +251,7 @@ com.pucsp.alexandria
 - **Construtor privado** — apenas factory methods criam instâncias
 - **Atributos imutáveis** com `final` e sem setters públicos
 - **Regras de negócio** validadas dentro do domínio, nunca nos adapters
+- **User** possui `Role` enum (`USER | ADMIN`) e métodos `updateProfile()`, `updatePassword()`
 
 ```java
 public class Book {
@@ -268,6 +289,9 @@ public class Email {
         // valida formato no construtor (regex)
     }
 }
+
+// Usado no Authentication.getPrincipal() do Spring Security
+public record AuthenticatedUser(Long id, String username) {}
 ```
 
 ### Ports (Interfaces de Saída)
@@ -330,29 +354,37 @@ Cada Use Case é uma classe **independente** com um único método público `exe
 4. Use Case **nunca depende de implementações concretas** (sempre das interfaces do domínio)
 5. Use Cases que modificam dados são anotados com `@Transactional`
 
-### Exemplos:
-
-**CreateBookUseCase** — Importa uma página da Gutendex:
+### GoogleAuthUseCase — Login social:
 ```java
-public class CreateBookUseCase {
-    public CreateBookOutput execute(CreateBookInput input) {
-        // 1. Busca página na Gutendex API
-        var bookDataList = bookApiClient.getPage(input.page());
-        // 2. Para cada livro, ignora se já existe (por gutendexId)
-        // 3. Cria autores se não existirem
-        // 4. Salva livro
-        return new CreateBookOutput(createdIds);
+public class GoogleAuthUseCase {
+    public Output execute(String idToken) {
+        // 1. Valida token no Google TokenInfo API (https://oauth2.googleapis.com/tokeninfo?id_token=...)
+        // 2. Verifica se aud (clientId) corresponde ao configurado
+        // 3. Busca usuário por email — se existir, retorna; se não, cria automaticamente
+        return userRepository.findByEmail(email)
+            .map(user -> new Output(user.getId().getValue(), user.getUsername(), user.getRole().name()))
+            .orElseGet(() -> criarNovoUsuario(email, firstName, lastName));
     }
 }
 ```
 
-**RegisterUserUseCase** + **AuthenticateUserUseCase** — Fluxo de auth:
+### GetProfileUseCase / UpdateProfileUseCase / UpdatePasswordUseCase:
 ```java
-// Register: valida duplicidade de username/email, cria usuário
-RegisterOutput execute(RegisterInput input);
+// GetProfile: busca usuário por ID e retorna dados do perfil
+ProfileOutput execute(Long userId);
 
-// Login: valida credenciais, retorna dados do usuário
-AuthOutput execute(AuthInput input);  // senha é validada no controller via PasswordEncoder
+// UpdateProfile: atualiza username/firstName/lastName, valida duplicidade de username
+ProfileOutput execute(Long userId, UpdateProfileInput input);
+
+// UpdatePassword: valida senha atual, codifica nova senha e persiste
+void execute(Long userId, UpdatePasswordInput input);
+```
+
+### GetUserBookByBookIdUseCase:
+```java
+// Retorna UserBooksOutput para um bookId específico (incluindo dados do livro)
+// Se o livro não estiver na coleção do usuário, retorna campos null mas com dados do livro
+UserBooksOutput execute(Long userId, Long bookId);
 ```
 
 ---
@@ -367,24 +399,34 @@ AuthOutput execute(AuthInput input);  // senha é validada no controller via Pas
 |--------|------|-----------|
 | `POST` | `/auth/register` | Registrar novo usuário |
 | `POST` | `/auth/login` | Login (retorna token JWT) |
+| `POST` | `/auth/google` | Login com Google OAuth (recebe credential token) |
 | `GET` | `/books/search?query=` | Buscar livros por título/autor |
 | `GET` | `/books` | Listar livros (paginado) |
 | `GET` | `/books/{id}` | Buscar livro por ID |
+| `GET` | `/actuator/health` | Health check |
+| `GET` | `/swagger-ui/**`, `/api-docs/**` | Documentação Swagger |
+
+**Endpoints autenticados com ROLE_ADMIN:**
+
+| Método | Path | Descrição |
+|--------|------|-----------|
 | `POST` | `/books` | Importar página da Gutendex |
 | `PUT` | `/books/{id}` | Atualizar título de um livro |
 | `DELETE` | `/books/{id}` | Deletar livro |
 | `POST` | `/api/jobs/sync-gutendex` | Disparar sincronização completa da Gutendex |
-| `GET` | `/actuator/health` | Health check |
-| `GET` | `/swagger-ui/**`, `/api-docs/**` | Documentação Swagger |
 
-**Endpoints autenticados (requerem token JWT no header `Authorization: Bearer <token>`):**
+**Endpoints autenticados (qualquer role, requerem token JWT):**
 
 | Método | Path | Descrição |
 |--------|------|-----------|
 | `GET` | `/user-books` | Listar livros do usuário (c/ filtro opcional por status) |
+| `GET` | `/user-books/book/{bookId}` | Buscar user-book por bookId (com dados do livro) |
 | `POST` | `/user-books` | Adicionar livro à coleção do usuário |
 | `PUT` | `/user-books/{id}` | Atualizar status/progresso/rating de um livro |
 | `DELETE` | `/user-books/{id}` | Remover livro da coleção do usuário |
+| `GET` | `/profile/me` | Obter dados do perfil do usuário logado |
+| `PUT` | `/profile/me` | Atualizar username/firstName/lastName |
+| `PUT` | `/profile/password` | Alterar senha (requer senha atual) |
 
 ### Fluxo de DTOs entre camadas
 
@@ -451,6 +493,7 @@ users
 ├── last_name       VARCHAR(255) NOT NULL
 ├── email           VARCHAR(255) UNIQUE NOT NULL
 ├── password        VARCHAR(255) NOT NULL        ← BCrypt hash
+├── role            VARCHAR(20) NOT NULL DEFAULT 'USER'  ← USER | ADMIN
 ├── created_at      DATETIME
 
 -- Coleção de livros do usuário
@@ -465,6 +508,8 @@ user_books
 ├── UNIQUE (user_id, book_id)
 ```
 
+> **Nota:** A coluna `role` na tabela `users` e o enum `Role.ADMIN` foram adicionados para suporte a autorização seletiva por papel.
+
 #### API Externa (Gutendex)
 
 ```
@@ -476,7 +521,17 @@ BookApiClientImpl
     → AuthorData.getFormattedName() (formata "Sobrenome, Nome" → "Nome Sobrenome")
 ```
 
-O `CreateBookUseCase` chama `bookApiClient.getPage(page)` para importar uma página de livros (32 livros por página, apenas em português). Cada livro é verificado por `gutendexId` duplicado antes de salvar.
+O `CreateBookUseCase` chama `bookApiClient.getPage(page)` para importar uma página de livros (32 livros por página, sem filtro de idioma). Cada livro é verificado por `gutendexId` duplicado antes de salvar.
+
+#### Google OAuth
+
+```
+GoogleAuthUseCase
+    → RestTemplate
+        → GET https://oauth2.googleapis.com/tokeninfo?id_token={token}
+    → valida aud (clientId)
+    → busca ou cria usuário por email
+```
 
 ---
 
@@ -485,19 +540,30 @@ O `CreateBookUseCase` chama `bookApiClient.getPage(page)` para importar uma pág
 ### Fluxo de autenticação:
 
 ```
-1. POST /auth/register  →  Cria usuário (senha com BCrypt)
-2. POST /auth/login     →  Valida credenciais, retorna token JWT
-3. Headers nas requests autenticadas:
+1. POST /auth/register        →  Cria usuário (senha com BCrypt)
+2. POST /auth/login           →  Valida credenciais, retorna token JWT
+3. POST /auth/google          →  Valida token Google, retorna token JWT (cria usuário se novo)
+4. Headers nas requests autenticadas:
    Authorization: Bearer <token>
 ```
+
+### Controle de Acesso por Role:
+
+A `SecurityConfig` utiliza `requestMatchers` com `hasRole("ADMIN")` para restringir endpoints de escrita:
+
+| Role | Acesso liberado |
+|------|-----------------|
+| **Público** | `GET /books/**`, `/auth/**`, `/actuator/health`, `/swagger-ui/**`, `/api-docs/**` |
+| **USER** (autenticado) | `/user-books/**`, `/profile/**` |
+| **ADMIN** | Tudo que USER tem + `POST/PUT/DELETE /books/**`, `/api/jobs/**` |
 
 ### Componentes de segurança:
 
 | Componente | Função |
 |------------|--------|
-| `SecurityConfig` | Configura SecurityFilterChain, CORS, session stateless, rotas públicas vs autenticadas |
-| `JwtTokenProvider` | Gera tokens JWT com claims (userId, username, issuedAt, expiration) e valida |
-| `JwtAuthenticationFilter` | Filtro OncePerRequestFilter: extrai token do header, valida, seta SecurityContext |
+| `SecurityConfig` | Configura SecurityFilterChain, CORS, session stateless, rotas públicas vs autenticadas vs admin |
+| `JwtTokenProvider` | Gera tokens JWT com claims (userId, username, role, issuedAt, expiration) e valida |
+| `JwtAuthenticationFilter` | Filtro OncePerRequestFilter: extrai token do header, valida, seta SecurityContext com AuthenticatedUser como principal |
 | `JwtAuthenticationEntryPoint` | Retorna 401 para requests não autenticadas |
 | `UserDetailsServiceImpl` | Carrega UserDetails do banco para o Spring Security |
 | `CorsConfig` | Permite origens configuradas via `cors.allowed-origins` (padrão: localhost:3000) |
@@ -508,6 +574,19 @@ O `CreateBookUseCase` chama `bookApiClient.getPage(page)` para importar uma pág
 |-------------|-----------|--------|
 | `jwt.secret` | Chave secreta HMAC-SHA (min 256 bits) | `dev-secret-key-not-for-production-min-256bits` |
 | `jwt.expiration-ms` | Tempo de expiração do token | `86400000` (24h) |
+
+### Autenticação via Google:
+
+| Propriedade | Descrição | Padrão |
+|-------------|-----------|--------|
+| `google.client-id` | Google OAuth Client ID | Configurado via application.properties |
+
+O fluxo do Google OAuth:
+1. Frontend obtém `credential` via `@react-oauth/google`
+2. Envia para `POST /auth/google` com `{ "credential": "..." }`
+3. Backend valida o token na API `https://oauth2.googleapis.com/tokeninfo?id_token=...`
+4. Verifica se `aud` (audience) corresponde ao `google.client-id`
+5. Busca usuário por email — retorna token JWT se existir, ou cria novo usuário automaticamente
 
 ---
 
@@ -537,24 +616,41 @@ public class BeanConfiguration {
   public RestTemplate restTemplate() { return new RestTemplate(); }
 
   @Bean
-  public CreateBookUseCase createBookUseCase(
-      BookRepository bookRepository,
-      AuthorRepository authorRepository,
-      BookApiClient bookApiClient) {
-    return new CreateBookUseCase(bookRepository, authorRepository, bookApiClient);
-  }
-
+  public CreateBookUseCase createBookUseCase(...) { ... }
   @Bean
-  public RegisterUserUseCase registerUserUseCase(UserRepository userRepository) {
-    return new RegisterUserUseCase(userRepository);
-  }
-
+  public GetBookUseCase getBookUseCase(...) { ... }
   @Bean
-  public AuthenticateUserUseCase authenticateUserUseCase(
-      UserRepository userRepository, PasswordEncoder passwordEncoder) {
-    return new AuthenticateUserUseCase(userRepository, passwordEncoder);
-  }
-  // ... demais Use Cases
+  public ListBooksUseCase listBooksUseCase(...) { ... }
+  @Bean
+  public UpdateBookUseCase updateBookUseCase(...) { ... }
+  @Bean
+  public DeleteBookUseCase deleteBookUseCase(...) { ... }
+  @Bean
+  public SearchBookByTitleUseCase searchBookByTitleUseCase(...) { ... }
+  @Bean
+  public AddUserBooksUseCase addUserBooksUseCase(...) { ... }
+  @Bean
+  public ListUserBooksUseCase listUserBooksUseCase(...) { ... }
+  @Bean
+  public UpdateUserBooksUseCase updateUserBooksUseCase(...) { ... }
+  @Bean
+  public RemoveUserBooksUseCase removeUserBooksUseCase(...) { ... }
+  @Bean
+  public GetUserBookByBookIdUseCase getUserBookByBookIdUseCase(...) { ... }
+  @Bean
+  public RegisterUserUseCase registerUserUseCase(...) { ... }
+  @Bean
+  public AuthenticateUserUseCase authenticateUserUseCase(...) { ... }
+  @Bean
+  public GoogleAuthUseCase googleAuthUseCase(...) { ... }  // recebe @Value("${google.client-id}")
+  @Bean
+  public SyncAllGutendexBooksUseCase syncAllGutendexBooksUseCase(...) { ... }
+  @Bean
+  public GetProfileUseCase getProfileUseCase(...) { ... }
+  @Bean
+  public UpdateProfileUseCase updateProfileUseCase(...) { ... }
+  @Bean
+  public UpdatePasswordUseCase updatePasswordUseCase(...) { ... }
 }
 ```
 
@@ -575,6 +671,7 @@ Isso mantém a camada de aplicação **pura** (sem anotações Spring) e facilit
 | JPA DDL | `update` |
 | Flyway | `false` |
 | JWT Secret | `dev-secret-key-not-for-production-min-256bits` |
+| Google Client ID | Configurado |
 
 ### Profile `rds` (produção — usado no Dockerfile)
 **Arquivo:** `application-rds.properties`
@@ -608,6 +705,7 @@ Isso mantém a camada de aplicação **pura** (sem anotações Spring) e facilit
 |---------|-------------|---------------|
 | `BookNotFoundException` | 404 | Livro não encontrado |
 | `UserBooksNotFoundException` | 404 | Relação user-book não encontrada |
+| `UserNotFoundException` | 404 | Usuário não encontrado |
 | `InvalidUserBooksException` | 400 | Violação de regra de UserBooks (ex: progress + TOREAD) |
 | `IllegalArgumentException` | 400 | Argumento inválido |
 | `DuplicateUserBooksException` | 409 | Livro já adicionado à coleção |
@@ -694,10 +792,17 @@ docker-compose up -d
 | `JWT_SECRET` | Não (sim p/ RDS) | `dev-secret-key-...` | Chave secreta JWT (min 256 bits) |
 | `JWT_EXPIRATION_MS` | Não | `86400000` | Expiração do token (24h) |
 | `CORS_ALLOWED_ORIGINS` | Não | `http://localhost:3000` | Origens permitidas CORS |
+| `GOOGLE_CLIENT_ID` | Sim (p/ Google Auth) | — | Google OAuth Client ID |
 
 ---
 
 ## 🧠 Decisões Técnicas
+
+### Por que usar `AuthenticatedUser` como principal?
+O `JwtAuthenticationFilter` seta um `AuthenticatedUser` record (com `id` e `username`) como principal no `SecurityContext`, permitindo que os controllers acessem o ID e username do usuário autenticado de forma tipada e segura.
+
+### Por que usar role-based em vez de matchers públicos/privados simples?
+Para garantir que apenas administradores possam criar, editar ou deletar livros do acervo, bem como disparar jobs de sincronização. Usuários comuns têm acesso apenas à sua coleção pessoal e perfil.
 
 ### Por que não usar `@Service` nos Use Cases?
 Para manter a camada de aplicação **pura** (POJO), sem dependência de frameworks. Os Use Cases são registrados como `@Bean` em `BeanConfiguration`, facilitando testes unitários.
@@ -705,10 +810,10 @@ Para manter a camada de aplicação **pura** (POJO), sem dependência de framewo
 ### Por que usar `ddl-auto=validate` no perfil RDS?
 Com `ddl-auto=validate`, o Hibernate verifica se as entidades JPA correspondem ao schema do banco na inicialização. Se houver diferença, a aplicação não sobe — evitando dessincronia entre código e banco. Em desenvolvimento local (`application.properties`), o `ddl-auto=update` continua sendo usado para agilizar o desenvolvimento.
 
-### Por que o UserId é passado como `Long` no Authentication?
-O `JwtAuthenticationFilter` seta o `userId` como principal (`authentication.setPrincipal(userId)`), e os controllers fazem cast para `Long` para obter o ID do usuário autenticado.
+### Por que o GoogleAuthUseCase usa RestTemplate direto em vez de biblioteca Google?
+Para manter a dependência externa mínima. O `GoogleAuthUseCase` valida o token manualmente contra a API `tokeninfo` do Google, verificando apenas `aud` (clientId) e `email`. É uma abordagem mais leve que usar a biblioteca oficial, adequada ao escopo do MVP.
 
-### Por que a Gutendex busca apenas livros em português?
+### Por que a Gutendex busca livros sem filtro de idioma?
 O `GutendexClient` busca livros sem filtro de idioma, mas o foco da aplicação é o público brasileiro. Caso deseje filtrar por idioma, basta adicionar o parâmetro `languages=pt` na URL da requisição.
 
 ---

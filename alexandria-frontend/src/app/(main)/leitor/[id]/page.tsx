@@ -34,7 +34,10 @@ export default function LeitorPage({
   const { id } = use(params);
   const router = useRouter();
   const [book, setBook] = useState<BookApiResponse | null>(null);
-  const [location, setLocation] = useState<string | number>(0);
+  const [location, setLocation] = useState<string | number>(() => {
+    if (typeof window === "undefined") return 0;
+    return localStorage.getItem(`epub-location-${id}`) ?? 0;
+  });
   const [progress, setProgress] = useState<number>(0);
   const [minutesLeft, setMinutesLeft] = useState<number | null>(null);
   const [pagesLeft, setPagesLeft] = useState<number | null>(null);
@@ -45,7 +48,6 @@ export default function LeitorPage({
   const currentProgressRef = useRef<number>(0);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const totalLocationsRef = useRef<number>(0);
-  const restoreLocationRef = useRef<string | null>(null);
   const sessionStartTimeRef = useRef<number | null>(null);
   const sessionStartProgressRef = useRef<number | null>(null);
 
@@ -73,11 +75,6 @@ export default function LeitorPage({
           updateUserBook(userBook.id, { status: "reading", progress: 0 }).catch(() => {});
         }
       }
-
-      // 2. Guarda localização salva para restaurar manualmente
-      // após as locations estarem prontas (evita relocated indesejado)
-      const saved = localStorage.getItem(`epub-location-${id}`);
-      if (saved) restoreLocationRef.current = saved;
     }
 
     init().catch(console.error);
@@ -121,15 +118,6 @@ export default function LeitorPage({
       rendition.book.locations.generate(1600).then(() => {
         totalLocationsRef.current = rendition.book.locations.length();
 
-        // Restaura posição salva. O listener de relocated ainda não
-        // foi registrado, então esse display() não causa recálculo.
-        if (restoreLocationRef.current) {
-          rendition.display(restoreLocationRef.current);
-          restoreLocationRef.current = null;
-        }
-
-        // Registra o listener DEPOIS da restauração — só captura
-        // navegações reais do usuário.
         rendition.on("relocated", (loc: any) => {
           const percent = Math.round(
             rendition.book.locations.percentageFromCfi(loc.start.cfi) * 100

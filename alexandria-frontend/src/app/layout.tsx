@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Manrope, Noto_Serif, Playfair_Display } from "next/font/google";
 import { AuthProvider } from "@/contexts/AuthContext";
 import GoogleProvider from "@/components/GoogleProvider";
+import { ServiceWorkerRegister } from "@/components/ServiceWorkerRegister";
 import "./globals.css";
 
 const manrope = Manrope({
@@ -26,6 +27,7 @@ const playfair = Playfair_Display({
 export const metadata: Metadata = {
   title: "Alexandria — Biblioteca Digital",
   description: "Sua biblioteca digital pessoal",
+  manifest: "/manifest.json",
 };
 
 export default function RootLayout({
@@ -40,8 +42,9 @@ export default function RootLayout({
       className={`${manrope.variable} ${notoSerif.variable} ${playfair.variable} h-full`}
     >
       <body className="h-full">
-          <GoogleProvider><AuthProvider>{children}</AuthProvider></GoogleProvider>
-        </body>
+        <ServiceWorkerRegister />
+        <GoogleProvider><AuthProvider>{children}</AuthProvider></GoogleProvider>
+      </body>
     </html>
   );
 }
