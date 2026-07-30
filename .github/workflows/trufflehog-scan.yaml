@@ -20,4 +20,4 @@ jobs:
     - name: Run TruffleHog
       run: |
             
-            docker run --rm -it -v "$PWD:/" trufflesecurity/trufflehog:latest github --org=mba-puc-alexandria
+            docker run --rm -v "$PWD:/" trufflesecurity/trufflehog:latest github --org=mba-puc-alexandria
