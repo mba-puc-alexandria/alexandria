@@ -19,7 +19,7 @@ jobs:
 
     - name: Run TruffleHog
       run: |
-            output=$(docker run --rm -v "$PWD:/temp" trufflesecurity/trufflehog:latest github --repo https://github.com/${{ github.repository }} --org=mba-puc-alexandria)
+            output=$(docker run --rm -v "$PWD:/temp" trufflesecurity/trufflehog:latest github --repo https://github.com/${{ github.repository }})
             echo "::set-output name=trufflehog_output::$(echo "$output" | tr -d '\r' )"
     
     - name: Create Issue
