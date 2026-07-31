@@ -29,13 +29,13 @@ jobs:
           key: ${{ runner.os }}-m2-${{ hashFiles('alexandria-backend/**/pom.xml') }}
 
       - name: Build and analyze (backend)
-        working-directory: ./backend
+        working-directory: ./alexandria-backend
         env:
           GITHUB_TOKEN: ${{ secrets.ACCESS_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: >
           mvn -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar
-          -Dsonar.projectKey=mba-puc-alexandria_alexandria-backend
+          -Dsonar.projectKey=mba-puc-alexandria
           -Dsonar.organization=mba-puc-alexandria
 
   frontend:
@@ -52,11 +52,11 @@ jobs:
           node-version: '20'
 
       - name: Install dependencies
-        working-directory: ./frontend
+        working-directory: ./alexandria-frontend
         run: npm ci
 
       - name: Run tests with coverage
-        working-directory: ./frontend
+        working-directory: ./alexandria-frontend
         run: npm test -- --coverage
 
       - name: SonarCloud Scan (frontend)
@@ -65,9 +65,9 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.ACCESS_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         with:
-          projectBaseDir: frontend
+          projectBaseDir: alexandria-frontend
           args: >
-            -Dsonar.projectKey=mba-puc-alexandria_alexandria-frontend
+            -Dsonar.projectKey=mba-puc-alexandria
             -Dsonar.organization=mba-puc-alexandria
-            -Dsonar.sources=src
+            -Dsonar.sources=alexandria-frontend/src
             -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
