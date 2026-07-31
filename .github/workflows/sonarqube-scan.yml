@@ -22,7 +22,7 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         with:
           args: >
-            -Dsonar.projectKey=mba-puc-alexandria/alexandria
+            -Dsonar.projectKey=mba-puc-alexandria
             -Dsonar.organization=mba-puc-alexandria
             -Dsonar.sources=alexandria-backend/src
             -Dsonar.exclusions=**/target/**,**/*.java.orig
