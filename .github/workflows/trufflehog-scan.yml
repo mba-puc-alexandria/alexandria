@@ -24,8 +24,8 @@ jobs:
     
     - name: Create Issue
       run: | 
-          echo "$trufflehog_output"
-          if [[ "trufflehog_output" == *"Founf unverified secret"* || "trufflehog_output" == *"Found verfied result"* ]]; the
+           echo "$trufflehog_output"
+           if [[ "trufflehog_output" == *"Founf unverified secret"* || "trufflehog_output" == *"Found verfied result"* ]]; then
 
               info=$(echo "trufflehog_output" | grep -oP '(?<=Commit:).*')
               issue_body= "Secrets encontradas pelo TruffleHog, com as seguintes informações:\n $info"           
