@@ -24,8 +24,8 @@ jobs:
     
     - name: Create Issue
       run: | 
-           echo "$trufflehog_output"
-           if [[ "trufflehog_output" == *"Founf unverified secret"* || "trufflehog_output" == *"Found verfied result"* ]]; the
+          echo "$trufflehog_output"
+          if [[ "trufflehog_output" == *"Founf unverified secret"* || "trufflehog_output" == *"Found verfied result"* ]]; the
 
               info=$(echo "trufflehog_output" | grep -oP '(?<=Commit:).*')
               issue_body= "Secrets encontradas pelo TruffleHog, com as seguintes informações:\n $info"           
@@ -38,6 +38,6 @@ jobs:
                  "https://api.github.com/repos/mba-puc-alexandria/alexandria/issues" \
                  -d "{\"title\":\"Trufflehog Found a secret",\"body"\":\"$issue_body\",\"labels\":[\"bug\"]}" \
               exit 1
-            fi
+          fi
       env: 
         trufflehog_output: $ {{steps.trufflehog_outputs.trufflehog_output }}
