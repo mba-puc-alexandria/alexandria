@@ -24,6 +24,6 @@ jobs:
           args: >
             -Dsonar.projectKey=mba-puc-alexandria/alexandria
             -Dsonar.organization=mba-puc-alexandria
-            -Dsonar.sources=src
+            -Dsonar.sources=alexandria-backend/src
             -Dsonar.exclusions=**/target/**,**/*.java.orig
             -Dsonar.host.url=https://sonarcloud.io
