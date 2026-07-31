@@ -394,15 +394,3 @@ Projeto acadêmico — uso educacional.
 ---
 
 **MBA Engenharia de Software | PUC-SP**
-
-
-## teste
-secret:
------BEGIN OPENSSH PRIVATE KEY-----
-b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAAAMwAAAAtzc2gtZW
-QyNTUxOQAAACCI4ixEOS6uro1txGWS9G40866+guajOj+3b1qwT3cpwQAAAIiOzzd0js83
-dAAAAAtzc2gtZWQyNTUxOQAAACCI4ixEOS6uro1txGWS9G40866+guajOj+3b1qwT3cpwQ
-AAAEAvSNsD41UZVxrQ8uQCRgB7h8alpz7Vnzbm0ZolHSw/84jiLEQ5Lq6ujW3EZZL0bjTz
-rr6C5qM6P7dvWrBPdynBAAAABXRlc3Rl
------END OPENSSH PRIVATE KEY-----
-tamiris@nerdquecorre:~/3361-Curso
