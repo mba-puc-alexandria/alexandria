@@ -55,9 +55,9 @@ jobs:
         working-directory: ./alexandria-frontend
         run: npm ci
 
-      - name: Run tests with coverage
+      - name: Run tests 
         working-directory: ./alexandria-frontend
-        run: npm test -- --coverage
+        run: npm test 
 
       - name: SonarCloud Scan (frontend)
         uses: SonarSource/sonarqube-scan-action@v4
