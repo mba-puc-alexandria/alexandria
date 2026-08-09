@@ -59,7 +59,7 @@ jobs:
           scp -i ~/.ssh/ec2_key /tmp/frontend.tar.gz ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/tmp/
 
       - name: Limpar disco na EC2 antes do deploy
-        uses: appleboy/ssh-action@v1.2.0
+        uses: docs/example-action@b16d2601a6b948e2fb26f3772276581f31daa7cd
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
