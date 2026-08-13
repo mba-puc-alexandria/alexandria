@@ -69,5 +69,5 @@ jobs:
           args: >
             -Dsonar.projectKey=mba-puc-alexandria
             -Dsonar.organization=mba-puc-alexandria
-            -Dsonar.sources=alexandria-frontend/src
+            -Dsonar.sources=src
             -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
