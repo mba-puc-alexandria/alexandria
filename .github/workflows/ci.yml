@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: alexandria-backend   # aplica a todos os steps do job
+        working-directory: alexandria-backend
 
     steps:
       - name: Checkout do código
@@ -24,7 +24,7 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
           cache: maven
-          cache-dependency-path: alexandria-backend/pom.xml   # importante para o cache funcionar certo
+          cache-dependency-path: alexandria-backend/pom.xml
 
       - name: Build com Maven
         run: mvn -B clean compile
@@ -40,7 +40,7 @@ jobs:
         if: success() || failure()
         with:
           name: Resultados dos Testes
-          path: 'alexandria-backend/target/surefire-reports/*.xml'   # caminho também precisa do prefixo
+          path: 'alexandria-backend/target/surefire-reports/*.xml'
           reporter: java-junit
 
       - name: Empacotar aplicação
