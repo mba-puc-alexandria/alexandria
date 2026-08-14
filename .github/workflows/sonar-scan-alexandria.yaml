@@ -55,7 +55,7 @@ jobs:
 
       - name: Install dependencies
         working-directory: ./alexandria-frontend
-        run: npm ci
+        run: npm install --ignore-scripts
 
       - name: Run tests
         working-directory: ./alexandria-frontend
