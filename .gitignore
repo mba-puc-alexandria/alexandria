@@ -110,3 +110,10 @@ yarn-error.log*
 next-env.d.ts
 /src/aulas
 alexandria-frontend/.gitignore
+
+#terraform
+.terraform/
+*.tfstate
+*.tfstate.backup
+.terraform.lock.hcl
+.terraform/

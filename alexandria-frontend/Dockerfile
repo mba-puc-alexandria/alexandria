@@ -1,21 +1,33 @@
-FROM node:20-alpine AS build
+# alexandria-frontend/Dockerfile
+
+# ---------- Estágio 1: Dependências ----------
+FROM node:20-alpine AS deps
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
-COPY src ./src
-COPY public ./public
-COPY next.config.ts tsconfig.json postcss.config.mjs eslint.config.mjs ./
-ARG NEXT_PUBLIC_API_URL
-ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+
+# ---------- Estágio 2: Build ----------
+FROM node:20-alpine AS builder
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
+# Gera build otimizado (requer output: 'standalone' no next.config.ts)
 RUN npm run build
 
+
+# ---------- Estágio 3: Runtime ----------
 FROM node:20-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
-ENV PORT=3000
-COPY --from=build --chown=node:node --chmod=555 /app/.next/standalone ./
-COPY --from=build --chown=node:node --chmod=555 /app/.next/static ./.next/static
-COPY --from=build --chown=node:node --chmod=555 /app/public ./public
-USER node
+RUN addgroup -S nodejs && adduser -S nextjs -G nodejs
+
+COPY --from=builder /app/public ./public
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+
+USER nextjs
+
 EXPOSE 3000
+ENV PORT=3000
+
 CMD ["node", "server.js"]
