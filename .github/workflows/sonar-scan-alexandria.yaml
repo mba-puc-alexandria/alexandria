@@ -36,7 +36,9 @@ jobs:
         run: >
           mvn -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar
           -Dsonar.projectKey=mba-puc-alexandria
+          -Dsonar.projectKey=mba-puc-alexandria
           -Dsonar.organization=mba-puc-alexandria
+          -Dsonar.exclusions=**/target/**,**/*.java.orig
 
   frontend:
     name: SonarCloud - Frontend
@@ -55,9 +57,9 @@ jobs:
         working-directory: ./alexandria-frontend
         run: npm ci
 
-      - name: Run tests 
+      - name: Run tests
         working-directory: ./alexandria-frontend
-        run: npm test 
+        run: npm test
 
       - name: SonarCloud Scan (frontend)
         uses: SonarSource/sonarqube-scan-action@v4
@@ -67,7 +69,9 @@ jobs:
         with:
           projectBaseDir: alexandria-frontend
           args: >
+            -Dsonar.host.url=https://sonarcloud.io
             -Dsonar.projectKey=mba-puc-alexandria
             -Dsonar.organization=mba-puc-alexandria
             -Dsonar.sources=src
             -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
+            -Dsonar.exclusions=**/target/**,**/*.java.orig
