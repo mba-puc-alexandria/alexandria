@@ -1,3 +1,17 @@
+# .github/workflows/ci.yml
+name: CI
+
+on:
+  push:
+    branches: [ "main", "develop" ]
+  pull_request:
+    branches: [ "main", "develop" ]
+
+permissions:
+  contents: read
+  checks: write        # necessário para o dorny/test-reporter criar o check run
+  pull-requests: write  # opcional, só se quiser comentários no PR
+
 jobs:
   build:
     runs-on: ubuntu-latest
