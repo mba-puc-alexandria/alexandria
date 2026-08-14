@@ -44,7 +44,7 @@ jobs:
         uses: dorny/test-reporter@v1
         if: success() || failure()
         with:
-          name: Resultados dos Testes
+          name: Resultados dos Testes (Backend)
           path: 'alexandria-backend/target/surefire-reports/*.xml'
           reporter: java-junit
 
@@ -57,7 +57,36 @@ jobs:
           name: app-jar
           path: alexandria-backend/target/*.jar
 
-  docker-build:
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: alexandria-frontend
+
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
+
+      - name: Configurar Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: alexandria-frontend/package-lock.json
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Lint (ESLint)
+        run: npm run lint
+
+      - name: Testes unitários (Vitest)
+        run: npm run test -- --run
+
+      - name: Build (Next.js)
+        run: npm run build
+
+  docker-build-backend:
     runs-on: ubuntu-latest
     needs: build   # só builda a imagem se o job "build" passar
 
@@ -77,5 +106,28 @@ jobs:
           tags: |
             alexandria-backend:${{ github.sha }}
             alexandria-backend:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  docker-build-frontend:
+    runs-on: ubuntu-latest
+    needs: frontend   # só builda a imagem se o job "frontend" passar
+
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
+
+      - name: Configurar Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build da imagem Docker (frontend)
+        uses: docker/build-push-action@v6
+        with:
+          context: ./alexandria-frontend
+          file: ./alexandria-frontend/Dockerfile
+          push: false
+          tags: |
+            alexandria-frontend:${{ github.sha }}
+            alexandria-frontend:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
