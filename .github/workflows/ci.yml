@@ -44,7 +44,7 @@ jobs:
         uses: dorny/test-reporter@v1
         if: success() || failure()
         with:
-          name: Resultados dos Testes
+          name: Resultados dos Testes (Backend)
           path: 'alexandria-backend/target/surefire-reports/*.xml'
           reporter: java-junit
 
@@ -57,9 +57,79 @@ jobs:
           name: app-jar
           path: alexandria-backend/target/*.jar
 
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: alexandria-frontend
+
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
+
+      - name: Configurar Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: alexandria-frontend/package-lock.json
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Lint (ESLint)
+        run: npm run lint
+
+      - name: Testes unitários (Vitest)
+        run: npm run test -- --run
+
+      - name: Build (Next.js)
+        run: npm run build
+
+      - name: Upload do build (.next)
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-build
+          path: alexandria-frontend/.next
+
+  frontend-e2e:
+    runs-on: ubuntu-latest
+    needs: frontend   # só roda e2e se lint/testes/build unitário passarem
+
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
+
+      - name: Configurar Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: alexandria-frontend/package-lock.json
+
+      - name: Instalar dependências
+        working-directory: alexandria-frontend
+        run: npm ci
+
+      - name: Instalar browsers do Playwright
+        working-directory: alexandria-frontend
+        run: npx playwright install --with-deps
+
+      - name: Rodar testes e2e
+        working-directory: alexandria-frontend
+        run: npx playwright test
+
+      - name: Upload do relatório do Playwright
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: alexandria-frontend/playwright-report/
+          retention-days: 7
+
   docker-build:
     runs-on: ubuntu-latest
-    needs: build   # só builda a imagem se o job "build" passar
+    needs: build
 
     steps:
       - name: Checkout do código
