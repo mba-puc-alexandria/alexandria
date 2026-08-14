@@ -1,15 +1,9 @@
-# .github/workflows/ci.yml
-name: CI
-
-on:
-  push:
-    branches: [ "main", "develop" ]
-  pull_request:
-    branches: [ "main", "develop" ]
-
 jobs:
   build:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: alexandria-backend   # aplica a todos os steps do job
 
     steps:
       - name: Checkout do código
@@ -21,6 +15,7 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
           cache: maven
+          cache-dependency-path: alexandria-backend/pom.xml   # importante para o cache funcionar certo
 
       - name: Build com Maven
         run: mvn -B clean compile
@@ -36,7 +31,7 @@ jobs:
         if: success() || failure()
         with:
           name: Resultados dos Testes
-          path: 'target/surefire-reports/*.xml'
+          path: 'alexandria-backend/target/surefire-reports/*.xml'   # caminho também precisa do prefixo
           reporter: java-junit
 
       - name: Empacotar aplicação
@@ -46,4 +41,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: app-jar
-          path: target/*.jar
+          path: alexandria-backend/target/*.jar   # idem
