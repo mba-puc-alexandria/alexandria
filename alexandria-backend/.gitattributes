@@ -1,2 +1,7 @@
+<<<<<<< HEAD
 /mvnw text eol=lf
 *.cmd text eol=crlf
+=======
+/mvnw text eol=lf
+*.cmd text eol=crlf
+>>>>>>> feature/infraestrutura
