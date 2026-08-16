@@ -8,7 +8,7 @@ terraform {
   }
 
   backend "s3" {
-    bucket = "linuxtips-curso-actions"
+    bucket = "mba-puc-alexandria/alexandria"
     key    = "stack-ecs/terraform.tfstate"
     region = "us-east-1"
   }

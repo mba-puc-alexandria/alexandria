@@ -1,5 +1,5 @@
 resource "aws_ecr_repository" "app" {
-  name                 = "linuxtips/sorteador-strigus"
+  name                 = "mba-puc-alexandria/alexandria"
   image_tag_mutability = "MUTABLE"
 
   image_scanning_configuration {
