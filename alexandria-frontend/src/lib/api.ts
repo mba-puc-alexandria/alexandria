@@ -16,6 +16,7 @@ export async function login(data: LoginRequest): Promise<LoginResponse> {
   const res = await fetch(`${API_URL_LOCAL}/auth/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
     body: JSON.stringify(data),
   });
 
@@ -30,6 +31,7 @@ export async function loginWithGoogle(credential: string): Promise<LoginResponse
   const res = await fetch(`${API_URL_LOCAL}/auth/google`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
     body: JSON.stringify({ credential }),
   });
 
@@ -235,6 +237,7 @@ export function getAuthHeaders(): HeadersInit {
 export async function apiFetch(path: string, init: RequestInit = {}): Promise<Response> {
   return fetch(`${API_URL_LOCAL}${path}`, {
     ...init,
+    credentials: 'include',
     headers: {
       'Content-Type': 'application/json',
       ...getAuthHeaders(),

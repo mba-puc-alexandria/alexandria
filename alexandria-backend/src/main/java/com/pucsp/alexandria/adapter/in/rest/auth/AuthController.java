@@ -12,6 +12,7 @@ import com.pucsp.alexandria.application.auth.dto.AuthInput;
 import com.pucsp.alexandria.application.auth.dto.AuthOutput;
 import com.pucsp.alexandria.application.auth.dto.RegisterInput;
 import com.pucsp.alexandria.config.jwt.JwtTokenProvider;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -53,14 +54,16 @@ public class AuthController {
         .body(RegisterResponse.from(output));
   }
 
-    @PostMapping("/google")
+  @PostMapping("/google")
   public ResponseEntity<AuthResponse> googleLogin(@RequestBody GoogleAuthRequest request) {
     try {
       var output = googleAuthUseCase.execute(request.credential());
       String token = jwtTokenProvider.generateToken(output.userId(), output.username(), output.role());
-      return ResponseEntity.ok(AuthResponse.from(
-          AuthOutput.of(token, output.userId(), output.username(), output.role())
-      ));
+      return ResponseEntity.ok()
+          .headers(authCookieHeaders(token))
+          .body(AuthResponse.from(
+              AuthOutput.of(token, output.userId(), output.username(), output.role())
+          ));
     } catch (RuntimeException e) {
       return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
     }
@@ -73,9 +76,22 @@ public class AuthController {
 
     String token = jwtTokenProvider.generateToken(userOutput.userId(), userOutput.username(), userOutput.role());
 
-    return ResponseEntity.ok(AuthResponse.from(
-        AuthOutput.of(token, userOutput.userId(), userOutput.username(), userOutput.role())
-    ));
+    return ResponseEntity.ok()
+        .headers(authCookieHeaders(token))
+        .body(AuthResponse.from(
+            AuthOutput.of(token, userOutput.userId(), userOutput.username(), userOutput.role())
+        ));
+  }
+
+  private HttpHeaders authCookieHeaders(String token) {
+    HttpHeaders headers = new HttpHeaders();
+    headers.add(HttpHeaders.SET_COOKIE,
+        "auth-token=" + token +
+            "; Path=/" +
+            "; Max-Age=" + (60 * 60 * 24) +   // 24 horas
+            "; SameSite=Lax"
+    );
+    return headers;
   }
 }
 
