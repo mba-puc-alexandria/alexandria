@@ -1,31 +1,34 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Sun, Moon, LogOut } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAuthModal } from "@/contexts/AuthModalContext";
 
 type Theme = "light" | "dark";
+const THEME_KEY = "alexandria-theme";
+
+function getInitialTheme(): Theme {
+  if (typeof window === "undefined") return "light";
+  return (localStorage.getItem(THEME_KEY) as Theme) ?? "light";
+}
 
 export default function Header() {
-  const [theme, setTheme] = useState<Theme>("light");
+  const [theme, setTheme] = useState<Theme>(getInitialTheme);
   const { user, logout } = useAuth();
   const { openLoginModal } = useAuthModal();
 
-  useEffect(() => {
-    const saved = (localStorage.getItem("alexandria-theme") as Theme) ?? "light";
-    applyTheme(saved);
-    setTheme(saved);
+  const applyTheme = useCallback((t: Theme) => {
+    document.documentElement.classList.toggle("dark", t === "dark");
+    localStorage.setItem(THEME_KEY, t);
   }, []);
 
-  function applyTheme(t: Theme) {
-    document.documentElement.classList.toggle("dark", t === "dark");
-    localStorage.setItem("alexandria-theme", t);
-  }
+  useEffect(() => {
+    applyTheme(theme);
+  }, [theme, applyTheme]);
 
   function switchTheme(t: Theme) {
     setTheme(t);
-    applyTheme(t);
   }
 
   return (
@@ -43,7 +46,6 @@ export default function Header() {
         >
           <Sun size={16} />
         </button>
-
         <button
           onClick={() => switchTheme("dark")}
           title="Modo escuro"

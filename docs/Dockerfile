@@ -2,6 +2,7 @@
 
 # ---------- Estágio 1: Build ----------
 FROM maven:3.9-eclipse-temurin-17 AS build
+
 WORKDIR /app
 
 # Copia primeiro só o pom.xml para aproveitar cache de dependências
@@ -23,7 +24,7 @@ RUN addgroup -S spring && adduser -S spring -G spring
 USER spring:spring
 
 # Copia apenas o JAR gerado no estágio anterior
-COPY --from=build /app/target/alexandria-0.0.1-SNAPSHOT.jar app.jar
+COPY --from=build /app/target/*.jar app.jar
 
 EXPOSE 8080
 

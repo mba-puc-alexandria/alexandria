@@ -1,25 +1,34 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { Sun, Moon, Menu, X, Settings, HelpCircle } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAuthModal } from "@/contexts/AuthModalContext";
 
 type Theme = "light" | "dark";
+const THEME_KEY = "alexandria-theme";
+
+function getInitialTheme(): Theme {
+  if (typeof window === "undefined") return "light";
+  return (localStorage.getItem(THEME_KEY) as Theme) ?? "light";
+}
 
 export default function MobileHeader() {
-  const [theme, setTheme] = useState<Theme>("light");
+  const [theme, setTheme] = useState<Theme>(getInitialTheme);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const { user } = useAuth();
   const { openLoginModal } = useAuthModal();
 
-  useEffect(() => {
-    const saved = (localStorage.getItem("alexandria-theme") as Theme) ?? "light";
-    applyTheme(saved);
-    setTheme(saved);
+  const applyTheme = useCallback((t: Theme) => {
+    document.documentElement.classList.toggle("dark", t === "dark");
+    localStorage.setItem(THEME_KEY, t);
   }, []);
+
+  useEffect(() => {
+    applyTheme(theme);
+  }, [theme, applyTheme]);
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -32,14 +41,8 @@ export default function MobileHeader() {
     return () => document.removeEventListener("mousedown", handleClick);
   }, [menuOpen]);
 
-  function applyTheme(t: Theme) {
-    document.documentElement.classList.toggle("dark", t === "dark");
-    localStorage.setItem("alexandria-theme", t);
-  }
-
   function switchTheme(t: Theme) {
     setTheme(t);
-    applyTheme(t);
   }
 
   return (

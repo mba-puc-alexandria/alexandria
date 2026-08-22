@@ -1,8 +1,20 @@
 'use client';
 
-import { createContext, useContext, useState, useEffect, useMemo, ReactNode } from 'react';
+import {
+  createContext,
+  useContext,
+  useMemo,
+  useCallback,
+  useSyncExternalStore,
+  ReactNode,
+} from 'react';
 import { useRouter } from 'next/navigation';
-import { login as apiLogin, loginWithGoogle as apiLoginWithGoogle, LoginRequest, LoginResponse } from '@/lib/api';
+import {
+  login as apiLogin,
+  loginWithGoogle as apiLoginWithGoogle,
+  LoginRequest,
+  LoginResponse,
+} from '@/lib/api';
 
 interface AuthUser {
   userId: number;
@@ -20,67 +32,107 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
+const AUTH_USER_KEY = 'auth-user';
+const AUTH_TOKEN_KEY = 'auth-token';
+
+// --- external store baseado em localStorage ---
+const listeners = new Set<() => void>();
+
+function subscribe(callback: () => void) {
+  listeners.add(callback);
+  return () => listeners.delete(callback);
+}
+
+function emitChange() {
+  listeners.forEach((listener) => listener());
+}
+
+function getSnapshot(): string | null {
+  return localStorage.getItem(AUTH_USER_KEY);
+}
+
+function getServerSnapshot(): string | null {
+  return null;
+}
+
+function readUser(raw: string | null): AuthUser | null {
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw) as AuthUser;
+  } catch {
+    return null;
+  }
+}
+
+function writeUser(authUser: AuthUser | null) {
+  if (authUser) {
+    localStorage.setItem(AUTH_USER_KEY, JSON.stringify(authUser));
+  } else {
+    localStorage.removeItem(AUTH_USER_KEY);
+  }
+  emitChange();
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<AuthUser | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const raw = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
+  const user = useMemo(() => readUser(raw), [raw]);
+  const isLoading = false;
+
   const router = useRouter();
 
-  useEffect(() => {
-    const stored = localStorage.getItem('auth-user');
-    if (stored) {
-      setUser(JSON.parse(stored));
-    }
-    setIsLoading(false);
-  }, []);
+  const persistSession = useCallback(
+    (response: LoginResponse) => {
+      const authUser: AuthUser = {
+        userId: response.userId,
+        username: response.username,
+      };
+      localStorage.setItem(AUTH_TOKEN_KEY, response.token);
+      document.cookie = `auth-token=${response.token}; path=/; max-age=${60 * 60 * 24}; SameSite=Lax`;
+      writeUser(authUser);
+      router.push('/explorar');
+      router.refresh();
+    },
+    [router]
+  );
 
-  function persistSession(response: LoginResponse) {
-    const authUser: AuthUser = { userId: response.userId, username: response.username };
-    localStorage.setItem('auth-token', response.token);
-    localStorage.setItem('auth-user', JSON.stringify(authUser));
-    document.cookie = `auth-token=${response.token}; path=/; max-age=${60 * 60 * 24}; SameSite=Lax`;
-    setUser(authUser);
-    router.push('/explorar');
-    router.refresh();
-  }
+  const login = useCallback(
+    async (data: LoginRequest) => {
+      const response = await apiLogin(data);
+      persistSession(response);
+    },
+    [persistSession]
+  );
 
-  async function login(data: LoginRequest) {
-    const response = await apiLogin(data);
-    persistSession(response);
-  }
+  const loginWithGoogle = useCallback(
+    async (credential: string) => {
+      const response = await apiLoginWithGoogle(credential);
+      persistSession(response);
+    },
+    [persistSession]
+  );
 
-  async function loginWithGoogle(credential: string) {
-    const response = await apiLoginWithGoogle(credential);
-    persistSession(response);
-  }
-
-  function logout() {
-    localStorage.removeItem('auth-token');
-    localStorage.removeItem('auth-user');
+  const logout = useCallback(() => {
+    localStorage.removeItem(AUTH_TOKEN_KEY);
     document.cookie = 'auth-token=; path=/; max-age=0';
-    setUser(null);
+    writeUser(null);
     router.push('/explorar');
     router.refresh();
-  }
+  }, [router]);
 
-  function updateUsername(username: string) {
-    setUser((prev) => {
-      if (!prev) return prev;
-      const updated = { ...prev, username };
-      localStorage.setItem('auth-user', JSON.stringify(updated));
-      return updated;
-    });
-  }
+  const updateUsername = useCallback(
+    (username: string) => {
+      if (!user) return;
+      writeUser({ ...user, username });
+    },
+    [user]
+  );
 
   const value = useMemo(
     () => ({ user, login, loginWithGoogle, logout, updateUsername, isLoading }),
-    [user, isLoading]
+    [user, login, loginWithGoogle, logout, updateUsername, isLoading]
   );
 
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {

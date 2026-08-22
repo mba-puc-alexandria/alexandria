@@ -1,0 +1,77 @@
+name: SonarCloud Analysis Alexandria
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  backend:
+    name: SonarCloud - Backend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Cache Maven packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2
+          key: ${{ runner.os }}-m2-${{ hashFiles('alexandria-backend/**/pom.xml') }}
+
+      - name: Build and analyze (backend)
+        working-directory: ./alexandria-backend
+        env:
+          GITHUB_TOKEN: ${{ secrets.ACCESS_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: >
+          mvn -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar
+          -Dsonar.projectKey=mba-puc-alexandria
+          -Dsonar.projectKey=mba-puc-alexandria
+          -Dsonar.organization=mba-puc-alexandria
+          -Dsonar.exclusions=**/target/**,**/*.java.orig
+
+  frontend:
+    name: SonarCloud - Frontend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        working-directory: ./alexandria-frontend
+        run: npm install --ignore-scripts
+
+      - name: Run tests
+        working-directory: ./alexandria-frontend
+        run: npm test
+
+      - name: SonarCloud Scan (frontend)
+        uses: SonarSource/sonarqube-scan-action@v4
+        env:
+          GITHUB_TOKEN: ${{ secrets.ACCESS_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          projectBaseDir: alexandria-frontend
+          args: >
+            -Dsonar.host.url=https://sonarcloud.io
+            -Dsonar.projectKey=mba-puc-alexandria
+            -Dsonar.organization=mba-puc-alexandria
+            -Dsonar.sources=src
+            -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
+            -Dsonar.exclusions=**/target/**,**/*.java.orig
