@@ -211,7 +211,7 @@ graph TB
 ## 📋 Planos (Não Implementados)
 
 ### 🔮 Autenticação Seletiva
-**Arquivo:** `markdown/plano_autenticacao_seletiva.md`
+**Arquivo:** `docs/backend/plano_autenticacao_seletiva.md`
 
 | Endpoint | Hoje | Plano |
 |---|---|---|

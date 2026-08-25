@@ -1,6 +1,6 @@
 # 🧵 Análise Detalhada das Opções de Controle de Concorrência
 
-> Complemento ao plano em `markdown/plano_event_bridge_sync_gutendex.md`
+> Complemento ao plano em `docs/infraestrutura/plano_event_bridge_sync_gutendex.md`
 
 ---
 

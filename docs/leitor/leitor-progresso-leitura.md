@@ -398,6 +398,6 @@ No frontend, o epub.js já disponibiliza o evento `rendition.on('selected')` que
 
 - Documentação epub.js: [github.com/futurepress/epub.js](https://github.com/futurepress/epub.js)
 - CFI spec: [EPUB Canonical Fragment Identifiers](https://idpf.org/epub/linking/cfi/)
-- Análise de zoom e páginas: `docs/porcentagemxleitor/logica_zoom_paginas.md`
+- Análise de zoom e páginas: `docs/leitor/logica_zoom_paginas.md`
 - Implementação atual: `alexandria-frontend/src/app/(main)/leitor/[id]/page.tsx`
 - Entidade backend: `alexandria-backend/src/main/java/.../domain/userbook/UserBooks.java`

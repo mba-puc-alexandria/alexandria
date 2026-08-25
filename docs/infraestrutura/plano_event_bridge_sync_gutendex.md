@@ -1,6 +1,6 @@
 # 📋 Plano: Job Agendado — Sincronização Semanal Gutendex via EventBridge
 
-> Baseado na arquitetura do projeto (`markdown/ARCHITECTURE.md`) e instruções de apoio (`markdown/instrucoes_config_event_bridge.md`)
+> Baseado na arquitetura do projeto (`docs/arquitetura/ARCHITECTURE.md`) e instruções de apoio (`docs/infraestrutura/instrucoes_config_event_bridge.md`)
 
 ---
 

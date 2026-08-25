@@ -211,7 +211,7 @@ HTTP Response (JSON)
 | 5 | `adapter/in/rest/UserBooksController.java` | Adicionar `@SecurityRequirement(name = "bearerAuth")` nos métodos `list`, `add`, `update`, `remove` |
 | 6 | `application.properties` | Adicionar `jobs.api-key=dev-api-key` |
 | 7 | `application-rds.properties` | Adicionar `jobs.api-key=${JOBS_API_KEY}` |
-| 8 | `markdown/ARCHITECTURE.md` | Atualizar tabela de endpoints públicos/autenticados |
+| 8 | `docs/arquitetura/ARCHITECTURE.md` | Atualizar tabela de endpoints públicos/autenticados |
 
 ---
 
