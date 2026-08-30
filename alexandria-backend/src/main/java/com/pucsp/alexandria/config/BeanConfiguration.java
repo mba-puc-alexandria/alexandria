@@ -16,6 +16,7 @@ import com.pucsp.alexandria.application.profile.UpdatePasswordUseCase;
 import com.pucsp.alexandria.application.profile.UpdateProfileUseCase;
 import com.pucsp.alexandria.application.subscription.CancelSubscriptionUseCase;
 import com.pucsp.alexandria.application.subscription.CheckoutUseCase;
+import com.pucsp.alexandria.application.subscription.ExpireSubscriptionsUseCase;
 import com.pucsp.alexandria.application.subscription.GetSubscriptionUseCase;
 import com.pucsp.alexandria.application.subscription.ProcessPaymentWebhookUseCase;
 import com.pucsp.alexandria.application.subscription.StartTrialUseCase;
@@ -199,5 +200,11 @@ public class BeanConfiguration {
   public CancelSubscriptionUseCase cancelSubscriptionUseCase(
       SubscriptionRepository subscriptionRepository) {
     return new CancelSubscriptionUseCase(subscriptionRepository);
+  }
+
+  @Bean
+  public ExpireSubscriptionsUseCase expireSubscriptionsUseCase(
+      SubscriptionRepository subscriptionRepository) {
+    return new ExpireSubscriptionsUseCase(subscriptionRepository);
   }
 }
