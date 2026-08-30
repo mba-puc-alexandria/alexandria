@@ -104,6 +104,14 @@ public class Subscription {
     this.updatedAt = LocalDateTime.now();
   }
 
+  public void recordPendingPayment(Long mpPaymentId) {
+    if (mpPaymentId == null || mpPaymentId <= 0) {
+      throw new InvalidSubscriptionException("Valid Mercado Pago payment id is required");
+    }
+    this.mpPaymentId = mpPaymentId;
+    this.updatedAt = LocalDateTime.now();
+  }
+
   public void activate(Long mpPaymentId, LocalDateTime periodEndsAt) {
     if (periodEndsAt == null || !periodEndsAt.isAfter(LocalDateTime.now())) {
       throw new InvalidSubscriptionException("Period end must be in the future");

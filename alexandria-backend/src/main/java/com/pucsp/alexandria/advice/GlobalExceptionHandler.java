@@ -1,6 +1,9 @@
 package com.pucsp.alexandria.advice;
 
 import com.pucsp.alexandria.domain.book.exception.BookNotFoundException;
+import com.pucsp.alexandria.domain.subscription.exception.PaymentMethodNotAllowedException;
+import com.pucsp.alexandria.domain.subscription.exception.SubscriptionNotFoundException;
+import com.pucsp.alexandria.domain.subscription.exception.SubscriptionRequiredException;
 import com.pucsp.alexandria.domain.user.exception.DuplicateUserException;
 import com.pucsp.alexandria.domain.user.exception.InvalidCredentialsException;
 import com.pucsp.alexandria.domain.user.exception.InvalidUserException;
@@ -77,6 +80,27 @@ public class GlobalExceptionHandler {
     return ResponseEntity
         .status(HttpStatus.BAD_REQUEST)
         .body(new ErrorResponse(ex.getMessage(), HttpStatus.BAD_REQUEST.value()));
+  }
+
+  @ExceptionHandler(SubscriptionNotFoundException.class)
+  public ResponseEntity<ErrorResponse> handleSubscriptionNotFound(SubscriptionNotFoundException ex) {
+    return ResponseEntity
+        .status(HttpStatus.NOT_FOUND)
+        .body(new ErrorResponse(ex.getMessage(), HttpStatus.NOT_FOUND.value()));
+  }
+
+  @ExceptionHandler(PaymentMethodNotAllowedException.class)
+  public ResponseEntity<ErrorResponse> handlePaymentMethodNotAllowed(PaymentMethodNotAllowedException ex) {
+    return ResponseEntity
+        .status(HttpStatus.BAD_REQUEST)
+        .body(new ErrorResponse(ex.getMessage(), HttpStatus.BAD_REQUEST.value()));
+  }
+
+  @ExceptionHandler(SubscriptionRequiredException.class)
+  public ResponseEntity<ErrorResponse> handleSubscriptionRequired(SubscriptionRequiredException ex) {
+    return ResponseEntity
+        .status(HttpStatus.PAYMENT_REQUIRED)
+        .body(new ErrorResponse(ex.getMessage(), HttpStatus.PAYMENT_REQUIRED.value()));
   }
 
   @ExceptionHandler(Exception.class)
