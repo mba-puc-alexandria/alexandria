@@ -6,6 +6,7 @@ import com.pucsp.alexandria.application.auth.RegisterUserUseCase;
 import com.pucsp.alexandria.application.book.CreateBookUseCase;
 import com.pucsp.alexandria.application.book.DeleteBookUseCase;
 import com.pucsp.alexandria.application.book.SyncAllGutendexBooksUseCase;
+import com.pucsp.alexandria.application.book.GetBookEpubUseCase;
 import com.pucsp.alexandria.application.book.GetBookUseCase;
 import com.pucsp.alexandria.application.book.ListBooksUseCase;
 import com.pucsp.alexandria.adapter.out.payment.PaymentApiClient;
@@ -58,6 +59,13 @@ public class BeanConfiguration {
       BookRepository bookRepository,
       AuthorRepository authorRepository) {
     return new GetBookUseCase(bookRepository, authorRepository);
+  }
+
+  @Bean
+  public GetBookEpubUseCase getBookEpubUseCase(
+      BookRepository bookRepository,
+      SubscriptionRepository subscriptionRepository) {
+    return new GetBookEpubUseCase(bookRepository, subscriptionRepository);
   }
 
   @Bean
