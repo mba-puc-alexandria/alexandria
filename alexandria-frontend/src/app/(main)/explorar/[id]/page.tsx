@@ -2,6 +2,7 @@
 
 import { use, useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ArrowLeft, BookOpen, Plus } from "lucide-react";
 import { getBookById, addUserBook, getAuthorDisplay, type BookApiResponse } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
@@ -13,6 +14,7 @@ export default function BookDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
+  const router = useRouter();
   const [book, setBook] = useState<BookApiResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -71,6 +73,14 @@ export default function BookDetailPage({
     } finally {
       setAdding(false);
     }
+  }
+
+  function handleReadNow() {
+    if (!user) {
+      openLoginModal();
+      return;
+    }
+    router.push(`/leitor/${book!.id}`);
   }
 
   const subjects = book.subjects
@@ -155,13 +165,14 @@ export default function BookDetailPage({
           {/* Ações */}
           <div className="flex flex-col sm:flex-row gap-3 mt-2">
             {book.downloadUrl ? (
-              <Link
-                href={`/leitor/${book.id}`}
+              <button
+                type="button"
+                onClick={handleReadNow}
                 className="flex items-center justify-center gap-2 bg-brown text-cream font-bold text-sm px-8 py-4 rounded-xl hover:bg-brown/90 transition-colors"
               >
                 <BookOpen size={16} />
                 Ler agora
-              </Link>
+              </button>
             ) : (
               <span className="flex items-center justify-center gap-2 bg-cream-border text-brown-soft font-bold text-sm px-8 py-4 rounded-xl cursor-not-allowed">
                 <BookOpen size={16} />

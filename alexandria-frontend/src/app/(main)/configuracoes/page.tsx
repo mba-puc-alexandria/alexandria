@@ -1,12 +1,31 @@
 "use client";
 
 import { useState, useEffect, FormEvent } from "react";
-import { User, Bell, Moon, Lock, Loader2 } from "lucide-react";
+import { User, Bell, Moon, Lock, Loader2, Sparkles, BadgeCheck, CalendarClock } from "lucide-react";
+import Link from "next/link";
 import { useAuth } from "@/contexts/AuthContext";
 import { getProfile, updateProfile, updatePassword, type ProfileResponse } from "@/lib/api";
 
+type SubscriptionStatus = "TRIALING" | "ACTIVE" | "CANCELED";
+
+interface SubscriptionMock {
+  status: SubscriptionStatus;
+  label: string;
+  detail: string;
+}
+
+// Protótipo: mock do status de assinatura (será substituído por GET /subscriptions/me)
+const MOCK_SUBSCRIPTION: SubscriptionMock = {
+  status: "TRIALING",
+  label: "Período de teste",
+  detail: "Seu teste gratuito termina em 14/09/2026. Depois, R$ 10,00/mês.",
+};
+
 export default function ConfiguracoesPage() {
   const { updateUsername } = useAuth();
+
+  const [subscription, setSubscription] = useState<SubscriptionMock>(MOCK_SUBSCRIPTION);
+  const [canceling, setCanceling] = useState(false);
 
   const [profile, setProfile] = useState<ProfileResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -64,6 +83,18 @@ export default function ConfiguracoesPage() {
     }
   }
 
+  function handleCancelSubscription() {
+    setCanceling(true);
+    setTimeout(() => {
+      setSubscription({
+        status: "CANCELED",
+        label: "Assinatura cancelada",
+        detail: "Você mantém o acesso até o fim do período já pago.",
+      });
+      setCanceling(false);
+    }, 800);
+  }
+
   async function handlePasswordSubmit(e: FormEvent) {
     e.preventDefault();
     setPasswordError(null);
@@ -102,6 +133,66 @@ export default function ConfiguracoesPage() {
         <h1 className="font-serif font-bold text-brown text-2xl">Configurações</h1>
         <p className="text-slate text-sm mt-1">Gerencie sua conta e preferências</p>
       </div>
+
+      {/* Assinatura */}
+      <section className="flex flex-col gap-3">
+        <div className="flex items-center gap-2 mb-1">
+          <Sparkles size={14} className="text-terra" />
+          <span className="text-brown text-xs font-bold uppercase tracking-widest">Assinatura</span>
+        </div>
+
+        <div className="bg-cream-dark rounded-xl p-5 flex flex-col gap-4">
+          <div className="flex items-start gap-3">
+            <span className="bg-terra/10 rounded-lg p-2 mt-0.5">
+              {subscription.status === "CANCELED" ? (
+                <CalendarClock size={18} className="text-brown-soft" />
+              ) : subscription.status === "ACTIVE" ? (
+                <BadgeCheck size={18} className="text-terra" />
+              ) : (
+                <Sparkles size={18} className="text-terra" />
+              )}
+            </span>
+            <div className="flex-1">
+              <div className="flex items-center gap-2">
+                <h3 className="font-serif font-bold text-brown text-base">{subscription.label}</h3>
+                {subscription.status === "TRIALING" && (
+                  <span className="bg-terra/10 text-terra rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide">
+                    15 dias grátis
+                  </span>
+                )}
+              </div>
+              <p className="text-slate text-xs mt-1">{subscription.detail}</p>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between gap-4 pt-1">
+            {subscription.status === "CANCELED" ? (
+              <Link
+                href="/planos"
+                className="text-terra text-sm font-bold hover:underline"
+              >
+                Reativar assinatura
+              </Link>
+            ) : (
+              <>
+                <Link
+                  href="/checkout"
+                  className="text-terra text-sm font-bold hover:underline"
+                >
+                  Ver planos
+                </Link>
+                <button
+                  onClick={handleCancelSubscription}
+                  disabled={canceling}
+                  className="text-brown-soft text-sm font-medium hover:text-terra transition-colors disabled:opacity-50"
+                >
+                  {canceling ? "Cancelando..." : "Cancelar assinatura"}
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      </section>
 
       {/* Conta */}
       <section className="flex flex-col gap-3">

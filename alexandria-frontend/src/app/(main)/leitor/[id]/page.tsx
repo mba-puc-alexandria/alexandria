@@ -7,6 +7,7 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { getBookById, getUserBooks, updateUserBook, getAuthorDisplay, type BookApiResponse } from "@/lib/api";
 import { useEpub } from "@/hooks/useEpub";
+import PaywallModal from "@/components/PaywallModal";
 
 const ReactReader = dynamic(
   () => import("react-reader").then((m) => m.ReactReader),
@@ -42,6 +43,10 @@ export default function LeitorPage({
   const [minutesLeft, setMinutesLeft] = useState<number | null>(null);
   const [pagesLeft, setPagesLeft] = useState<number | null>(null);
   const [displayMode, setDisplayMode] = useState<DisplayMode>("percent");
+  const [showPaywall, setShowPaywall] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return new URLSearchParams(window.location.search).get("paywall") === "1";
+  });
 
   const userBookIdRef = useRef<number | null>(null);
   const lastSavedProgressRef = useRef<number>(0);
@@ -278,6 +283,8 @@ export default function LeitorPage({
           </div>
         )}
       </div>
+
+      <PaywallModal open={showPaywall} onClose={() => setShowPaywall(false)} />
     </div>
   );
 }

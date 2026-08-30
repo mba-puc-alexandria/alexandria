@@ -10,6 +10,7 @@ import {
   HelpCircle,
   BookMarked,
   LogOut,
+  Sparkles,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -27,6 +28,7 @@ const privateBottomLinks = [
 ];
 
 const bottomLinks = [
+  { href: "/planos", label: "Planos", icon: Sparkles },
   { href: "/suporte", label: "Suporte", icon: HelpCircle },
 ];
 
