@@ -2,6 +2,7 @@ package com.pucsp.alexandria.application.auth;
 
 import com.pucsp.alexandria.application.auth.dto.RegisterInput;
 import com.pucsp.alexandria.application.auth.dto.RegisterOutput;
+import com.pucsp.alexandria.application.subscription.StartTrialUseCase;
 import com.pucsp.alexandria.domain.user.User;
 import com.pucsp.alexandria.domain.user.UserRepository;
 import com.pucsp.alexandria.domain.user.exception.DuplicateUserException;
@@ -9,9 +10,11 @@ import com.pucsp.alexandria.domain.user.exception.DuplicateUserException;
 public class RegisterUserUseCase {
 
   private final UserRepository userRepository;
+  private final StartTrialUseCase startTrialUseCase;
 
-  public RegisterUserUseCase(UserRepository userRepository) {
+  public RegisterUserUseCase(UserRepository userRepository, StartTrialUseCase startTrialUseCase) {
     this.userRepository = userRepository;
+    this.startTrialUseCase = startTrialUseCase;
   }
 
   public RegisterOutput execute(RegisterInput input) {
@@ -31,6 +34,7 @@ public class RegisterUserUseCase {
         input.password()
     );
     User saved = userRepository.save(user);
+    startTrialUseCase.execute(saved.getId().getValue());
     return new RegisterOutput(
         saved.getId().getValue(),
         saved.getUsername(),

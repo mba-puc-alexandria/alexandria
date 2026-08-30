@@ -125,8 +125,10 @@ public class BeanConfiguration {
   }
 
   @Bean
-  public RegisterUserUseCase registerUserUseCase(UserRepository userRepository) {
-    return new RegisterUserUseCase(userRepository);
+  public RegisterUserUseCase registerUserUseCase(
+      UserRepository userRepository,
+      StartTrialUseCase startTrialUseCase) {
+    return new RegisterUserUseCase(userRepository, startTrialUseCase);
   }
 
   @Bean
@@ -134,8 +136,10 @@ public class BeanConfiguration {
       UserRepository userRepository,
       PasswordEncoder passwordEncoder,
       RestTemplate restTemplate,
-      @Value("${google.client-id}") String googleClientId) {
-    return new GoogleAuthUseCase(userRepository, passwordEncoder, restTemplate, googleClientId);
+      @Value("${google.client-id}") String googleClientId,
+      StartTrialUseCase startTrialUseCase) {
+    return new GoogleAuthUseCase(
+        userRepository, passwordEncoder, restTemplate, googleClientId, startTrialUseCase);
   }
 
   @Bean

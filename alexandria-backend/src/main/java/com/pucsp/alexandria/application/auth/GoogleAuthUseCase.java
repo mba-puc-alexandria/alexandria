@@ -1,5 +1,6 @@
 package com.pucsp.alexandria.application.auth;
 
+import com.pucsp.alexandria.application.subscription.StartTrialUseCase;
 import com.pucsp.alexandria.domain.user.User;
 import com.pucsp.alexandria.domain.user.UserRepository;
 import java.util.Map;
@@ -16,13 +17,19 @@ public class GoogleAuthUseCase {
   private final PasswordEncoder passwordEncoder;
   private final RestTemplate restTemplate;
   private final String googleClientId;
+  private final StartTrialUseCase startTrialUseCase;
 
-  public GoogleAuthUseCase(UserRepository userRepository, PasswordEncoder passwordEncoder,
-      RestTemplate restTemplate, String googleClientId) {
+  public GoogleAuthUseCase(
+      UserRepository userRepository,
+      PasswordEncoder passwordEncoder,
+      RestTemplate restTemplate,
+      String googleClientId,
+      StartTrialUseCase startTrialUseCase) {
     this.userRepository = userRepository;
     this.passwordEncoder = passwordEncoder;
     this.restTemplate = restTemplate;
     this.googleClientId = googleClientId;
+    this.startTrialUseCase = startTrialUseCase;
   }
 
     public record Output(Long userId, String username, String role) {}
@@ -62,6 +69,7 @@ public class GoogleAuthUseCase {
               randomPassword
           );
                     User saved = userRepository.save(newUser);
+          startTrialUseCase.execute(saved.getId().getValue());
           return new Output(saved.getId().getValue(), saved.getUsername(), saved.getRole().name());
         });
   }
