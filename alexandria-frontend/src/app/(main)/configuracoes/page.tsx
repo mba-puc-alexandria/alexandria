@@ -4,28 +4,19 @@ import { useState, useEffect, FormEvent } from "react";
 import { User, Bell, Moon, Lock, Loader2, Sparkles, BadgeCheck, CalendarClock } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "@/contexts/AuthContext";
-import { getProfile, updateProfile, updatePassword, type ProfileResponse } from "@/lib/api";
-
-type SubscriptionStatus = "TRIALING" | "ACTIVE" | "CANCELED";
-
-interface SubscriptionMock {
-  status: SubscriptionStatus;
-  label: string;
-  detail: string;
-}
-
-// Protótipo: mock do status de assinatura (será substituído por GET /subscriptions/me)
-const MOCK_SUBSCRIPTION: SubscriptionMock = {
-  status: "TRIALING",
-  label: "Período de teste",
-  detail: "Seu teste gratuito termina em 14/09/2026. Depois, R$ 10,00/mês.",
-};
+import {
+  getProfile,
+  updateProfile,
+  updatePassword,
+  cancelSubscription,
+  type ProfileResponse,
+} from "@/lib/api";
 
 export default function ConfiguracoesPage() {
-  const { updateUsername } = useAuth();
+  const { updateUsername, subscription, refreshSubscription } = useAuth();
 
-  const [subscription, setSubscription] = useState<SubscriptionMock>(MOCK_SUBSCRIPTION);
   const [canceling, setCanceling] = useState(false);
+  const [cancelError, setCancelError] = useState<string | null>(null);
 
   const [profile, setProfile] = useState<ProfileResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -83,17 +74,43 @@ export default function ConfiguracoesPage() {
     }
   }
 
-  function handleCancelSubscription() {
+  async function handleCancelSubscription() {
+    setCancelError(null);
     setCanceling(true);
-    setTimeout(() => {
-      setSubscription({
-        status: "CANCELED",
-        label: "Assinatura cancelada",
-        detail: "Você mantém o acesso até o fim do período já pago.",
-      });
+    try {
+      await cancelSubscription();
+      await refreshSubscription();
+    } catch (err) {
+      setCancelError(err instanceof Error ? err.message : "Falha ao cancelar assinatura");
+    } finally {
       setCanceling(false);
-    }, 800);
+    }
   }
+
+  const status = subscription?.status ?? null;
+  const statusLabel =
+    status === "TRIALING"
+      ? "Período de teste"
+      : status === "ACTIVE"
+        ? "Assinatura ativa"
+        : status === "PAST_DUE"
+          ? "Pagamento pendente"
+          : status === "EXPIRED"
+            ? "Assinatura expirada"
+            : status === "CANCELED"
+              ? "Assinatura cancelada"
+              : "Sem assinatura";
+
+  const statusDetail =
+    status === "TRIALING" && subscription?.trialEndsAt
+      ? `Seu teste gratuito termina em ${new Date(subscription.trialEndsAt).toLocaleDateString("pt-BR")}. Depois, R$ 10,00/mês.`
+      : status === "ACTIVE" && subscription?.currentPeriodEndsAt
+        ? `Sua assinatura vale até ${new Date(subscription.currentPeriodEndsAt).toLocaleDateString("pt-BR")}.`
+        : status === "CANCELED"
+          ? "Você mantém o acesso até o fim do período já pago."
+          : status === "EXPIRED"
+            ? "Assine para voltar a ler seus livros."
+            : "Assine o Alexandria Premium para continuar lendo.";
 
   async function handlePasswordSubmit(e: FormEvent) {
     e.preventDefault();
@@ -144,9 +161,9 @@ export default function ConfiguracoesPage() {
         <div className="bg-cream-dark rounded-xl p-5 flex flex-col gap-4">
           <div className="flex items-start gap-3">
             <span className="bg-terra/10 rounded-lg p-2 mt-0.5">
-              {subscription.status === "CANCELED" ? (
+              {status === "CANCELED" ? (
                 <CalendarClock size={18} className="text-brown-soft" />
-              ) : subscription.status === "ACTIVE" ? (
+              ) : status === "ACTIVE" ? (
                 <BadgeCheck size={18} className="text-terra" />
               ) : (
                 <Sparkles size={18} className="text-terra" />
@@ -154,19 +171,23 @@ export default function ConfiguracoesPage() {
             </span>
             <div className="flex-1">
               <div className="flex items-center gap-2">
-                <h3 className="font-serif font-bold text-brown text-base">{subscription.label}</h3>
-                {subscription.status === "TRIALING" && (
+                <h3 className="font-serif font-bold text-brown text-base">{statusLabel}</h3>
+                {status === "TRIALING" && (
                   <span className="bg-terra/10 text-terra rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide">
                     15 dias grátis
                   </span>
                 )}
               </div>
-              <p className="text-slate text-xs mt-1">{subscription.detail}</p>
+              <p className="text-slate text-xs mt-1">{statusDetail}</p>
             </div>
           </div>
 
+          {cancelError && (
+            <p className="text-red-600 text-xs bg-red-50 rounded-lg px-3 py-2">{cancelError}</p>
+          )}
+
           <div className="flex items-center justify-between gap-4 pt-1">
-            {subscription.status === "CANCELED" ? (
+            {status === "CANCELED" ? (
               <Link
                 href="/planos"
                 className="text-terra text-sm font-bold hover:underline"
@@ -181,13 +202,15 @@ export default function ConfiguracoesPage() {
                 >
                   Ver planos
                 </Link>
-                <button
-                  onClick={handleCancelSubscription}
-                  disabled={canceling}
-                  className="text-brown-soft text-sm font-medium hover:text-terra transition-colors disabled:opacity-50"
-                >
-                  {canceling ? "Cancelando..." : "Cancelar assinatura"}
-                </button>
+                {(status === "TRIALING" || status === "ACTIVE") && (
+                  <button
+                    onClick={handleCancelSubscription}
+                    disabled={canceling}
+                    className="text-brown-soft text-sm font-medium hover:text-terra transition-colors disabled:opacity-50"
+                  >
+                    {canceling ? "Cancelando..." : "Cancelar assinatura"}
+                  </button>
+                )}
               </>
             )}
           </div>
