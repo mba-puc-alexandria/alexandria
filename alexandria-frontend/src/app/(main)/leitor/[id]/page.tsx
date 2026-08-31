@@ -56,7 +56,7 @@ export default function LeitorPage({
   const sessionStartTimeRef = useRef<number | null>(null);
   const sessionStartProgressRef = useRef<number | null>(null);
 
-  const { epubData, loading: epubLoading, error: epubError } = useEpub(id, book?.downloadUrl ?? null);
+  const { epubData, loading: epubLoading, error: epubError } = useEpub(id);
 
   useEffect(() => {
     async function init() {
@@ -215,6 +215,15 @@ export default function LeitorPage({
   }
 
   if (epubError) {
+    if (epubError.message === "subscription_required") {
+      return (
+        <PaywallModal
+          open
+          onClose={() => router.push(`/explorar/${id}`)}
+        />
+      );
+    }
+
     return (
       <div className="flex flex-col items-center justify-center h-full gap-4">
         <p className="text-brown font-serif text-xl">Erro ao carregar o livro.</p>

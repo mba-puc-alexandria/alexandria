@@ -229,6 +229,69 @@ export async function updatePassword(data: UpdatePasswordRequest): Promise<void>
   }
 }
 
+export interface Subscription {
+  status: 'TRIALING' | 'ACTIVE' | 'PAST_DUE' | 'EXPIRED' | 'CANCELED';
+  trialEndsAt: string | null;
+  currentPeriodEndsAt: string | null;
+  price: number;
+  currency: string;
+  periodDays: number;
+  paymentScheduled: boolean;
+}
+
+export async function getSubscription(): Promise<Subscription> {
+  const res = await apiFetch('/subscriptions/me');
+  if (!res.ok) {
+    if (res.status === 404) {
+      throw new Error('subscription_not_found');
+    }
+    throw new Error('Falha ao buscar assinatura');
+  }
+  return res.json();
+}
+
+export interface CheckoutRequest {
+  paymentMethod: 'PIX' | 'CARD';
+  cardToken?: string;
+  cardBrand?: string;
+  installments?: number;
+  payerEmail?: string;
+  payerDocumentType?: string;
+  payerDocumentNumber?: string;
+}
+
+export interface CheckoutResponse {
+  status: string;
+  paymentId: string;
+  mpPaymentId: number | null;
+  qrCode: string | null;
+  qrCodeBase64: string | null;
+  ticketUrl: string | null;
+  subscriptionStatus: string;
+  message: string;
+}
+
+export async function createCheckout(data: CheckoutRequest): Promise<CheckoutResponse> {
+  const res = await apiFetch('/subscriptions/checkout', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error((error as { message?: string }).message || 'Falha ao criar pagamento');
+  }
+  return res.json();
+}
+
+export async function cancelSubscription(): Promise<void> {
+  const res = await apiFetch('/subscriptions/cancel', {
+    method: 'POST',
+  });
+  if (!res.ok) {
+    throw new Error('Falha ao cancelar assinatura');
+  }
+}
+
 export function getAuthHeaders(): HeadersInit {
   const token = typeof window !== 'undefined' ? localStorage.getItem('auth-token') : null;
   return token ? { Authorization: `Bearer ${token}` } : {};
