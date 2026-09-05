@@ -19,7 +19,7 @@ public class OpenApiConfig {
         .info(new Info()
             .title("Alexandria API")
             .version("0.0.1-SNAPSHOT")
-            .description("API Rest para gerenciamento de livros e biblioteca pessoal")
+            .description("API Rest para gerenciamento de livros, biblioteca pessoal e assinatura Alexandria Premium (PIX/Cartão via Mercado Pago).")
             .license(new License()
                 .name("Apache 2.0")
                 .url("https://www.apache.org/licenses/LICENSE-2.0")))
