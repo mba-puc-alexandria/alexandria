@@ -6,7 +6,7 @@ Diretório de especificações seguindo o estilo [Spec Kit](https://github.com/g
 
 | Número | Título | Status |
 |---|---|---|
-| 001 | [SaaS: assinatura e cobrança (PIX/Cartão via Mercado Pago)](./001-saas-pagamentos/spec.md) | Planejado |
+| 001 | [SaaS: assinatura e cobrança (PIX/Cartão via Mercado Pago)](./001-saas-pagamentos/spec.md) | Em andamento |
 
 ## Estrutura
 
