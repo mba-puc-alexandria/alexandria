@@ -59,7 +59,7 @@ public class CheckoutUseCase {
         new PaymentApiCreateRequest(
             referenceId,
             properties.getPrice(),
-            "CARD",
+            "CREDIT_CARD",
             input.payerEmail(),
             input.payerDocumentType(),
             input.payerDocumentNumber(),
@@ -125,7 +125,7 @@ public class CheckoutUseCase {
         new PaymentApiCreateRequest(
             referenceId,
             properties.getPrice(),
-            "CARD",
+            "CREDIT_CARD",
             input.payerEmail(),
             input.payerDocumentType(),
             input.payerDocumentNumber(),
@@ -136,7 +136,7 @@ public class CheckoutUseCase {
             true),
         bearerToken);
 
-    if ("APPROVED".equalsIgnoreCase(result.status())) {
+    if ("COMPLETED".equalsIgnoreCase(result.status())) {
       subscription.activate(result.mpPaymentId(), LocalDateTime.now().plusDays(properties.getPeriodDays()));
       subscriptionRepository.save(subscription);
       return new CheckoutOutput(

@@ -31,10 +31,18 @@ services:
       SPRING_DATASOURCE_USERNAME: alexandria
       SPRING_DATASOURCE_PASSWORD: alexandria123
       CORS_ALLOWED_ORIGINS: http://localhost:3000
+      # Mesma chave JWT do payment-api (para validar o token repassado no checkout).
+      JWT_SECRET: dev-secret-key-not-for-production-min-256bits
+      # Integração com o payment-api (rodando à parte). host.docker.internal
+      # aponta para o host quando o backend roda dentro do container.
+      PAYMENT_API_URL: http://host.docker.internal:8082
+      SUBSCRIPTION_CALLBACK_SECRET: dev-callback-secret
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       mysql:
         condition: service_healthy
-        
+
   frontend:
     build:
       context: ./alexandria-frontend

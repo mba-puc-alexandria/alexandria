@@ -53,7 +53,7 @@ export default function LeitorPage({
   const sessionStartTimeRef = useRef<number | null>(null);
   const sessionStartProgressRef = useRef<number | null>(null);
 
-  const { epubData, loading: epubLoading, error: epubError } = useEpub(id, book?.downloadUrl ?? null);
+  const { epubData, loading: epubLoading, error: epubError } = useEpub(id);
 
   useEffect(() => {
     async function init() {
