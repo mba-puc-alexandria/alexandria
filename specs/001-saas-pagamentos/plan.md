@@ -86,6 +86,15 @@ Mercado Pago (PIX + Cartão)
     "occurredAt": "2026-08-30T12:00:00Z"
   }
   ```
+- Adicionar endpoints de **Customer + Card** (cartão salvo) para recorrência:
+  - `POST /api/v1/customers` — cria o Customer e salva o cartão a partir de um `cardToken`;
+    retorna `customerId`, `cardId` e `paymentMethodId`.
+  - `POST /api/v1/customers/{id}/cards` — adiciona/troca o cartão (novo `cardToken`),
+    retorna o novo `cardId` (que passa a ser o default).
+  - `DELETE /api/v1/customers/{id}/cards/{cardId}` — remove o cartão (usado no cancelamento).
+- Estender `POST /api/v1/payments` para aceitar `cardId` (em vez de `gatewayToken`) e criar
+  a cobrança recorrente com `payer.type = "customer"` + `customerId`. Permite cobrar no fim
+  do trial e nas renovações sem novo `cardToken` e sem dados de cartão.
 - Manter PostgreSQL próprio do payment-api.
 
 ## 2. Alexandria backend — domínio de assinatura
@@ -103,18 +112,21 @@ adapter/out/persistence/     SubscriptionEntity, SubscriptionJpaRepository, Subs
 
 - Nova entidade `Subscription`:
   - `id`, `userId` (unique), `status`, `trialEndsAt`, `currentPeriodEndsAt`,
-    `mpPaymentId`, `createdAt`, `updatedAt`.
+    `mpPaymentId`, `mpCustomerId`, `mpCardId`, `lastPaymentStatus`,
+    `failedAttempts`, `nextRetryAt`, `createdAt`, `updatedAt`.
   - Status: `TRIALING`, `ACTIVE`, `PAST_DUE`, `EXPIRED`, `CANCELED`.
+  - `mpCustomerId`/`mpCardId` são tokens do Mercado Pago (nunca dados de cartão).
 - Transições:
   - cadastro/Google → `TRIALING` (`trialEndsAt = now + 15d`).
-  - **Durante o trial**: somente cartão de crédito. Registra a intenção de pagamento e agenda
-    a cobrança para o fim do trial (não cobra agora). Ao processar, `currentPeriodEndsAt = now + 30d`.
+  - **Durante o trial**: somente cartão de crédito. O cartão é salvo no Mercado Pago
+    (Customer + Card) e a assinatura guarda `mpCustomerId`/`mpCardId` — **não cobra agora**.
   - **Após o trial**: PIX ou cartão processam imediatamente → `ACTIVE`
     (`currentPeriodEndsAt = now + 30d`, `trialEndsAt = null`).
-  - **Renovações seguintes** → `currentPeriodEndsAt = now + 30d`.
-  - job diário → `TRIALING` vencido **com** pagamento agendado/confirmado → `ACTIVE`;
-    `TRIALING` vencido **sem** pagamento → `EXPIRED`; `ACTIVE` vencido → `PAST_DUE`.
-  - cancelamento → `CANCELED` (preserva `currentPeriodEndsAt` até o fim do período).
+  - **Renovações/cobrança recorrente** → ao fim do trial e a cada 30 dias, o job cobra com
+    `cardId`; aprovado → `currentPeriodEndsAt = now + 30d` e `failedAttempts = 0`.
+  - **Cobrança recusada** → `PAST_DUE` com `nextRetryAt` (dunning). Após N falhas → `CANCELED`/`EXPIRED`.
+  - **Troca de cartão** → atualiza `mpCardId`; se `PAST_DUE`, dispara nova tentativa.
+  - cancelamento → `CANCELED` (preserva `currentPeriodEndsAt` até o fim do período; job não cobra mais).
 
 ### 2.2 Config (`application.properties`)
 
@@ -148,20 +160,21 @@ subscription.callback-secret=${SUBSCRIPTION_CALLBACK_SECRET:dev-callback-secret}
 |---|---|---|---|
 | GET | `/subscriptions/me` | JWT | Retorna status, trial/prazo e preço. |
 | POST | `/subscriptions/checkout` | JWT | `{ "paymentMethod": "PIX" \| "CARD", "cardToken"? }` → chama payment-api. |
+| POST | `/subscriptions/payment-method` | JWT | `{ "cardToken" }` → troca/atualiza o cartão salvo (novo `cardId`). |
 | POST | `/subscriptions/payment-webhook` | `X-Webhook-Secret` | Callback do payment-api. **Idempotente** por `mpPaymentId`. |
-| POST | `/subscriptions/cancel` | JWT | Marca `CANCELED`, mantém acesso até `currentPeriodEndsAt`. |
+| POST | `/subscriptions/cancel` | JWT | Marca `CANCELED`, encerra recorrência, mantém acesso até `currentPeriodEndsAt`. |
 
 Fluxo de checkout:
 
-1. Frontend `POST /subscriptions/checkout { paymentMethod }` (Bearer).
-2. Backend resolve a `Subscription`, monta `referenceId = "subscription:{id}"`, chama
-   `payment-api POST /api/v1/payments` (PIX ou CARD com `cardToken`).
-3. **Durante o trial**: somente `CARD`. O backend agenda a cobrança para o fim do trial
-   (não processa agora). Ao fim do trial, o job processa e ativa `currentPeriodEndsAt = now + 30d`.
+1. Frontend `POST /subscriptions/checkout { paymentMethod, cardToken? }` (Bearer).
+2. Backend resolve a `Subscription` e monta `referenceId = "subscription:{id}"`.
+3. **Durante o trial (somente CARD)**: o backend chama `payment-api POST /api/v1/customers`
+   para salvar o cartão (a partir do `cardToken`), recebe `customerId`/`cardId` e guarda
+   `mpCustomerId`/`mpCardId`. **Não cobra agora.**
 4. **Após o trial**: `PIX` ou `CARD`, ambos imediatos.
-   - PIX: armazena `mpPaymentId`, devolve `qrCode`/`qrCodeBase64`; ao confirmar,
-     `currentPeriodEndsAt = now + 30d`.
-   - Cartão: se `APPROVED`, ativa `currentPeriodEndsAt = now + 30d`.
+   - PIX: `payment-api POST /api/v1/payments` → armazena `mpPaymentId`, devolve
+     `qrCode`/`qrCodeBase64`; ao confirmar, `currentPeriodEndsAt = now + 30d`.
+   - Cartão: se `COMPLETED`, ativa `currentPeriodEndsAt = now + 30d`.
 5. Mercado Pago IPN → payment-api → callback `payment-webhook` → Alexandria aplica a mesma
    regra de período conforme o momento (durante ou após o trial).
 
@@ -177,13 +190,19 @@ Fluxo de checkout:
   validação do `X-Webhook-Secret` dentro do controller/use case.
 - Adicionar `@EnableScheduling` (hoje só existe `@EnableAsync`) para o job.
 
-### 2.7 Job de expiração
+### 2.7 Jobs de expiração e cobrança recorrente
 
-- `@Scheduled(cron = "0 0 3 * * *")` (diário):
-  - `TRIALING` com `trialEndsAt < now` **e** `currentPeriodEndsAt` futuro → `ACTIVE` (pagou durante o trial).
-  - `TRIALING` com `trialEndsAt < now` **sem** pagamento → `EXPIRED`.
-  - `ACTIVE` com `currentPeriodEndsAt < now` → `PAST_DUE` (ou `EXPIRED`).
-  - `PAST_DUE` além de um grace period → `EXPIRED`.
+- `@Scheduled` de **cobrança recorrente** (ex.: `0 0 2 * * *` diário):
+  - `TRIALING` com `trialEndsAt <= now` **e** `cardId` salvo → cobra via payment-api com `cardId`.
+  - `ACTIVE` com `currentPeriodEndsAt <= now` → cobra o ciclo seguinte com `cardId`.
+  - `PAST_DUE` com `nextRetryAt <= now` e `failedAttempts < N` → nova tentativa de cobrança.
+  - Resultado da cobrança (idempotente por `subscriptionId + currentPeriodEndsAt`):
+    - `COMPLETED` → `ACTIVE`, `currentPeriodEndsAt = now + 30d`, `failedAttempts = 0`.
+    - `FAILED`/recusado → `PAST_DUE`, `failedAttempts++`, `nextRetryAt = now + backoff`.
+    - Após `N` falhas → `CANCELED`/`EXPIRED`.
+- `@Scheduled` de **expiração** (mesmo job ou job separado):
+  - `TRIALING` com `trialEndsAt < now` **sem** `cardId` → `EXPIRED`.
+  - `ACTIVE` com `currentPeriodEndsAt < now` **sem** `cardId` (ex.: PIX) → `PAST_DUE`.
 
 ## 3. Alexandria frontend
 
@@ -324,6 +343,11 @@ infra/
   - checkout PIX pós-trial (`currentPeriodEndsAt = now + 30d`).
   - webhook/callback idempotente (duas chamadas com mesmo `mpPaymentId` → 1 ativação).
   - job de expiração (trial vencido → `EXPIRED`; ativo vencido → `PAST_DUE`).
+  - checkout com cartão durante o trial salva `cardId` (não cobra) e pós-trial cobra com `cardId`.
+  - cobrança recorrente: fim do trial e renovação mensal (idempotente, sem dupla cobrança).
+  - dunning: recusa → `PAST_DUE` + retry; após N falhas → `CANCELED`/`EXPIRED`.
+  - troca de cartão: atualiza `mpCardId`; se `PAST_DUE`, dispara nova tentativa.
+  - cancelamento encerra recorrência e preserva acesso até o fim do ciclo.
   - `GET /books/{id}/epub`: `200` com assinatura válida, `402/403 SUBSCRIPTION_REQUIRED` sem.
 - **payment-api**: `referenceId` (String), produção (`APP_USR-`), callback HTTP, Kafka opcional.
 - **Frontend e2e**: paywall no `/leitor/[id]`, fluxo de checkout (PIX/cartão), proxy `/api/epub`.
