@@ -1,0 +1,88 @@
+// Cobrança recorrente — schema conceitual
+//
+// Alexandria (MySQL) guarda a assinatura + apenas tokens (customer_id/card_id).
+// payment-api (PostgreSQL) guarda o histórico de pagamentos e as referências
+// de Customer/Card. Os dados de cartão em si ficam tokenizados no Mercado Pago.
+
+Table users {
+  id bigint [pk, increment]
+  username varchar [unique, not null]
+  email varchar [unique, not null]
+}
+
+// ─────────────────────────────────────────────────────────────
+// Alexandria — assinaturas (campos novos marcados com "novo")
+// ─────────────────────────────────────────────────────────────
+Table subscriptions {
+  id bigint [pk, increment]
+  user_id bigint [unique, not null, ref: > users.id]
+  status SubscriptionStatus [not null]
+
+  trial_ends_at timestamp
+  current_period_ends_at timestamp
+
+  mp_payment_id bigint
+  scheduled_payment_id varchar
+  payment_scheduled boolean [not null, default: false]
+
+  // novo: referências do cartão salvo no Mercado Pago (nunca dados de cartão)
+  mp_customer_id varchar
+  mp_card_id varchar
+
+  // novo: controle de dunning/retry
+  last_payment_status varchar
+  failed_attempts int [default: 0]
+  next_retry_at timestamp
+
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+}
+
+Enum SubscriptionStatus {
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  EXPIRED
+  CANCELED
+}
+
+// ─────────────────────────────────────────────────────────────
+// payment-api — PostgreSQL (conceitual)
+// ─────────────────────────────────────────────────────────────
+Table payment_customers {
+  id varchar [pk]
+  mp_customer_id varchar [unique, not null]
+  user_id varchar [not null]
+  email varchar [not null]
+  created_at timestamp [not null]
+}
+
+Table payment_cards {
+  id varchar [pk]
+  mp_card_id varchar [unique, not null]
+  customer_id varchar [not null, ref: > payment_customers.id]
+  payment_method_id varchar
+  created_at timestamp [not null]
+}
+
+Table payments {
+  id varchar [pk]
+  user_id varchar [not null]
+  reference_id varchar [not null]      // "subscription:{subscriptionId}"
+  amount decimal(10,2) [not null]
+  payment_method varchar [not null]    // PIX | CREDIT_CARD
+  status PaymentStatus [not null]
+  gateway_transaction_id varchar
+  mp_payment_id bigint
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+}
+
+Enum PaymentStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  REFUNDED
+  CANCELLED
+}

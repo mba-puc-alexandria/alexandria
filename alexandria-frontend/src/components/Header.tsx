@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Sun, Moon, LogOut } from "lucide-react";
+import Link from "next/link";
+import { Sun, Moon, LogOut, Sparkles } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAuthModal } from "@/contexts/AuthModalContext";
 
@@ -33,6 +34,15 @@ export default function Header() {
 
   return (
     <header className="w-full flex items-center justify-end px-8 py-3 bg-cream border-b border-cream-border shrink-0 z-10 gap-4">
+      {/* Link Planos */}
+      <Link
+        href="/planos"
+        className="hidden md:flex items-center gap-2 text-brown-soft text-sm font-semibold hover:text-brown transition-colors"
+      >
+        <Sparkles size={16} className="text-terra" />
+        Planos
+      </Link>
+
       {/* Switcher de tema */}
       <div className="flex items-center gap-1 p-1 bg-cream-dark rounded-xl border border-cream-border">
         <button

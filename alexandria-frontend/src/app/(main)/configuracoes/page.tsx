@@ -1,12 +1,27 @@
 "use client";
 
 import { useState, useEffect, FormEvent } from "react";
-import { User, Bell, Moon, Lock, Loader2 } from "lucide-react";
+import { User, Bell, Moon, Lock, Loader2, Sparkles, BadgeCheck, CalendarClock } from "lucide-react";
+import MercadoPagoCardForm, { type MercadoPagoCardData } from "@/components/MercadoPagoCardForm";
+import Link from "next/link";
 import { useAuth } from "@/contexts/AuthContext";
-import { getProfile, updateProfile, updatePassword, type ProfileResponse } from "@/lib/api";
+import {
+  getProfile,
+  updateProfile,
+  updatePassword,
+  cancelSubscription,
+  updateSubscriptionPaymentMethod,
+  type ProfileResponse,
+} from "@/lib/api";
 
 export default function ConfiguracoesPage() {
-  const { updateUsername } = useAuth();
+  const { updateUsername, subscription, refreshSubscription } = useAuth();
+
+  const [canceling, setCanceling] = useState(false);
+  const [cancelError, setCancelError] = useState<string | null>(null);
+  const [changingCard, setChangingCard] = useState(false);
+  const [cardMessage, setCardMessage] = useState<string | null>(null);
+  const [cardError, setCardError] = useState<string | null>(null);
 
   const [profile, setProfile] = useState<ProfileResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -64,6 +79,59 @@ export default function ConfiguracoesPage() {
     }
   }
 
+  async function handleCancelSubscription() {
+    setCancelError(null);
+    setCanceling(true);
+    try {
+      await cancelSubscription();
+      await refreshSubscription();
+    } catch (err) {
+      setCancelError(err instanceof Error ? err.message : "Falha ao cancelar assinatura");
+    } finally {
+      setCanceling(false);
+    }
+  }
+
+  async function handleCardChange(data: MercadoPagoCardData) {
+    setCardError(null);
+    setCardMessage(null);
+    setChangingCard(true);
+    try {
+      await updateSubscriptionPaymentMethod({ cardToken: data.token, cardBrand: data.paymentMethodId });
+      await refreshSubscription();
+      setCardMessage("Cartão atualizado com segurança.");
+    } catch (err) {
+      setCardError(err instanceof Error ? err.message : "Falha ao atualizar cartão.");
+    } finally {
+      setChangingCard(false);
+    }
+  }
+
+  const status = subscription?.status ?? null;
+  const statusLabel =
+    status === "TRIALING"
+      ? "Período de teste"
+      : status === "ACTIVE"
+        ? "Assinatura ativa"
+        : status === "PAST_DUE"
+          ? "Pagamento pendente"
+          : status === "EXPIRED"
+            ? "Assinatura expirada"
+            : status === "CANCELED"
+              ? "Assinatura cancelada"
+              : "Sem assinatura";
+
+  const statusDetail =
+    status === "TRIALING" && subscription?.trialEndsAt
+      ? `Seu teste gratuito termina em ${new Date(subscription.trialEndsAt).toLocaleDateString("pt-BR")}. Depois, R$ 10,00/mês.`
+      : status === "ACTIVE" && subscription?.currentPeriodEndsAt
+        ? `Sua assinatura vale até ${new Date(subscription.currentPeriodEndsAt).toLocaleDateString("pt-BR")}.`
+        : status === "CANCELED"
+          ? "Você mantém o acesso até o fim do período já pago."
+          : status === "EXPIRED"
+            ? "Assine para voltar a ler seus livros."
+            : "Assine o Alexandria Premium para continuar lendo.";
+
   async function handlePasswordSubmit(e: FormEvent) {
     e.preventDefault();
     setPasswordError(null);
@@ -102,6 +170,88 @@ export default function ConfiguracoesPage() {
         <h1 className="font-serif font-bold text-brown text-2xl">Configurações</h1>
         <p className="text-slate text-sm mt-1">Gerencie sua conta e preferências</p>
       </div>
+
+      {/* Assinatura */}
+      <section className="flex flex-col gap-3">
+        <div className="flex items-center gap-2 mb-1">
+          <Sparkles size={14} className="text-terra" />
+          <span className="text-brown text-xs font-bold uppercase tracking-widest">Assinatura</span>
+        </div>
+
+        <div className="bg-cream-dark rounded-xl p-5 flex flex-col gap-4">
+          <div className="flex items-start gap-3">
+            <span className="bg-terra/10 rounded-lg p-2 mt-0.5">
+              {status === "CANCELED" ? (
+                <CalendarClock size={18} className="text-brown-soft" />
+              ) : status === "ACTIVE" ? (
+                <BadgeCheck size={18} className="text-terra" />
+              ) : (
+                <Sparkles size={18} className="text-terra" />
+              )}
+            </span>
+            <div className="flex-1">
+              <div className="flex items-center gap-2">
+                <h3 className="font-serif font-bold text-brown text-base">{statusLabel}</h3>
+                {status === "TRIALING" && (
+                  <span className="bg-terra/10 text-terra rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide">
+                    15 dias grátis
+                  </span>
+                )}
+              </div>
+              <p className="text-slate text-xs mt-1">{statusDetail}</p>
+            </div>
+          </div>
+
+          {cancelError && (
+            <p className="text-red-600 text-xs bg-red-50 rounded-lg px-3 py-2">{cancelError}</p>
+          )}
+
+          <div className="flex items-center justify-between gap-4 pt-1">
+            {status === "CANCELED" ? (
+              <Link
+                href="/planos"
+                className="text-terra text-sm font-bold hover:underline"
+              >
+                Reativar assinatura
+              </Link>
+            ) : (
+              <>
+                <Link
+                  href="/checkout"
+                  className="text-terra text-sm font-bold hover:underline"
+                >
+                  Ver planos
+                </Link>
+                {(status === "TRIALING" || status === "ACTIVE") && (
+                  <button
+                    onClick={handleCancelSubscription}
+                    disabled={canceling}
+                    className="text-brown-soft text-sm font-medium hover:text-terra transition-colors disabled:opacity-50"
+                  >
+                    {canceling ? "Cancelando..." : "Cancelar assinatura"}
+                  </button>
+                )}
+              </>
+            )}
+          </div>
+
+          {status !== "CANCELED" && (
+            <details className="border-t border-cream-border pt-4">
+              <summary className="cursor-pointer text-terra text-sm font-bold">Trocar cartão</summary>
+              <p className="text-slate text-xs mt-2 mb-4">
+                Seu novo cartão substitui o anterior. Nenhum dado de cartão é salvo no Alexandria.
+              </p>
+              {cardError && <p className="text-red-600 text-xs mb-3">{cardError}</p>}
+              {cardMessage && <p className="text-green-700 text-xs mb-3">{cardMessage}</p>}
+              <MercadoPagoCardForm
+                processing={changingCard}
+                onToken={handleCardChange}
+                submitLabel="Atualizar cartão"
+              />
+            </details>
+          )}
+        </div>
+      </section>
 
       {/* Conta */}
       <section className="flex flex-col gap-3">

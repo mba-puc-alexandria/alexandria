@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-const PRIVATE_PATHS = ['/biblioteca', '/dashboard', '/configuracoes'];
+const PRIVATE_PATHS = ['/biblioteca', '/dashboard', '/configuracoes', '/leitor', '/checkout'];
 const AUTH_PATHS = ['/login', '/registrar'];
 
 export function proxy(request: NextRequest) {

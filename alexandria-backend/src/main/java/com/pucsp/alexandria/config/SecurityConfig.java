@@ -39,6 +39,7 @@ public class SecurityConfig {
             .requestMatchers("/auth/register", "/auth/login", "/auth/google").permitAll()
             .requestMatchers("/actuator/health").permitAll()
             .requestMatchers("/error").permitAll()
+            .requestMatchers("/subscriptions/payment-webhook").permitAll()
             .requestMatchers("/swagger-ui/**", "/api-docs/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()
             .requestMatchers(org.springframework.http.HttpMethod.GET, "/books/search").permitAll()
             .requestMatchers(org.springframework.http.HttpMethod.GET, "/books").permitAll()

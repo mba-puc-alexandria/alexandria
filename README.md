@@ -23,6 +23,7 @@ Alexandria é uma biblioteca digital que permite ao usuário organizar sua cole�
 | **Leitor de EPUB/PDF** | Visualizador integrado com trackeamento automático de progresso, tempo restante estimado e páginas restantes |
 | **Autenticação** | Login/registro com JWT e autenticação via Google OAuth |
 | **Perfil e Configurações** | Edição de dados da conta, alteração de senha, preferências |
+| **Alexandria Premium** | Assinatura mensal (R$ 10,00) com trial de 15 dias, pagamento via PIX ou cartão, paywall de leitura |
 | **Modo Escuro** | Tema claro/escuro com persistência local |
 | **PWA** | Service worker e manifest para instalação como aplicativo |
 
@@ -88,9 +89,18 @@ Alexandria é uma biblioteca digital que permite ao usuário organizar sua cole�
 ├─────────────────────────────┤
 │   Repository Implementations│  ← adapter/out/persistence
 ├─────────────────────────────┤
-│   External APIs (Gutendex)  │  ← adapter/out/persistence/external
+│   External APIs             │  ← adapter/out/persistence/external (Gutendex)
+│                             │    adapter/out/payment (payment-api)
 └─────────────────────────────┘
 ```
+
+### Microsserviço de pagamento
+
+A assinatura **Alexandria Premium** é processada pelo microsserviço `payment-api`
+(repositório separado), responsável pela integração com o Mercado Pago (PIX e cartão).
+O backend do Alexandria se comunica com ele via HTTP usando `Authorization: Bearer`
+(repassando o token do usuário), e recebe o status do pagamento por callback HTTP
+(`POST /subscriptions/payment-webhook`).
 
 ### Estrutura de Pastas
 
@@ -104,8 +114,8 @@ Alexandria é uma biblioteca digital que permite ao usuário organizar sua cole�
 │   │   │   │   └── job/         # SyncGutendexJobService
 │   │   │   └── out/persistence/ # JPA repositories, mappers, entidades
 │   │   │       └── external/    # Gutendex client
-│   │   ├── application/         # Use cases (CreateBookUseCase, Auth, etc.)
-│   │   ├── domain/              # Entidades de domínio (Book, User, Author, UserBooks)
+│   │   ├── application/         # Use cases (CreateBookUseCase, Auth, Subscription, etc.)
+│   │   ├── domain/              # Entidades de domínio (Book, User, Author, UserBooks, Subscription)
 │   │   ├── config/              # Security, JWT, CORS, OpenAPI
 │   │   └── advice/              # GlobalExceptionHandler
 │   ├── src/main/resources/
@@ -134,6 +144,8 @@ Alexandria é uma biblioteca digital que permite ao usuário organizar sua cole�
 │   │   │   │   ├── leitor/page.tsx            # Leitor (mock)
 │   │   │   │   ├── leitor/[id]/page.tsx       # Leitor EPUB real
 │   │   │   │   ├── configuracoes/page.tsx     # Perfil e preferências
+│   │   │   │   ├── planos/page.tsx            # Alexandria Premium (preço e CTA)
+│   │   │   │   ├── checkout/page.tsx          # Checkout PIX/cartão
 │   │   │   │   └── suporte/page.tsx           # FAQ e contato
 │   │   │   └── api/epub/route.ts             # Proxy de EPUB
 │   │   ├── components/
@@ -180,6 +192,7 @@ Alexandria é uma biblioteca digital que permite ao usuário organizar sua cole�
 | `users` | Usuários (username, email, senha hash, role USER/ADMIN) |
 | `user_books` | Relação usuário-livro (status: reading/done/toread, progresso %, rating) |
 | `authors` | Autores (nome, ano nascimento/falecimento) |
+| `subscriptions` | Assinaturas Alexandria Premium (status, trial, período pago, pagamento) |
 
 ### Migrations (Flyway)
 
@@ -204,9 +217,18 @@ Alexandria é uma biblioteca digital que permite ao usuário organizar sua cole�
 | GET | `/books` | Listar livros (paginado, filtro por idioma) | Público |
 | GET | `/books/{id}` | Detalhes do livro | Público |
 | GET | `/books/search?query=` | Buscar por título | Público |
+| GET | `/books/{id}/epub` | Baixar EPUB (exige assinatura válida) | Autenticado |
 | POST | `/books` | Criar livro | ADMIN |
 | PUT | `/books/{id}` | Atualizar livro | ADMIN |
 | DELETE | `/books/{id}` | Remover livro | ADMIN |
+
+### Assinatura (Alexandria Premium)
+| Método | Rota | Descrição | Autenticação |
+|---|---|---|---|
+| GET | `/subscriptions/me` | Status da assinatura do usuário | Autenticado |
+| POST | `/subscriptions/checkout` | Criar pagamento (PIX ou cartão) | Autenticado |
+| POST | `/subscriptions/payment-webhook` | Callback de status do payment-api | `X-Webhook-Secret` |
+| POST | `/subscriptions/cancel` | Cancelar assinatura | Autenticado |
 
 ### Biblioteca do Usuário
 | Método | Rota | Descrição | Autenticação |
@@ -227,6 +249,44 @@ Alexandria é uma biblioteca digital que permite ao usuário organizar sua cole�
 | Método | Rota | Descrição | Autenticação |
 |---|---|---|---|
 | POST | `/api/jobs/sync-gutendex` | Sincronizar livros do Gutendex | ADMIN |
+
+---
+
+## Alexandria Premium
+
+Modelo de assinatura que libera a leitura de EPUBs:
+
+- **Trial**: todo novo usuário ganha **15 dias grátis** ao se cadastrar (ou no primeiro login Google).
+- **Valor**: **R$ 10,00/mês** após o trial.
+- **Pagamento**: PIX ou cartão de crédito, processados pelo Mercado Pago via `payment-api`.
+
+### Regras de acesso
+
+| Situação | Acesso à leitura |
+|---|---|
+| Sem login | Bloqueado (redireciona para login) |
+| Trial ativo | Liberado |
+| Assinatura ativa | Liberado |
+| Trial expirado / assinatura vencida | Bloqueado (paywall) |
+
+O bloqueio é duplo: login no frontend + validação de assinatura no backend
+(`GET /books/{id}/epub`). O EPUB nunca é exposto diretamente no frontend.
+
+### Fluxo de pagamento
+
+- **Durante o trial**: apenas cartão de crédito (a cobrança é agendada para o fim do trial).
+- **Após o trial**: PIX (pagamento imediato) ou cartão.
+
+### Configuração (backend)
+
+```properties
+subscription.trial-days=${SUBSCRIPTION_TRIAL_DAYS:15}
+subscription.price=${SUBSCRIPTION_PRICE:10.00}
+subscription.period-days=${SUBSCRIPTION_PERIOD_DAYS:30}
+subscription.currency=BRL
+payment-api.url=${PAYMENT_API_URL:http://localhost:8082}
+subscription.callback-secret=${SUBSCRIPTION_CALLBACK_SECRET:dev-callback-secret}
+```
 
 ---
 
@@ -299,6 +359,8 @@ Todas as cores são invertidas dinamicamente via variáveis CSS quando a classe 
 | Empréstimos | `/emprestimos` | Registros com status visual e FAB |
 | Leitor | `/leitor`, `/leitor/[id]` | Leitor de EPUB com progresso automático |
 | Configurações | `/configuracoes` | Perfil, senha, notificações, aparência |
+| Planos | `/planos` | Preço e CTA do Alexandria Premium |
+| Checkout | `/checkout` | Pagamento PIX/cartão |
 | Suporte | `/suporte` | FAQ, contato e informações |
 | Login | `/login` | Autenticação |
 | Registrar | `/registrar` | Criação de conta |
