@@ -17,8 +17,10 @@ FROM eclipse-temurin:17-jre-alpine
 WORKDIR /app
 
 # Usuário não-root por segurança
-RUN addgroup -S spring && adduser -S spring -G spring
-RUN mkdir /app/logs && chown -R spring:spring /app
+RUN addgroup -S spring \
+    && adduser -S spring -G spring \
+    && mkdir /app/logs \
+    && chown -R spring:spring /app
 USER spring:spring
 
 # Copia apenas o JAR gerado no estágio anterior

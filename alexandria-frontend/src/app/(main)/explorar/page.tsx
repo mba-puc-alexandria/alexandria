@@ -147,7 +147,7 @@ export default function ExplorarPage() {
       <section className="w-full max-w-5xl">
         {searching && (
           <p className="text-brown-soft text-xs mb-4">
-            Resultados para <span className="font-semibold text-brown">"{query}"</span>
+            Resultados para <span className="font-semibold text-brown">“{query}”</span>
           </p>
         )}
 

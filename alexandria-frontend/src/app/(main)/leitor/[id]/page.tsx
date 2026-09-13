@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
+import type { Location, Rendition } from "epubjs";
 import { getBookById, getUserBooks, updateUserBook, getAuthorDisplay, type BookApiResponse } from "@/lib/api";
 import { useEpub } from "@/hooks/useEpub";
 
@@ -42,6 +43,7 @@ export default function LeitorPage({
   const [minutesLeft, setMinutesLeft] = useState<number | null>(null);
   const [pagesLeft, setPagesLeft] = useState<number | null>(null);
   const [displayMode, setDisplayMode] = useState<DisplayMode>("percent");
+  const [hasUserBook, setHasUserBook] = useState(false);
 
   const userBookIdRef = useRef<number | null>(null);
   const lastSavedProgressRef = useRef<number>(0);
@@ -66,6 +68,7 @@ export default function LeitorPage({
       const userBook = userBooks.find((ub) => ub.book.id === Number(id));
       if (userBook) {
         userBookIdRef.current = userBook.id;
+        setHasUserBook(true);
         const savedProgress = userBook.progress ?? 0;
         lastSavedProgressRef.current = savedProgress;
         currentProgressRef.current = savedProgress;
@@ -102,28 +105,29 @@ export default function LeitorPage({
     [id]
   );
 
-  function persistProgress(percent: number) {
+  const persistProgress = useCallback((percent: number) => {
     lastSavedProgressRef.current = percent;
     localStorage.setItem(`epub-progress-${id}`, String(percent));
     updateUserBook(userBookIdRef.current!, {
       status: "reading",
       progress: percent,
     }).catch(() => {});
-  }
+  }, [id]);
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const handleRendition = useCallback((rendition: any) => {
+  const handleRendition = useCallback((rendition: Rendition) => {
 
     rendition.book.ready.then(() => {
       rendition.book.locations.generate(1600).then(() => {
         totalLocationsRef.current = rendition.book.locations.length();
 
-        rendition.on("relocated", (loc: any) => {
+        rendition.on("relocated", (loc: Location) => {
           const percent = Math.round(
             rendition.book.locations.percentageFromCfi(loc.start.cfi) * 100
           );
 
-          const currentLocation = rendition.book.locations.locationFromCfi(loc.start.cfi);
+          // A implementação do epub.js retorna o índice numérico; a declaração
+          // de tipos da versão usada pelo pacote o expõe incorretamente como Location.
+          const currentLocation = rendition.book.locations.locationFromCfi(loc.start.cfi) as unknown as number;
           const total = totalLocationsRef.current;
           const remaining = Math.max(total - currentLocation, 0);
           setPagesLeft(remaining);
@@ -156,7 +160,7 @@ export default function LeitorPage({
         });
       });
     });
-  }, []);
+  }, [id, persistProgress]);
 
   function cycleDisplayMode() {
     setDisplayMode((prev) => {
@@ -167,7 +171,7 @@ export default function LeitorPage({
   }
 
   function renderReadingInfo() {
-    if (!userBookIdRef.current) return null;
+    if (!hasUserBook) return null;
 
     if (displayMode === "minutes" && minutesLeft !== null) {
       return (
@@ -255,7 +259,7 @@ export default function LeitorPage({
         {renderReadingInfo()}
       </div>
 
-      {userBookIdRef.current && (
+      {hasUserBook && (
         <div className="h-0.5 bg-cream-border shrink-0">
           <div
             className="h-full bg-terra transition-all duration-500"
