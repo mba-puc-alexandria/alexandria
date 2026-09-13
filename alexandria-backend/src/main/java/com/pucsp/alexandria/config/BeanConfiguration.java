@@ -20,7 +20,9 @@ import com.pucsp.alexandria.application.subscription.CheckoutUseCase;
 import com.pucsp.alexandria.application.subscription.ExpireSubscriptionsUseCase;
 import com.pucsp.alexandria.application.subscription.GetSubscriptionUseCase;
 import com.pucsp.alexandria.application.subscription.ProcessPaymentWebhookUseCase;
+import com.pucsp.alexandria.application.subscription.RecurringBillingUseCase;
 import com.pucsp.alexandria.application.subscription.StartTrialUseCase;
+import com.pucsp.alexandria.application.subscription.UpdatePaymentMethodUseCase;
 import com.pucsp.alexandria.application.userbooks.AddUserBooksUseCase;
 import com.pucsp.alexandria.application.userbooks.GetUserBookByBookIdUseCase;
 import com.pucsp.alexandria.application.userbooks.ListUserBooksUseCase;
@@ -32,6 +34,7 @@ import com.pucsp.alexandria.domain.book.external.BookApiClient;
 import com.pucsp.alexandria.domain.subscription.SubscriptionRepository;
 import com.pucsp.alexandria.domain.user.UserRepository;
 import com.pucsp.alexandria.domain.userbook.UserBooksRepository;
+import com.pucsp.alexandria.config.jwt.JwtTokenProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -218,5 +221,24 @@ public class BeanConfiguration {
   public ExpireSubscriptionsUseCase expireSubscriptionsUseCase(
       SubscriptionRepository subscriptionRepository) {
     return new ExpireSubscriptionsUseCase(subscriptionRepository);
+  }
+
+  @Bean
+  public RecurringBillingUseCase recurringBillingUseCase(
+      SubscriptionRepository subscriptionRepository,
+      PaymentApiClient paymentApiClient,
+      SubscriptionProperties properties,
+      JwtTokenProvider jwtTokenProvider) {
+    return new RecurringBillingUseCase(subscriptionRepository, paymentApiClient, properties,
+        jwtTokenProvider);
+  }
+
+  @Bean
+  public UpdatePaymentMethodUseCase updatePaymentMethodUseCase(
+      SubscriptionRepository subscriptionRepository,
+      PaymentApiClient paymentApiClient,
+      RecurringBillingUseCase recurringBillingUseCase) {
+    return new UpdatePaymentMethodUseCase(subscriptionRepository, paymentApiClient,
+        recurringBillingUseCase);
   }
 }

@@ -17,4 +17,6 @@ public interface SubscriptionRepository {
   List<Subscription> findTrialsEndingBefore(LocalDateTime now);
 
   List<Subscription> findActiveEndingBefore(LocalDateTime now);
+
+  List<Subscription> findPastDueRetryingBefore(LocalDateTime now);
 }

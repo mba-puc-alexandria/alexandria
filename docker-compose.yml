@@ -49,6 +49,9 @@ services:
       dockerfile: Dockerfile
       args:
         NEXT_PUBLIC_API_URL: http://localhost:8080
+        # Variáveis NEXT_PUBLIC_* são incorporadas pelo Next.js durante o build.
+        # Defina esta chave no arquivo .env da raiz antes de subir o Compose.
+        NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY: ${NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY:-}
     container_name: alexandria-frontend
     restart: unless-stopped
     ports:

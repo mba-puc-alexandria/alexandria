@@ -29,6 +29,12 @@ public record PaymentApiCreateRequest(
     @Schema(description = "CardToken do MercadoPago.js.", example = "token-abc123")
     String gatewayToken,
 
+    @Schema(description = "ID do cartão salvo no Mercado Pago para cobrança recorrente.")
+    String cardId,
+
+    @Schema(description = "ID do Customer no Mercado Pago para cobrança recorrente.")
+    String customerId,
+
     @Schema(description = "Número de parcelas.", example = "1", minimum = "1")
     Integer installments,
 
@@ -36,8 +42,5 @@ public record PaymentApiCreateRequest(
     String paymentMethodId,
 
     @Schema(description = "Descrição do pagamento.", example = "Assinatura Alexandria Premium")
-    String description,
-
-    @Schema(description = "Indica se o pagamento deve ser capturado imediatamente.", example = "true")
-    boolean capture) {
+    String description) {
 }

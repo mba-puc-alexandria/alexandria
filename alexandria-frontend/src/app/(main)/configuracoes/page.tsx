@@ -2,6 +2,7 @@
 
 import { useState, useEffect, FormEvent } from "react";
 import { User, Bell, Moon, Lock, Loader2, Sparkles, BadgeCheck, CalendarClock } from "lucide-react";
+import MercadoPagoCardForm, { type MercadoPagoCardData } from "@/components/MercadoPagoCardForm";
 import Link from "next/link";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -9,6 +10,7 @@ import {
   updateProfile,
   updatePassword,
   cancelSubscription,
+  updateSubscriptionPaymentMethod,
   type ProfileResponse,
 } from "@/lib/api";
 
@@ -17,6 +19,9 @@ export default function ConfiguracoesPage() {
 
   const [canceling, setCanceling] = useState(false);
   const [cancelError, setCancelError] = useState<string | null>(null);
+  const [changingCard, setChangingCard] = useState(false);
+  const [cardMessage, setCardMessage] = useState<string | null>(null);
+  const [cardError, setCardError] = useState<string | null>(null);
 
   const [profile, setProfile] = useState<ProfileResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -84,6 +89,21 @@ export default function ConfiguracoesPage() {
       setCancelError(err instanceof Error ? err.message : "Falha ao cancelar assinatura");
     } finally {
       setCanceling(false);
+    }
+  }
+
+  async function handleCardChange(data: MercadoPagoCardData) {
+    setCardError(null);
+    setCardMessage(null);
+    setChangingCard(true);
+    try {
+      await updateSubscriptionPaymentMethod({ cardToken: data.token, cardBrand: data.paymentMethodId });
+      await refreshSubscription();
+      setCardMessage("Cartão atualizado com segurança.");
+    } catch (err) {
+      setCardError(err instanceof Error ? err.message : "Falha ao atualizar cartão.");
+    } finally {
+      setChangingCard(false);
     }
   }
 
@@ -214,6 +234,22 @@ export default function ConfiguracoesPage() {
               </>
             )}
           </div>
+
+          {status !== "CANCELED" && (
+            <details className="border-t border-cream-border pt-4">
+              <summary className="cursor-pointer text-terra text-sm font-bold">Trocar cartão</summary>
+              <p className="text-slate text-xs mt-2 mb-4">
+                Seu novo cartão substitui o anterior. Nenhum dado de cartão é salvo no Alexandria.
+              </p>
+              {cardError && <p className="text-red-600 text-xs mb-3">{cardError}</p>}
+              {cardMessage && <p className="text-green-700 text-xs mb-3">{cardMessage}</p>}
+              <MercadoPagoCardForm
+                processing={changingCard}
+                onToken={handleCardChange}
+                submitLabel="Atualizar cartão"
+              />
+            </details>
+          )}
         </div>
       </section>
 

@@ -2,6 +2,10 @@ package com.pucsp.alexandria.adapter.out.payment;
 
 import com.pucsp.alexandria.adapter.out.payment.dto.PaymentApiCreateRequest;
 import com.pucsp.alexandria.adapter.out.payment.dto.PaymentApiResult;
+import com.pucsp.alexandria.adapter.out.payment.dto.PaymentApiAddCardRequest;
+import com.pucsp.alexandria.adapter.out.payment.dto.PaymentApiAddCardResult;
+import com.pucsp.alexandria.adapter.out.payment.dto.PaymentApiCreateCustomerRequest;
+import com.pucsp.alexandria.adapter.out.payment.dto.PaymentApiCustomerResult;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -50,6 +54,29 @@ public class RestPaymentApiClient implements PaymentApiClient {
             HttpMethod.POST,
             entity,
             PaymentApiResult.class)
+        .getBody();
+  }
+
+  @Override
+  public PaymentApiCustomerResult createCustomer(
+      PaymentApiCreateCustomerRequest request, String bearerToken) {
+    return exchange("/api/v1/customers", HttpMethod.POST, request, bearerToken,
+        PaymentApiCustomerResult.class);
+  }
+
+  @Override
+  public PaymentApiAddCardResult addCard(
+      String customerId, PaymentApiAddCardRequest request, String bearerToken) {
+    return exchange("/api/v1/customers/" + customerId + "/cards", HttpMethod.POST, request,
+        bearerToken, PaymentApiAddCardResult.class);
+  }
+
+  private <T> T exchange(String path, HttpMethod method, Object body, String bearerToken,
+      Class<T> responseType) {
+    var headers = new HttpHeaders();
+    headers.setContentType(MediaType.APPLICATION_JSON);
+    headers.setBearerAuth(bearerToken);
+    return restTemplate.exchange(baseUrl + path, method, new HttpEntity<>(body, headers), responseType)
         .getBody();
   }
 }

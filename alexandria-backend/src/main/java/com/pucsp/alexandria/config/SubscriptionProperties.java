@@ -13,6 +13,8 @@ public class SubscriptionProperties {
   private int periodDays = 30;
   private String currency = "BRL";
   private String callbackSecret;
+  private int maxFailedAttempts = 3;
+  private int retryBaseHours = 24;
 
   public int getTrialDays() {
     return trialDays;
@@ -53,4 +55,9 @@ public class SubscriptionProperties {
   public void setCallbackSecret(String callbackSecret) {
     this.callbackSecret = callbackSecret;
   }
+
+  public int getMaxFailedAttempts() { return maxFailedAttempts; }
+  public void setMaxFailedAttempts(int maxFailedAttempts) { this.maxFailedAttempts = maxFailedAttempts; }
+  public int getRetryBaseHours() { return retryBaseHours; }
+  public void setRetryBaseHours(int retryBaseHours) { this.retryBaseHours = retryBaseHours; }
 }

@@ -292,6 +292,20 @@ export async function cancelSubscription(): Promise<void> {
   }
 }
 
+export async function updateSubscriptionPaymentMethod(data: {
+  cardToken: string;
+  cardBrand?: string;
+}): Promise<void> {
+  const res = await apiFetch('/subscriptions/payment-method', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error((error as { message?: string }).message || 'Falha ao atualizar cartão');
+  }
+}
+
 export function getAuthHeaders(): HeadersInit {
   const token = typeof window !== 'undefined' ? localStorage.getItem('auth-token') : null;
   return token ? { Authorization: `Bearer ${token}` } : {};

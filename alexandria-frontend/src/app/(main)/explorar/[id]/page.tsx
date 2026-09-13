@@ -7,6 +7,7 @@ import { ArrowLeft, BookOpen, Plus } from "lucide-react";
 import { getBookById, addUserBook, getAuthorDisplay, type BookApiResponse } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAuthModal } from "@/contexts/AuthModalContext";
+import PaywallModal from "@/components/PaywallModal";
 
 export default function BookDetailPage({
   params,
@@ -20,7 +21,8 @@ export default function BookDetailPage({
   const [error, setError] = useState(false);
   const [adding, setAdding] = useState(false);
   const [added, setAdded] = useState(false);
-  const { user } = useAuth();
+  const [showPaywall, setShowPaywall] = useState(false);
+  const { user, subscription } = useAuth();
   const { openLoginModal } = useAuthModal();
 
   useEffect(() => {
@@ -80,6 +82,16 @@ export default function BookDetailPage({
       openLoginModal();
       return;
     }
+    const now = new Date();
+    const hasAccess = subscription?.status === "TRIALING"
+      || (subscription?.status === "ACTIVE" && subscription.currentPeriodEndsAt != null
+        && new Date(subscription.currentPeriodEndsAt) > now)
+      || (subscription?.status === "CANCELED" && subscription.currentPeriodEndsAt != null
+        && new Date(subscription.currentPeriodEndsAt) > now);
+    if (!hasAccess) {
+      setShowPaywall(true);
+      return;
+    }
     router.push(`/leitor/${book!.id}`);
   }
 
@@ -95,6 +107,7 @@ export default function BookDetailPage({
 
   return (
     <div className="flex flex-col px-6 pt-8 pb-16 md:px-12 md:pt-12 gap-8 max-w-4xl">
+      <PaywallModal open={showPaywall} onClose={() => setShowPaywall(false)} />
       <Link
         href="/explorar"
         className="flex items-center gap-2 text-brown-soft text-sm font-bold hover:text-brown transition-colors w-fit"

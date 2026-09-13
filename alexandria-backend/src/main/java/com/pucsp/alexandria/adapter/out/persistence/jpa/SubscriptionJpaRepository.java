@@ -20,4 +20,7 @@ public interface SubscriptionJpaRepository extends JpaRepository<SubscriptionEnt
 
   List<SubscriptionEntity> findByStatusAndCurrentPeriodEndsAtBefore(
       SubscriptionStatus status, LocalDateTime now);
+
+  List<SubscriptionEntity> findByStatusAndNextRetryAtBefore(
+      SubscriptionStatus status, LocalDateTime now);
 }

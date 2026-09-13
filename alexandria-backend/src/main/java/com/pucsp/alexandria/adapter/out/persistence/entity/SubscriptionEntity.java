@@ -35,6 +35,21 @@ public class SubscriptionEntity {
   @Column(name = "mp_payment_id")
   private Long mpPaymentId;
 
+  @Column(name = "mp_customer_id")
+  private String mpCustomerId;
+
+  @Column(name = "mp_card_id")
+  private String mpCardId;
+
+  @Column(name = "last_payment_status")
+  private String lastPaymentStatus;
+
+  @Column(name = "failed_attempts", nullable = false)
+  private int failedAttempts;
+
+  @Column(name = "next_retry_at")
+  private LocalDateTime nextRetryAt;
+
   @Column(name = "scheduled_payment_id")
   private String scheduledPaymentId;
 
@@ -57,6 +72,11 @@ public class SubscriptionEntity {
       LocalDateTime trialEndsAt,
       LocalDateTime currentPeriodEndsAt,
       Long mpPaymentId,
+      String mpCustomerId,
+      String mpCardId,
+      String lastPaymentStatus,
+      int failedAttempts,
+      LocalDateTime nextRetryAt,
       String scheduledPaymentId,
       boolean paymentScheduled,
       LocalDateTime createdAt,
@@ -67,6 +87,11 @@ public class SubscriptionEntity {
     this.trialEndsAt = trialEndsAt;
     this.currentPeriodEndsAt = currentPeriodEndsAt;
     this.mpPaymentId = mpPaymentId;
+    this.mpCustomerId = mpCustomerId;
+    this.mpCardId = mpCardId;
+    this.lastPaymentStatus = lastPaymentStatus;
+    this.failedAttempts = failedAttempts;
+    this.nextRetryAt = nextRetryAt;
     this.scheduledPaymentId = scheduledPaymentId;
     this.paymentScheduled = paymentScheduled;
     this.createdAt = createdAt;
@@ -120,6 +145,17 @@ public class SubscriptionEntity {
   public void setMpPaymentId(Long mpPaymentId) {
     this.mpPaymentId = mpPaymentId;
   }
+
+  public String getMpCustomerId() { return mpCustomerId; }
+  public void setMpCustomerId(String mpCustomerId) { this.mpCustomerId = mpCustomerId; }
+  public String getMpCardId() { return mpCardId; }
+  public void setMpCardId(String mpCardId) { this.mpCardId = mpCardId; }
+  public String getLastPaymentStatus() { return lastPaymentStatus; }
+  public void setLastPaymentStatus(String lastPaymentStatus) { this.lastPaymentStatus = lastPaymentStatus; }
+  public int getFailedAttempts() { return failedAttempts; }
+  public void setFailedAttempts(int failedAttempts) { this.failedAttempts = failedAttempts; }
+  public LocalDateTime getNextRetryAt() { return nextRetryAt; }
+  public void setNextRetryAt(LocalDateTime nextRetryAt) { this.nextRetryAt = nextRetryAt; }
 
   public String getScheduledPaymentId() {
     return scheduledPaymentId;

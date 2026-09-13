@@ -2,6 +2,7 @@ package com.pucsp.alexandria.domain.subscription;
 
 import com.pucsp.alexandria.domain.subscription.exception.InvalidSubscriptionException;
 import java.time.LocalDateTime;
+import java.util.Objects;
 
 public class Subscription {
 
@@ -11,6 +12,11 @@ public class Subscription {
   private LocalDateTime trialEndsAt;
   private LocalDateTime currentPeriodEndsAt;
   private Long mpPaymentId;
+  private String mpCustomerId;
+  private String mpCardId;
+  private String lastPaymentStatus;
+  private int failedAttempts;
+  private LocalDateTime nextRetryAt;
   private String scheduledPaymentId;
   private boolean paymentScheduled;
   private final LocalDateTime createdAt;
@@ -23,6 +29,11 @@ public class Subscription {
       LocalDateTime trialEndsAt,
       LocalDateTime currentPeriodEndsAt,
       Long mpPaymentId,
+      String mpCustomerId,
+      String mpCardId,
+      String lastPaymentStatus,
+      int failedAttempts,
+      LocalDateTime nextRetryAt,
       String scheduledPaymentId,
       boolean paymentScheduled,
       LocalDateTime createdAt,
@@ -33,6 +44,11 @@ public class Subscription {
     this.trialEndsAt = trialEndsAt;
     this.currentPeriodEndsAt = currentPeriodEndsAt;
     this.mpPaymentId = mpPaymentId;
+    this.mpCustomerId = mpCustomerId;
+    this.mpCardId = mpCardId;
+    this.lastPaymentStatus = lastPaymentStatus;
+    this.failedAttempts = failedAttempts;
+    this.nextRetryAt = nextRetryAt;
     this.scheduledPaymentId = scheduledPaymentId;
     this.paymentScheduled = paymentScheduled;
     this.createdAt = createdAt;
@@ -50,6 +66,11 @@ public class Subscription {
         null,
         null,
         null,
+        null,
+        null,
+        0,
+        null,
+        null,
         false,
         now,
         now);
@@ -62,6 +83,11 @@ public class Subscription {
       LocalDateTime trialEndsAt,
       LocalDateTime currentPeriodEndsAt,
       Long mpPaymentId,
+      String mpCustomerId,
+      String mpCardId,
+      String lastPaymentStatus,
+      int failedAttempts,
+      LocalDateTime nextRetryAt,
       String scheduledPaymentId,
       boolean paymentScheduled,
       LocalDateTime createdAt,
@@ -75,6 +101,11 @@ public class Subscription {
         trialEndsAt,
         currentPeriodEndsAt,
         mpPaymentId,
+        mpCustomerId,
+        mpCardId,
+        lastPaymentStatus,
+        failedAttempts,
+        nextRetryAt,
         scheduledPaymentId,
         paymentScheduled,
         createdAt,
@@ -96,11 +127,23 @@ public class Subscription {
         && (status == SubscriptionStatus.ACTIVE || status == SubscriptionStatus.CANCELED);
   }
 
-  public void scheduleCardAfterTrial(String scheduledPaymentId, Long mpPaymentId) {
+  public void savePaymentMethod(String mpCustomerId, String mpCardId) {
     ensureTrialActive();
-    this.scheduledPaymentId = scheduledPaymentId;
-    this.mpPaymentId = mpPaymentId;
+    if (mpCustomerId == null || mpCustomerId.isBlank() || mpCardId == null || mpCardId.isBlank()) {
+      throw new InvalidSubscriptionException("Mercado Pago customer and card ids are required");
+    }
+    this.mpCustomerId = mpCustomerId;
+    this.mpCardId = mpCardId;
     this.paymentScheduled = true;
+    this.updatedAt = LocalDateTime.now();
+  }
+
+  public void replacePaymentMethod(String mpCardId) {
+    if (mpCustomerId == null || mpCustomerId.isBlank() || mpCardId == null || mpCardId.isBlank()) {
+      throw new InvalidSubscriptionException("Mercado Pago customer and card ids are required");
+    }
+    this.mpCardId = mpCardId;
+    this.paymentScheduled = status == SubscriptionStatus.TRIALING;
     this.updatedAt = LocalDateTime.now();
   }
 
@@ -109,6 +152,7 @@ public class Subscription {
       throw new InvalidSubscriptionException("Valid Mercado Pago payment id is required");
     }
     this.mpPaymentId = mpPaymentId;
+    this.lastPaymentStatus = "PENDING";
     this.updatedAt = LocalDateTime.now();
   }
 
@@ -120,19 +164,41 @@ public class Subscription {
     this.currentPeriodEndsAt = periodEndsAt;
     this.trialEndsAt = null;
     this.mpPaymentId = mpPaymentId;
+    this.lastPaymentStatus = "COMPLETED";
+    this.failedAttempts = 0;
+    this.nextRetryAt = null;
     this.scheduledPaymentId = null;
     this.paymentScheduled = false;
     this.updatedAt = LocalDateTime.now();
   }
 
-  public void markPastDue() {
+  public void markPastDue(String paymentStatus, LocalDateTime retryAt) {
     this.status = SubscriptionStatus.PAST_DUE;
+    this.lastPaymentStatus = paymentStatus;
+    this.failedAttempts++;
+    this.nextRetryAt = retryAt;
     this.updatedAt = LocalDateTime.now();
+  }
+
+  /** Records a terminal failed/refunded payment once, even if its webhook is redelivered. */
+  public boolean recordPaymentFailure(Long mpPaymentId, String paymentStatus, LocalDateTime retryAt) {
+    if (Objects.equals(this.mpPaymentId, mpPaymentId)
+        && Objects.equals(this.lastPaymentStatus, paymentStatus)) {
+      return false;
+    }
+    this.mpPaymentId = mpPaymentId;
+    markPastDue(paymentStatus, retryAt);
+    return true;
+  }
+
+  public void markPastDue() {
+    markPastDue("FAILED", null);
   }
 
   public void markExpired() {
     this.status = SubscriptionStatus.EXPIRED;
     this.paymentScheduled = false;
+    this.nextRetryAt = null;
     this.updatedAt = LocalDateTime.now();
   }
 
@@ -183,6 +249,16 @@ public class Subscription {
   public Long getMpPaymentId() {
     return mpPaymentId;
   }
+
+  public String getMpCustomerId() { return mpCustomerId; }
+
+  public String getMpCardId() { return mpCardId; }
+
+  public String getLastPaymentStatus() { return lastPaymentStatus; }
+
+  public int getFailedAttempts() { return failedAttempts; }
+
+  public LocalDateTime getNextRetryAt() { return nextRetryAt; }
 
   public String getScheduledPaymentId() {
     return scheduledPaymentId;

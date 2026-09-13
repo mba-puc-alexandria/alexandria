@@ -62,4 +62,13 @@ public class SubscriptionRepositoryImpl implements SubscriptionRepository {
         .map(mapper::toDomain)
         .toList();
   }
+
+  @Override
+  public List<Subscription> findPastDueRetryingBefore(LocalDateTime now) {
+    return jpaRepository
+        .findByStatusAndNextRetryAtBefore(SubscriptionStatus.PAST_DUE, now)
+        .stream()
+        .map(mapper::toDomain)
+        .toList();
+  }
 }

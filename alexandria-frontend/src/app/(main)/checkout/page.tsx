@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { createCheckout, type CheckoutResponse } from "@/lib/api";
+import MercadoPagoCardForm, { type MercadoPagoCardData } from "@/components/MercadoPagoCardForm";
 
 type Method = "pix" | "card";
 
@@ -31,9 +32,8 @@ export default function CheckoutPage() {
   // Resultado do checkout (PIX ou cartão)
   const [result, setResult] = useState<CheckoutResponse | null>(null);
   const [pixCode, setPixCode] = useState<string | null>(null);
+  const [pixImage, setPixImage] = useState<string | null>(null);
 
-  // Dados do cartão — no fluxo real, o MercadoPago.js CardForm gera o cardToken.
-  const [cardToken, setCardToken] = useState("");
   const [payerEmail, setPayerEmail] = useState("");
   const payerDocumentType = "CPF";
   const payerDocumentNumber = "";
@@ -49,7 +49,8 @@ export default function CheckoutPage() {
         payerDocumentNumber: payerDocumentNumber || undefined,
       });
       setResult(res);
-      setPixCode(res.qrCode || res.qrCodeBase64 || null);
+      setPixCode(res.qrCode);
+      setPixImage(res.qrCodeBase64 ? `data:image/png;base64,${res.qrCodeBase64}` : null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Falha ao gerar PIX");
     } finally {
@@ -57,17 +58,18 @@ export default function CheckoutPage() {
     }
   }
 
-  async function handleCard(e: React.FormEvent) {
-    e.preventDefault();
+  async function handleCard(data: MercadoPagoCardData) {
     setError(null);
     setProcessing(true);
     try {
       const res = await createCheckout({
         paymentMethod: "CARD",
-        cardToken,
-        payerEmail: payerEmail || undefined,
-        payerDocumentType: payerDocumentType || undefined,
-        payerDocumentNumber: payerDocumentNumber || undefined,
+        cardToken: data.token,
+        cardBrand: data.paymentMethodId,
+        installments: data.installments,
+        payerEmail: data.cardholderEmail,
+        payerDocumentType: data.identificationType,
+        payerDocumentNumber: data.identificationNumber,
       });
       setResult(res);
     } catch (err) {
@@ -121,12 +123,15 @@ export default function CheckoutPage() {
             </div>
           )}
 
-          {isPix && pixCode && (
+          {isPix && (pixCode || pixImage) && (
             <div className="bg-cream-dark rounded-xl p-5 border border-cream-border text-left mb-8 flex flex-col gap-3">
+              {pixImage && (
+                <img src={pixImage} alt="QR Code PIX" className="w-48 h-48 self-center rounded-lg" />
+              )}
               <span className="text-brown-soft text-xs uppercase tracking-widest font-bold">
                 PIX copia e cola
               </span>
-              <div className="flex items-center gap-2">
+              {pixCode && <div className="flex items-center gap-2">
                 <code className="flex-1 bg-cream rounded-lg px-3 py-2 text-xs text-brown break-all">
                   {pixCode}
                 </code>
@@ -136,7 +141,7 @@ export default function CheckoutPage() {
                 >
                   {copied ? <Check size={16} className="text-green-600" /> : <Copy size={16} />}
                 </button>
-              </div>
+              </div>}
             </div>
           )}
 
@@ -284,10 +289,7 @@ export default function CheckoutPage() {
 
         {/* Painel Cartão */}
         {method === "card" && (
-          <form
-            onSubmit={handleCard}
-            className="bg-cream-dark rounded-2xl p-6 border border-cream-border flex flex-col gap-4"
-          >
+          <div className="bg-cream-dark rounded-2xl p-6 border border-cream-border flex flex-col gap-4">
             <div className="flex items-center gap-2 mb-1">
               <CreditCard size={18} className="text-terra" />
               <span className="text-brown font-bold text-sm">Pagamento com cartão</span>
@@ -300,54 +302,16 @@ export default function CheckoutPage() {
               </p>
             )}
 
-            <label className="flex flex-col gap-1">
-              <span className="text-xs font-bold text-brown-soft uppercase tracking-widest">
-                E-mail do pagador
-              </span>
-              <input
-                type="email"
-                value={payerEmail}
-                onChange={(e) => setPayerEmail(e.target.value)}
-                placeholder="voce@email.com"
-                className="bg-cream rounded-lg px-4 py-3 text-brown outline-none border border-cream-border focus:border-terra"
-              />
-            </label>
-
-            <label className="flex flex-col gap-1">
-              <span className="text-xs font-bold text-brown-soft uppercase tracking-widest">
-                CardToken (MercadoPago.js)
-              </span>
-              <input
-                type="text"
-                value={cardToken}
-                onChange={(e) => setCardToken(e.target.value)}
-                placeholder="Token gerado pelo CardForm"
-                className="bg-cream rounded-lg px-4 py-3 text-brown outline-none border border-cream-border focus:border-terra"
-              />
-            </label>
-
             <p className="text-brown-soft/60 text-[11px] flex items-center justify-center gap-1.5">
               <ShieldCheck size={13} />
-              Em produção, o MercadoPago.js gera o CardToken a partir do CardForm.
+              Os dados do cartão são tokenizados pelo Mercado Pago e não passam pelo Alexandria.
             </p>
-
-            <button
-              type="submit"
-              disabled={processing || !cardToken}
-              className="mt-2 bg-brown text-cream font-bold text-sm tracking-widest uppercase px-6 py-4 rounded-xl hover:bg-brown/90 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-            >
-              {processing ? (
-                <>
-                  <Loader2 size={16} className="animate-spin" />
-                  Processando...
-                </>
-              ) : inTrial ? (
-                "Assinar com cartão"
-              ) : (
-                "Pagar R$ 10,00"
-              )}
-            </button>
-          </form>
+            <MercadoPagoCardForm
+              processing={processing}
+              onToken={handleCard}
+              submitLabel={inTrial ? "Salvar cartão para o fim do teste" : "Pagar R$ 10,00"}
+            />
+          </div>
         )}
       </div>
     </div>

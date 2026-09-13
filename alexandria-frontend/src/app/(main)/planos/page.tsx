@@ -8,6 +8,9 @@ import {
   Clock,
   QrCode,
   CreditCard,
+  BadgeCheck,
+  CalendarClock,
+  Settings,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -20,7 +23,15 @@ const FEATURES = [
 ];
 
 export default function PlanosPage() {
-  const { user } = useAuth();
+  const { user, subscription } = useAuth();
+  const isTrialing = subscription?.status === "TRIALING";
+  const hasActivePlan = subscription?.status === "ACTIVE" || isTrialing;
+  const renewalDate = subscription?.currentPeriodEndsAt
+    ? new Date(subscription.currentPeriodEndsAt).toLocaleDateString("pt-BR")
+    : null;
+  const trialEndsAt = subscription?.trialEndsAt
+    ? new Date(subscription.trialEndsAt).toLocaleDateString("pt-BR")
+    : null;
 
   return (
     <div className="px-6 md:px-8 pt-8 md:pt-12 pb-8 flex flex-col items-center">
@@ -31,12 +42,27 @@ export default function PlanosPage() {
           Assinatura Alexandria
         </div>
         <h1 className="font-serif font-bold text-brown text-3xl md:text-4xl leading-tight">
-          Continue sua leitura sem interrupções
+          {hasActivePlan
+            ? isTrialing ? "Seu teste Alexandria Premium está ativo" : "Seu Alexandria Premium está ativo"
+            : "Continue sua leitura sem interrupções"}
         </h1>
         <p className="text-slate text-sm md:text-base mt-3">
-          Comece com <strong className="text-brown">15 dias grátis</strong>. Depois, apenas{" "}
-          <strong className="text-brown">R$ 10,00 por mês</strong> pelo acesso completo ao leitor,
-          sua biblioteca e o progresso de leitura.
+          {hasActivePlan ? (
+            <>
+              Você tem acesso completo ao leitor, à biblioteca e ao seu progresso de leitura.
+              {isTrialing && trialEndsAt ? (
+                <> Seu teste termina em <strong className="text-brown">{trialEndsAt}</strong>.</>
+              ) : renewalDate && (
+                <> Sua próxima renovação é em <strong className="text-brown">{renewalDate}</strong>.</>
+              )}
+            </>
+          ) : (
+            <>
+              Comece com <strong className="text-brown">15 dias grátis</strong>. Depois, apenas{" "}
+              <strong className="text-brown">R$ 10,00 por mês</strong> pelo acesso completo ao leitor,
+              sua biblioteca e o progresso de leitura.
+            </>
+          )}
         </p>
       </div>
 
@@ -54,10 +80,25 @@ export default function PlanosPage() {
                 <span className="text-brown-soft text-sm">/mês</span>
               </div>
             </div>
-            <div className="bg-terra/10 text-terra rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-wide">
-              15 dias grátis
-            </div>
+            {hasActivePlan ? (
+              <div className="bg-green-100 text-green-800 rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-wide flex items-center gap-1">
+                <BadgeCheck size={13} /> {isTrialing ? "Teste ativo" : "Plano ativo"}
+              </div>
+            ) : (
+              <div className="bg-terra/10 text-terra rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-wide">
+                15 dias grátis
+              </div>
+            )}
           </div>
+
+          {hasActivePlan && (
+            <div className="mb-6 flex items-center gap-2 rounded-xl border border-green-200 bg-green-50 px-3 py-2.5 text-sm text-green-900">
+              <CalendarClock size={17} className="shrink-0" />
+              {isTrialing
+                ? trialEndsAt ? `Teste gratuito até ${trialEndsAt}` : "Teste gratuito ativo"
+                : renewalDate ? `Renovação mensal em ${renewalDate}` : "Renovação mensal ativa"}
+            </div>
+          )}
 
           <ul className="flex flex-col gap-3 mb-8">
             {FEATURES.map(({ icon: Icon, label }) => (
@@ -70,7 +111,14 @@ export default function PlanosPage() {
             ))}
           </ul>
 
-          {user ? (
+          {hasActivePlan ? (
+            <Link
+              href="/configuracoes"
+              className="bg-brown text-cream text-center font-bold text-sm tracking-widest uppercase px-6 py-4 rounded-xl hover:bg-brown/90 transition-colors flex items-center justify-center gap-2"
+            >
+              <Settings size={16} /> Gerenciar assinatura
+            </Link>
+          ) : user ? (
             <Link
               href="/checkout"
               className="bg-brown text-cream text-center font-bold text-sm tracking-widest uppercase px-6 py-4 rounded-xl hover:bg-brown/90 transition-colors"
@@ -87,7 +135,11 @@ export default function PlanosPage() {
           )}
 
           <p className="text-center text-brown-soft/70 text-xs mt-4">
-            Sem cobrança durante o período de teste. Cancele quando quiser.
+            {hasActivePlan
+              ? isTrialing
+                ? "Seu cartão está salvo com segurança. A primeira cobrança acontece apenas após o teste."
+                : "Cancele quando quiser. Você mantém o acesso até o fim do período pago."
+              : "Sem cobrança durante o período de teste. Cancele quando quiser."}
           </p>
         </div>
 

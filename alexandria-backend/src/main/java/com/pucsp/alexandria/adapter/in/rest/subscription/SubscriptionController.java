@@ -2,10 +2,12 @@ package com.pucsp.alexandria.adapter.in.rest.subscription;
 
 import com.pucsp.alexandria.adapter.in.rest.subscription.dto.CheckoutRequest;
 import com.pucsp.alexandria.adapter.in.rest.subscription.dto.PaymentWebhookRequest;
+import com.pucsp.alexandria.adapter.in.rest.subscription.dto.PaymentMethodRequest;
 import com.pucsp.alexandria.application.subscription.CancelSubscriptionUseCase;
 import com.pucsp.alexandria.application.subscription.CheckoutUseCase;
 import com.pucsp.alexandria.application.subscription.GetSubscriptionUseCase;
 import com.pucsp.alexandria.application.subscription.ProcessPaymentWebhookUseCase;
+import com.pucsp.alexandria.application.subscription.UpdatePaymentMethodUseCase;
 import com.pucsp.alexandria.application.subscription.dto.CheckoutInput;
 import com.pucsp.alexandria.application.subscription.dto.CheckoutOutput;
 import com.pucsp.alexandria.application.subscription.dto.PaymentWebhookInput;
@@ -34,18 +36,21 @@ public class SubscriptionController {
   private final ProcessPaymentWebhookUseCase processPaymentWebhookUseCase;
   private final CancelSubscriptionUseCase cancelSubscriptionUseCase;
   private final SubscriptionProperties properties;
+  private final UpdatePaymentMethodUseCase updatePaymentMethodUseCase;
 
   public SubscriptionController(
       GetSubscriptionUseCase getSubscriptionUseCase,
       CheckoutUseCase checkoutUseCase,
       ProcessPaymentWebhookUseCase processPaymentWebhookUseCase,
       CancelSubscriptionUseCase cancelSubscriptionUseCase,
-      SubscriptionProperties properties) {
+      SubscriptionProperties properties,
+      UpdatePaymentMethodUseCase updatePaymentMethodUseCase) {
     this.getSubscriptionUseCase = getSubscriptionUseCase;
     this.checkoutUseCase = checkoutUseCase;
     this.processPaymentWebhookUseCase = processPaymentWebhookUseCase;
     this.cancelSubscriptionUseCase = cancelSubscriptionUseCase;
     this.properties = properties;
+    this.updatePaymentMethodUseCase = updatePaymentMethodUseCase;
   }
 
   @GetMapping("/me")
@@ -100,6 +105,17 @@ public class SubscriptionController {
   public ResponseEntity<Void> cancel(Authentication authentication) {
     AuthenticatedUser user = (AuthenticatedUser) authentication.getPrincipal();
     cancelSubscriptionUseCase.execute(user.id());
+    return ResponseEntity.noContent().build();
+  }
+
+  @PostMapping("/payment-method")
+  public ResponseEntity<Void> updatePaymentMethod(
+      Authentication authentication,
+      @RequestBody PaymentMethodRequest request,
+      HttpServletRequest httpRequest) {
+    AuthenticatedUser user = (AuthenticatedUser) authentication.getPrincipal();
+    updatePaymentMethodUseCase.execute(user.id(), request.cardToken(), request.cardBrand(),
+        extractBearerToken(httpRequest));
     return ResponseEntity.noContent().build();
   }
 
