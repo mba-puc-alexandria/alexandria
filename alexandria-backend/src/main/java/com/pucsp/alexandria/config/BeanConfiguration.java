@@ -200,8 +200,9 @@ public class BeanConfiguration {
   public CheckoutUseCase checkoutUseCase(
       SubscriptionRepository subscriptionRepository,
       PaymentApiClient paymentApiClient,
-      SubscriptionProperties properties) {
-    return new CheckoutUseCase(subscriptionRepository, paymentApiClient, properties);
+      SubscriptionProperties properties,
+      UserRepository userRepository) {
+    return new CheckoutUseCase(subscriptionRepository, paymentApiClient, properties, userRepository);
   }
 
   @Bean

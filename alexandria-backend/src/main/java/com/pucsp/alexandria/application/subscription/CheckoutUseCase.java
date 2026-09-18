@@ -11,6 +11,7 @@ import com.pucsp.alexandria.config.SubscriptionProperties;
 import com.pucsp.alexandria.domain.subscription.Subscription;
 import com.pucsp.alexandria.domain.subscription.SubscriptionRepository;
 import com.pucsp.alexandria.domain.subscription.exception.PaymentMethodNotAllowedException;
+import com.pucsp.alexandria.domain.user.UserRepository;
 import java.time.LocalDateTime;
 import java.util.Locale;
 
@@ -20,12 +21,14 @@ public class CheckoutUseCase {
   private final SubscriptionRepository subscriptionRepository;
   private final PaymentApiClient paymentApiClient;
   private final SubscriptionProperties properties;
+  private final UserRepository userRepository;
 
   public CheckoutUseCase(SubscriptionRepository subscriptionRepository, PaymentApiClient paymentApiClient,
-      SubscriptionProperties properties) {
+      SubscriptionProperties properties, UserRepository userRepository) {
     this.subscriptionRepository = subscriptionRepository;
     this.paymentApiClient = paymentApiClient;
     this.properties = properties;
+    this.userRepository = userRepository;
   }
 
   public CheckoutOutput execute(CheckoutInput input, String bearerToken) {
@@ -64,8 +67,11 @@ public class CheckoutUseCase {
 
   private CheckoutOutput checkoutPix(Subscription subscription, CheckoutInput input, String bearerToken) {
     PaymentApiResult result = paymentApiClient.createPayment(new PaymentApiCreateRequest(
-        buildReferenceId(subscription), properties.getPrice(), "PIX", input.payerEmail(),
-        input.payerDocumentType(), input.payerDocumentNumber(), null, null, null, null, null,
+        buildReferenceId(subscription), properties.getPrice(), "PIX", resolvePayerEmail(input),
+        // Tipo sem número (o front sempre manda "CPF") gera identificação inválida no MP.
+        blankToNull(input.payerDocumentNumber()) == null ? null : input.payerDocumentType(),
+        blankToNull(input.payerDocumentNumber()),
+        null, null, null, null, null,
         "Assinatura Alexandria Premium"), bearerToken);
     subscription.recordPendingPayment(result.mpPaymentId());
     subscriptionRepository.save(subscription);
@@ -106,5 +112,19 @@ public class CheckoutUseCase {
 
   private String normalizeMethod(String method) {
     return method == null ? "" : method.trim().toUpperCase(Locale.ROOT);
+  }
+
+  // O Mercado Pago rejeita PIX sem payer.email; o campo do checkout é opcional.
+  private String resolvePayerEmail(CheckoutInput input) {
+    if (input.payerEmail() != null && !input.payerEmail().isBlank()) {
+      return input.payerEmail();
+    }
+    return userRepository.findById(input.userId())
+        .map(user -> user.getEmail().getValue())
+        .orElse(null);
+  }
+
+  private static String blankToNull(String value) {
+    return value == null || value.isBlank() ? null : value;
   }
 }

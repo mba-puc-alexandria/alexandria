@@ -96,12 +96,12 @@ export default function MercadoPagoCardForm({ submitLabel, processing = false, o
   }, [formId, sdkReady]);
 
   if (!publicKey) {
-    return <p className="text-red-600 text-sm">A chave pública do Mercado Pago não está configurada.</p>;
+    return <p className="text-danger text-sm">A chave pública do Mercado Pago não está configurada.</p>;
   }
 
   return (
     <>
-      <Script src="https://sdk.mercadopago.com/js/v2" strategy="afterInteractive" onLoad={() => setSdkReady(true)} />
+      <Script src="https://sdk.mercadopago.com/js/v2" strategy="afterInteractive" onReady={() => setSdkReady(true)} />
       <form id={formId} className="flex flex-col gap-4">
         <div>
           <label htmlFor={`${formId}-number`} className="mb-1.5 block text-xs font-semibold text-brown-soft">
@@ -131,18 +131,33 @@ export default function MercadoPagoCardForm({ submitLabel, processing = false, o
             </span>
           ))}
         </div>
-        <input id={`${formId}-holder`} className="h-12 rounded-lg border border-cream-border bg-cream px-4 text-brown" />
-        <input id={`${formId}-email`} type="email" className="h-12 rounded-lg border border-cream-border bg-cream px-4 text-brown" />
+        <div>
+          <label htmlFor={`${formId}-holder`} className="mb-1.5 block text-xs font-semibold text-brown-soft">
+            Nome do titular
+          </label>
+          <input id={`${formId}-holder`} className="h-12 w-full rounded-lg border border-cream-border bg-cream px-4 text-brown" />
+        </div>
+        <div>
+          <label htmlFor={`${formId}-email`} className="mb-1.5 block text-xs font-semibold text-brown-soft">
+            E-mail
+          </label>
+          <input id={`${formId}-email`} type="email" className="h-12 w-full rounded-lg border border-cream-border bg-cream px-4 text-brown" />
+        </div>
         {/* O SDK preenche estes campos a partir do BIN; eles não são escolhas do comprador. */}
         <div className="sr-only" aria-hidden="true">
           <select id={`${formId}-issuer`} />
           <select id={`${formId}-installments`} />
         </div>
-        <div className="grid grid-cols-3 gap-3">
-          <select id={`${formId}-document-type`} className="bg-cream rounded-lg px-3 py-3 text-brown border border-cream-border" />
-          <input id={`${formId}-document-number`} className="col-span-2 bg-cream rounded-lg px-4 py-3 text-brown border border-cream-border" />
+        <div>
+          <label htmlFor={`${formId}-document-number`} className="mb-1.5 block text-xs font-semibold text-brown-soft">
+            Documento do titular
+          </label>
+          <div className="grid grid-cols-3 gap-3">
+            <select id={`${formId}-document-type`} aria-label="Tipo de documento" className="bg-cream rounded-lg px-3 py-3 text-brown border border-cream-border" />
+            <input id={`${formId}-document-number`} className="col-span-2 bg-cream rounded-lg px-4 py-3 text-brown border border-cream-border" />
+          </div>
         </div>
-        {error && <p className="text-red-600 text-sm">{error}</p>}
+        {error && <p className="text-danger text-sm">{error}</p>}
         <button type="submit" disabled={!mounted || processing} className="bg-brown text-cream font-bold text-sm tracking-widest uppercase px-6 py-4 rounded-xl disabled:opacity-50">
           {processing ? "Processando..." : mounted ? submitLabel : "Carregando formulário..."}
         </button>

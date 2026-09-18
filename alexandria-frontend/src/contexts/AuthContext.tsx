@@ -83,7 +83,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const raw = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
   const user = useMemo(() => readUser(raw), [raw]);
   const [subscription, setSubscription] = useState<Subscription | null>(null);
-  const [loadingSubscription, setLoadingSubscription] = useState(false);
+  // Inicia true: no primeiro frame ainda não sabemos se há assinatura, e quem
+  // consome isLoading não pode assumir "sem plano" antes da resposta chegar.
+  const [loadingSubscription, setLoadingSubscription] = useState(true);
 
   const router = useRouter();
 
@@ -91,6 +93,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const token = typeof window !== 'undefined' ? localStorage.getItem(AUTH_TOKEN_KEY) : null;
     if (!token) {
       setSubscription(null);
+      setLoadingSubscription(false);
       return;
     }
     setLoadingSubscription(true);

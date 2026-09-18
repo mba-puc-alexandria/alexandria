@@ -203,7 +203,7 @@ export default function ConfiguracoesPage() {
           </div>
 
           {cancelError && (
-            <p className="text-red-600 text-xs bg-red-50 rounded-lg px-3 py-2">{cancelError}</p>
+            <p className="text-danger text-xs bg-danger/10 rounded-lg px-3 py-2">{cancelError}</p>
           )}
 
           <div className="flex items-center justify-between gap-4 pt-1">
@@ -241,8 +241,8 @@ export default function ConfiguracoesPage() {
               <p className="text-slate text-xs mt-2 mb-4">
                 Seu novo cartão substitui o anterior. Nenhum dado de cartão é salvo no Alexandria.
               </p>
-              {cardError && <p className="text-red-600 text-xs mb-3">{cardError}</p>}
-              {cardMessage && <p className="text-green-700 text-xs mb-3">{cardMessage}</p>}
+              {cardError && <p className="text-danger text-xs mb-3">{cardError}</p>}
+              {cardMessage && <p className="text-success text-xs mb-3">{cardMessage}</p>}
               <MercadoPagoCardForm
                 processing={changingCard}
                 onToken={handleCardChange}
@@ -304,8 +304,8 @@ export default function ConfiguracoesPage() {
                 />
               </label>
 
-              {profileError && <p className="text-red-600 text-sm">{profileError}</p>}
-              {profileSuccess && <p className="text-green-700 text-sm">Perfil atualizado com sucesso.</p>}
+              {profileError && <p className="text-danger text-sm">{profileError}</p>}
+              {profileSuccess && <p className="text-success text-sm">Perfil atualizado com sucesso.</p>}
 
               <button
                 type="submit"
@@ -361,8 +361,8 @@ export default function ConfiguracoesPage() {
 
             <p className="text-slate/60 text-xs">A senha deve ter no mínimo 8 caracteres.</p>
 
-            {passwordError && <p className="text-red-600 text-sm">{passwordError}</p>}
-            {passwordSuccess && <p className="text-green-700 text-sm">Senha atualizada com sucesso.</p>}
+            {passwordError && <p className="text-danger text-sm">{passwordError}</p>}
+            {passwordSuccess && <p className="text-success text-sm">Senha atualizada com sucesso.</p>}
 
             <button
               type="submit"

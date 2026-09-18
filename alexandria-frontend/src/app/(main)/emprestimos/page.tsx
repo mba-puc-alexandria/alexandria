@@ -40,7 +40,7 @@ const loans = [
 const statusStyle: Record<LoanStatus, { badge: string; text: string; label: string }> = {
   overdue: { badge: "bg-[#ffdad6] text-[#93000a]", text: "text-[#93000a]", label: "ATRASADO" },
   active: { badge: "bg-cream-dark text-slate", text: "text-brown", label: "NO PRAZO" },
-  returned: { badge: "bg-green-50 text-green-700", text: "text-brown", label: "DEVOLVIDO" },
+  returned: { badge: "bg-success/10 text-success", text: "text-brown", label: "DEVOLVIDO" },
 };
 
 export default function EmprestimosPage() {
