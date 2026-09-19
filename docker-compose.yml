@@ -1,4 +1,47 @@
 services:
+  postgres-payment:
+    image: postgres:16-alpine
+    container_name: payment-api-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: paymentdb
+      POSTGRES_USER: paymentapi
+      POSTGRES_PASSWORD: paymentapi123
+    ports:
+      - "5434:5432"
+    volumes:
+      - postgres_payment_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U paymentapi -d paymentdb"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  payment-api:
+    build:
+      context: ../deliveryAPI/payment-api
+      dockerfile: Dockerfile
+    container_name: payment-api
+    restart: unless-stopped
+    ports:
+      - "8082:8082"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-payment:5432/paymentdb
+      SPRING_DATASOURCE_USERNAME: paymentapi
+      SPRING_DATASOURCE_PASSWORD: paymentapi123
+      JWT_SECRET: ${JWT_SECRET:-dev-secret-key-not-for-production-min-256bits}
+      PAYMENT_KAFKA_ENABLED: "false"
+      PAYMENT_CALLBACK_URL: http://backend:8080/subscriptions/payment-webhook
+      SUBSCRIPTION_CALLBACK_SECRET: ${SUBSCRIPTION_CALLBACK_SECRET:-dev-callback-secret}
+      MERCADOPAGO_ACCESS_TOKEN: ${MERCADOPAGO_ACCESS_TOKEN:-}
+      MERCADOPAGO_PUBLIC_KEY: ${NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY:-}
+      MERCADOPAGO_WEBHOOK_SECRET: ${MERCADOPAGO_WEBHOOK_SECRET:-}
+      MERCADOPAGO_ENVIRONMENT: ${MERCADOPAGO_ENVIRONMENT:-sandbox}
+    depends_on:
+      postgres-payment:
+        condition: service_healthy
+
   mysql:
     image: mysql:8.0.32
     container_name: alexandria-db
@@ -33,15 +76,13 @@ services:
       CORS_ALLOWED_ORIGINS: http://localhost:3000
       # Mesma chave JWT do payment-api (para validar o token repassado no checkout).
       JWT_SECRET: dev-secret-key-not-for-production-min-256bits
-      # Integração com o payment-api (rodando à parte). host.docker.internal
-      # aponta para o host quando o backend roda dentro do container.
-      PAYMENT_API_URL: http://host.docker.internal:8082
-      SUBSCRIPTION_CALLBACK_SECRET: dev-callback-secret
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+      PAYMENT_API_URL: http://payment-api:8082
+      SUBSCRIPTION_CALLBACK_SECRET: ${SUBSCRIPTION_CALLBACK_SECRET:-dev-callback-secret}
     depends_on:
       mysql:
         condition: service_healthy
+      payment-api:
+        condition: service_started
 
   frontend:
     build:
@@ -62,3 +103,4 @@ services:
 
 volumes:
   mysql_data:
+  postgres_payment_data:
