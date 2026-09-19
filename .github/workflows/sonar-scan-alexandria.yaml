@@ -36,7 +36,10 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-     
+        run: >
+          mvn -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar
+          -Dsonar.projectKey=mba-puc-alexandria_alexandria
+          -Dsonar.organization=mba-puc-alexandria
 
   frontend:
     name: SonarCloud - Frontend
@@ -52,7 +55,7 @@ jobs:
       - name: Set up Node
         uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
-          node-version: '20'
+          node-version: '24'
           cache: npm
           cache-dependency-path: alexandria-frontend/package-lock.json
 
@@ -62,13 +65,10 @@ jobs:
 
       - name: Run tests
         working-directory: ./alexandria-frontend
-        run: npm test
+        run: npm test -- --coverage
 
       - name: SonarCloud Scan (frontend)
         uses: SonarSource/sonarqube-scan-action@fd88b7d7ccbaefd23d8f36f73b59db7a3d246602 # v6
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         with:
           projectBaseDir: alexandria-frontend
         env:
