@@ -21,6 +21,6 @@ variable "common_tags" {
     Project     = "mba-puc-alexandria"
     Environment = "production"
     ManagedBy   = "terraform"
-    Owner       = "tamiris"
+ 
   }
 }
