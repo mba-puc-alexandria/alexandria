@@ -55,17 +55,16 @@ jobs:
         uses: actions/checkout@v4
  
       # No compose o contexto era ../deliveryAPI/payment-api (outro repo, ao lado).
-      # Aqui ele é clonado dentro do workspace, em ./deliveryAPI
-      - name: Checkout deliveryAPI
+      # No GitHub Actions, o próprio repositório é clonado em ./payment-api.
+      - name: Checkout payment-api
         uses: actions/checkout@v4
         with:
-          repository: SEU_USUARIO/deliveryAPI # <- ajuste
-          path: deliveryAPI
-          token: ${{ secrets.DELIVERY_API_TOKEN || github.token }} # PAT se o repo for privado
+          repository: GohanFood/payment-api
+          path: payment-api
  
       - name: Build das imagens
         run: |
-          docker build -t payment-api ./deliveryAPI/payment-api
+          docker build -t payment-api ./payment-api
           docker build -t alexandria-backend ./alexandria-backend
           docker build -t alexandria-frontend \
             --build-arg NEXT_PUBLIC_API_URL=http://localhost:8080 \
@@ -135,4 +134,3 @@ jobs:
             docker logs "$c" 2>&1 | tail -n 200 || true
             echo "::endgroup::"
           done
- 
