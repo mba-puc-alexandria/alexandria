@@ -36,7 +36,11 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-     
+        run: >
+          mvn -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar
+          -Dsonar.projectKey=mba-puc-alexandria_alexandria-backend
+          -Dsonar.organization=mba-puc-alexandria
+          -Dsonar.exclusions=**/target/**,**/*.java.orig
 
   frontend:
     name: SonarCloud - Frontend
@@ -71,6 +75,10 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         with:
           projectBaseDir: alexandria-frontend
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          args: >
+            -Dsonar.host.url=https://sonarcloud.io
+            -Dsonar.projectKey=mba-puc-alexandria_alexandria
+            -Dsonar.organization=mba-puc-alexandria
+            -Dsonar.sources=src
+            -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
+            -Dsonar.exclusions=**/target/**,**/*.java.orig
