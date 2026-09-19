@@ -45,7 +45,7 @@ export default function Header() {
 
       {/* Switcher de tema */}
       <div className="flex items-center gap-1 p-1 bg-cream-dark rounded-xl border border-cream-border">
-        <button
+        <button type="button"
           onClick={() => switchTheme("light")}
           title="Modo claro"
           className={`p-2 rounded-lg transition-colors ${
@@ -56,7 +56,7 @@ export default function Header() {
         >
           <Sun size={16} />
         </button>
-        <button
+        <button type="button"
           onClick={() => switchTheme("dark")}
           title="Modo escuro"
           className={`p-2 rounded-lg transition-colors ${
@@ -73,7 +73,7 @@ export default function Header() {
       {user ? (
         <div className="flex items-center gap-3">
           <span className="text-brown-soft text-sm font-medium">{user.username}</span>
-          <button
+          <button type="button"
             onClick={logout}
             title="Sair"
             className="p-2 rounded-lg text-slate hover:bg-cream-active transition-colors"
@@ -82,7 +82,7 @@ export default function Header() {
           </button>
         </div>
       ) : (
-        <button
+        <button type="button"
           onClick={openLoginModal}
           className="text-sm font-semibold text-brown hover:text-terra transition-colors"
         >

@@ -16,6 +16,10 @@ const LANGUAGES = [
   { code: "it", label: "Italiano" },
 ];
 
+function handleSearch(e: React.FormEvent) {
+  e.preventDefault();
+}
+
 export default function ExplorarPage() {
   const [books, setBooks] = useState<BookApiResponse[]>([]);
   const [loading, setLoading] = useState(true);
@@ -82,10 +86,6 @@ export default function ExplorarPage() {
     return () => clearTimeout(timer);
   }, [query]);
 
-  function handleSearch(e: React.FormEvent) {
-    e.preventDefault();
-  }
-
   return (
     <div className="flex flex-col items-center px-4 pt-4 md:pt-10 pb-16 gap-6 min-h-screen">
       {/* Logo + frase — oculto no mobile pois o MobileHeader já tem o branding */}
@@ -120,7 +120,7 @@ export default function ExplorarPage() {
       {!searching && (
         <div className="w-full max-w-5xl flex flex-wrap items-center gap-2">
           {LANGUAGES.map((lang) => (
-            <button
+            <button type="button"
               key={lang.code}
               onClick={() => handleLanguageSelect(lang.code)}
               className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${
@@ -133,7 +133,7 @@ export default function ExplorarPage() {
             </button>
           ))}
           {language && (
-            <button
+            <button type="button"
               onClick={() => setLanguage(undefined)}
               className="px-3 py-1.5 rounded-lg text-xs font-semibold text-terra underline"
             >
@@ -173,7 +173,7 @@ export default function ExplorarPage() {
         {/* Carregar mais */}
         {!searching && page < totalPages - 1 && (
           <div className="flex justify-center mt-8">
-            <button
+            <button type="button"
               onClick={() => {
                 setLoadingMore(true);
                 setTimeout(() => setPage((p) => p + 1), 2000);
@@ -199,7 +199,7 @@ export default function ExplorarPage() {
   );
 }
 
-function CoverCard({ book }: { book: BookApiResponse }) {
+function CoverCard({ book }: Readonly<{ book: BookApiResponse }>) {
   const [state, setState] = useState<"idle" | "loading" | "added">("idle");
   const { user } = useAuth();
   const { openLoginModal } = useAuthModal();

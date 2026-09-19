@@ -20,7 +20,7 @@ export default function PaywallModal({ open, onClose }: PaywallModalProps) {
         className="modal-card bg-cream rounded-2xl max-w-md w-full p-8 shadow-2xl relative"
         onClick={(e) => e.stopPropagation()}
       >
-        <button
+        <button type="button"
           onClick={onClose}
           className="absolute top-4 right-4 p-2 rounded-lg text-brown-soft hover:bg-cream-active transition-colors"
           aria-label="Fechar"

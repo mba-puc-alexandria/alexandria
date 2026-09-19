@@ -79,7 +79,7 @@ function writeUser(authUser: AuthUser | null) {
   emitChange();
 }
 
-export function AuthProvider({ children }: { children: ReactNode }) {
+export function AuthProvider({ children }: Readonly<{ children: ReactNode }>) {
   const raw = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
   const user = useMemo(() => readUser(raw), [raw]);
   const [subscription, setSubscription] = useState<Subscription | null>(null);

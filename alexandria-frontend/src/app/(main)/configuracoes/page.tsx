@@ -223,7 +223,7 @@ export default function ConfiguracoesPage() {
                   Ver planos
                 </Link>
                 {(status === "TRIALING" || status === "ACTIVE") && (
-                  <button
+                  <button type="button"
                     onClick={handleCancelSubscription}
                     disabled={canceling}
                     className="text-brown-soft text-sm font-medium hover:text-terra transition-colors disabled:opacity-50"

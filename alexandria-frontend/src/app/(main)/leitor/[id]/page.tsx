@@ -30,9 +30,9 @@ type DisplayMode = "percent" | "minutes" | "pages";
 
 export default function LeitorPage({
   params,
-}: {
+}: Readonly<{
   params: Promise<{ id: string }>;
-}) {
+}>) {
   const { id } = use(params);
   const router = useRouter();
   const [book, setBook] = useState<BookApiResponse | null>(null);
@@ -176,7 +176,7 @@ export default function LeitorPage({
 
     if (displayMode === "minutes" && minutesLeft !== null) {
       return (
-        <button
+        <button type="button"
           onClick={cycleDisplayMode}
           className="text-terra text-xs font-bold shrink-0 hover:opacity-70 transition-opacity"
         >
@@ -187,7 +187,7 @@ export default function LeitorPage({
 
     if (displayMode === "pages" && pagesLeft !== null) {
       return (
-        <button
+        <button type="button"
           onClick={cycleDisplayMode}
           className="text-terra text-xs font-bold shrink-0 hover:opacity-70 transition-opacity"
         >
@@ -197,7 +197,7 @@ export default function LeitorPage({
     }
 
     return (
-      <button
+      <button type="button"
         onClick={cycleDisplayMode}
         className="text-terra text-xs font-bold shrink-0 hover:opacity-70 transition-opacity"
       >
@@ -251,7 +251,7 @@ export default function LeitorPage({
   return (
     <div className="flex flex-col h-full">
       <div className="flex items-center gap-4 px-6 py-3 border-b border-cream-border bg-cream shrink-0">
-        <button
+        <button type="button"
           onClick={() => router.back()}
           className="flex items-center gap-2 text-brown-soft text-sm font-bold hover:text-brown transition-colors"
         >

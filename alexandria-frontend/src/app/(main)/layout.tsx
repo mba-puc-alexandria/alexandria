@@ -7,7 +7,7 @@ import LoginModal from "@/components/LoginModal";
 import AuthModalTrigger from "@/components/AuthModalTrigger";
 import { AuthModalProvider } from "@/contexts/AuthModalContext";
 
-export default function MainLayout({ children }: { children: React.ReactNode }) {
+export default function MainLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <AuthModalProvider>
       <div className="flex h-full min-h-screen bg-cream">

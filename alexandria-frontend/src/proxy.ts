@@ -9,7 +9,7 @@ export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   const isPrivate = PRIVATE_PATHS.some((p) => pathname === p || pathname.startsWith(p + '/'));
-  const isAuth = AUTH_PATHS.some((p) => pathname === p);
+  const isAuth = AUTH_PATHS.includes(pathname);
 
   if (isPrivate && !token) {
     return NextResponse.redirect(new URL('/explorar?auth=1', request.url));

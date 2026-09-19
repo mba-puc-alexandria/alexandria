@@ -11,9 +11,9 @@ import PaywallModal from "@/components/PaywallModal";
 
 export default function BookDetailPage({
   params,
-}: {
+}: Readonly<{
   params: Promise<{ id: string }>;
-}) {
+}>) {
   const { id } = use(params);
   const router = useRouter();
   const [book, setBook] = useState<BookApiResponse | null>(null);

@@ -114,7 +114,7 @@ export default function EmprestimosPage() {
       </section>
 
       {/* FAB */}
-      <button className="fixed bottom-20 md:bottom-8 right-6 bg-brown text-cream size-14 rounded-xl flex items-center justify-center shadow-xl hover:bg-brown/90 transition-colors">
+      <button type="button" className="fixed bottom-20 md:bottom-8 right-6 bg-brown text-cream size-14 rounded-xl flex items-center justify-center shadow-xl hover:bg-brown/90 transition-colors">
         <Plus size={14} />
       </button>
     </div>

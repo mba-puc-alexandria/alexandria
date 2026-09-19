@@ -161,7 +161,7 @@ export default function CheckoutPage() {
                 <code className="flex-1 bg-cream rounded-lg px-3 py-2 text-xs text-brown break-all">
                   {pixCode}
                 </code>
-                <button
+                <button type="button"
                   onClick={copyPix}
                   aria-label="Copiar código PIX"
                   className="p-2 rounded-lg bg-cream border border-cream-border text-brown-soft hover:text-brown"
@@ -300,7 +300,7 @@ export default function CheckoutPage() {
                   { id: "pix", icon: QrCode, label: "PIX", hint: "Pague no app do banco" },
                   { id: "card", icon: CreditCard, label: "Cartão", hint: "Renova automaticamente" },
                 ] as const).map(({ id, icon: MethodIcon, label, hint }) => (
-                  <button
+                  <button type="button"
                     key={id}
                     onClick={() => setMethod(id)}
                     aria-pressed={method === id}
@@ -349,7 +349,7 @@ export default function CheckoutPage() {
                   />
                 </label>
 
-                <button
+                <button type="button"
                   onClick={handlePix}
                   disabled={processing}
                   className="mt-2 bg-brown text-cream font-bold text-sm tracking-widest uppercase px-6 py-4 rounded-xl hover:bg-brown/90 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
