@@ -25,7 +25,7 @@ function getBadgeLabel(status: string, progress: number | null): string | null {
   return null;
 }
 
-function BookCover({ ub, onRemove }: { ub: UserBookResponse; onRemove: (ub: UserBookResponse) => void }) {
+function BookCover({ ub, onRemove }: Readonly<{ ub: UserBookResponse; onRemove: (ub: UserBookResponse) => void }>) {
   const badgeStyle = STATUS_BADGE[ub.status];
   const badgeLabel = getBadgeLabel(ub.status, ub.progress);
   const badge = badgeStyle && badgeLabel ? { label: badgeLabel, className: badgeStyle.className } : null;
@@ -192,7 +192,7 @@ export default function BibliotecaPage() {
 
       <div className="flex gap-2 overflow-x-auto pb-1 -mx-6 px-6 md:mx-0 md:px-0 md:flex-wrap">
         {filters.map((f, i) => (
-          <button
+          <button type="button"
             key={f}
             onClick={() => setActiveFilter(i)}
             className={`shrink-0 px-5 py-2.5 rounded-xl text-sm font-medium transition-colors ${

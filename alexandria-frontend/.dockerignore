@@ -7,3 +7,7 @@ node_modules
 README.md
 Dockerfile
 .dockerignore
+e2e
+playwright.config.ts
+playwright-report
+test-results

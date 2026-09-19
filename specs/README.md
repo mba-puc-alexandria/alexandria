@@ -6,7 +6,7 @@ Diretório de especificações seguindo o estilo [Spec Kit](https://github.com/g
 
 | Número | Título | Status |
 |---|---|---|
-| 001 | [SaaS: assinatura e cobrança (PIX/Cartão via Mercado Pago)](./001-saas-pagamentos/spec.md) | Planejado |
+| 001 | [SaaS: assinatura e cobrança (PIX/Cartão via Mercado Pago)](./001-saas-pagamentos/spec.md) | Em andamento |
 
 ## Estrutura
 
@@ -19,11 +19,15 @@ Cada especificação possui:
 
 ## Infraestrutura
 
-A pasta `infra/` (a ser criada) conterá o Terraform que provisiona os serviços
+A pasta `infra/terraform/` (a ser criada) conterá o Terraform que provisiona os serviços
 no AWS ECS:
 
 - `alexandria` (backend + frontend) com Aurora MySQL
 - `payment-api` com RDS PostgreSQL
+
+> Nota: a pasta `iac/` atual é um template de outro projeto ("linuxtips-sorteador")
+> e será substituída por `infra/terraform`. O `payment-api` vive em repositório separado
+> (Gohan Food) e é adaptado à parte.
 
 Veja a seção 4 do `plan.md` da especificação 001 para a estrutura detalhada.
 

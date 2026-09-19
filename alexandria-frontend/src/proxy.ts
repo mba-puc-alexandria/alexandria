@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-const PRIVATE_PATHS = ['/biblioteca', '/dashboard', '/configuracoes'];
+const PRIVATE_PATHS = ['/biblioteca', '/dashboard', '/configuracoes', '/leitor', '/checkout'];
 const AUTH_PATHS = ['/login', '/registrar'];
 
 export function proxy(request: NextRequest) {
@@ -9,7 +9,7 @@ export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   const isPrivate = PRIVATE_PATHS.some((p) => pathname === p || pathname.startsWith(p + '/'));
-  const isAuth = AUTH_PATHS.some((p) => pathname === p);
+  const isAuth = AUTH_PATHS.includes(pathname);
 
   if (isPrivate && !token) {
     return NextResponse.redirect(new URL('/explorar?auth=1', request.url));

@@ -7,19 +7,12 @@ interface UseEpubResult {
   error: Error | null;
 }
 
-export function useEpub(bookId: string, downloadUrl: string | null): UseEpubResult {
+export function useEpub(bookId: string): UseEpubResult {
   const [epubData, setEpubData] = useState<ArrayBuffer | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
-    if (!downloadUrl) {
-      setLoading(false);
-      return;
-    }
-
-    setLoading(true);
-
     let cancelled = false;
 
     async function load() {
@@ -34,8 +27,13 @@ export function useEpub(bookId: string, downloadUrl: string | null): UseEpubResu
           return;
         }
 
-        const res = await fetch(`/api/epub?url=${encodeURIComponent(downloadUrl!)}`);
-        if (!res.ok) throw new Error(`Falha ao baixar EPUB: ${res.status}`);
+        const res = await fetch(`/api/epub?bookId=${encodeURIComponent(bookId)}`);
+        if (res.status === 402) {
+          throw new Error("subscription_required");
+        }
+        if (!res.ok) {
+          throw new Error(`Falha ao baixar EPUB: ${res.status}`);
+        }
 
         const data = await res.arrayBuffer();
         if (cancelled) return;
@@ -52,7 +50,7 @@ export function useEpub(bookId: string, downloadUrl: string | null): UseEpubResu
     load();
 
     return () => { cancelled = true; };
-  }, [bookId, downloadUrl]);
+  }, [bookId]);
 
   useEffect(() => {
     if (!epubData) return;

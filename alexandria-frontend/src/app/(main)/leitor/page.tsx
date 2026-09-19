@@ -18,14 +18,14 @@ export default function LeitorPage() {
           <p className="text-slate text-xs">{book.author}</p>
         </div>
         <div className="flex items-center gap-2">
-          <button className="p-2 rounded-lg text-slate hover:bg-cream-active transition-colors">
+          <button type="button" className="p-2 rounded-lg text-slate hover:bg-cream-active transition-colors">
             <ZoomOut size={16} />
           </button>
           <span className="text-slate text-sm px-2">100%</span>
-          <button className="p-2 rounded-lg text-slate hover:bg-cream-active transition-colors">
+          <button type="button" className="p-2 rounded-lg text-slate hover:bg-cream-active transition-colors">
             <ZoomIn size={16} />
           </button>
-          <button className="p-2 rounded-lg text-terra hover:bg-terra/10 transition-colors">
+          <button type="button" className="p-2 rounded-lg text-terra hover:bg-terra/10 transition-colors">
             <Bookmark size={16} />
           </button>
         </div>
@@ -57,12 +57,12 @@ export default function LeitorPage() {
 
       {/* Navigation */}
       <div className="flex items-center justify-between px-8 py-4 bg-cream-dark border-t border-cream-border shrink-0">
-        <button className="flex items-center gap-2 text-slate text-sm hover:text-brown transition-colors">
+        <button type="button" className="flex items-center gap-2 text-slate text-sm hover:text-brown transition-colors">
           <ChevronLeft size={16} />
           Página anterior
         </button>
         <p className="text-slate text-sm">Página 1 de {book.pages}</p>
-        <button className="flex items-center gap-2 text-slate text-sm hover:text-brown transition-colors">
+        <button type="button" className="flex items-center gap-2 text-slate text-sm hover:text-brown transition-colors">
           Próxima página
           <ChevronRight size={16} />
         </button>

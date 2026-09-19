@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: alexandria-frontend
+  namespace: alexandria
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: alexandria-frontend
+  template:
+    metadata:
+      labels:
+        app: alexandria-frontend
+    spec:
+      containers:
+        - name: alexandria-frontend
+          # O pipeline substitui esta imagem local por uma tag SHA.
+          image: docker.io/library/alexandria-frontend:demo
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 3000
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              memory: 512Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: alexandria-frontend
+  namespace: alexandria
+spec:
+  ports:
+    - port: 3000
+      targetPort: 3000
+  selector:
+    app: alexandria-frontend

@@ -50,7 +50,7 @@ export default function MobileHeader() {
       <div className="flex items-center justify-between px-4 py-3">
         {/* Switcher de tema */}
         <div className="flex items-center gap-0.5 p-1 bg-cream-dark rounded-xl border border-cream-border">
-          <button
+          <button type="button"
             onClick={() => switchTheme("light")}
             title="Modo claro"
             className={`p-1.5 rounded-lg transition-colors ${
@@ -62,7 +62,7 @@ export default function MobileHeader() {
             <Sun size={14} />
           </button>
 
-          <button
+          <button type="button"
             onClick={() => switchTheme("dark")}
             title="Modo escuro"
             className={`p-1.5 rounded-lg transition-colors ${
@@ -78,7 +78,7 @@ export default function MobileHeader() {
         {/* Direita: Entrar + hambúrguer */}
         <div className="flex items-center gap-3">
           {!user && (
-            <button
+            <button type="button"
               onClick={openLoginModal}
               className="text-sm font-semibold text-brown hover:text-terra transition-colors"
             >
@@ -88,7 +88,7 @@ export default function MobileHeader() {
 
           {/* Hambúrguer */}
           <div className="relative" ref={menuRef}>
-            <button
+            <button type="button"
               onClick={() => setMenuOpen((v) => !v)}
               className="p-1.5 rounded-lg text-slate hover:bg-cream-active transition-colors"
             >

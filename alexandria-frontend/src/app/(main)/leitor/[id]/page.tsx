@@ -5,8 +5,10 @@ import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
+import type { Location, Rendition } from "epubjs";
 import { getBookById, getUserBooks, updateUserBook, getAuthorDisplay, type BookApiResponse } from "@/lib/api";
 import { useEpub } from "@/hooks/useEpub";
+import PaywallModal from "@/components/PaywallModal";
 
 const ReactReader = dynamic(
   () => import("react-reader").then((m) => m.ReactReader),
@@ -28,9 +30,9 @@ type DisplayMode = "percent" | "minutes" | "pages";
 
 export default function LeitorPage({
   params,
-}: {
+}: Readonly<{
   params: Promise<{ id: string }>;
-}) {
+}>) {
   const { id } = use(params);
   const router = useRouter();
   const [book, setBook] = useState<BookApiResponse | null>(null);
@@ -42,6 +44,7 @@ export default function LeitorPage({
   const [minutesLeft, setMinutesLeft] = useState<number | null>(null);
   const [pagesLeft, setPagesLeft] = useState<number | null>(null);
   const [displayMode, setDisplayMode] = useState<DisplayMode>("percent");
+  const [hasUserBook, setHasUserBook] = useState(false);
 
   const userBookIdRef = useRef<number | null>(null);
   const lastSavedProgressRef = useRef<number>(0);
@@ -51,7 +54,7 @@ export default function LeitorPage({
   const sessionStartTimeRef = useRef<number | null>(null);
   const sessionStartProgressRef = useRef<number | null>(null);
 
-  const { epubData, loading: epubLoading, error: epubError } = useEpub(id, book?.downloadUrl ?? null);
+  const { epubData, loading: epubLoading, error: epubError } = useEpub(id);
 
   useEffect(() => {
     async function init() {
@@ -66,6 +69,7 @@ export default function LeitorPage({
       const userBook = userBooks.find((ub) => ub.book.id === Number(id));
       if (userBook) {
         userBookIdRef.current = userBook.id;
+        setHasUserBook(true);
         const savedProgress = userBook.progress ?? 0;
         lastSavedProgressRef.current = savedProgress;
         currentProgressRef.current = savedProgress;
@@ -102,28 +106,29 @@ export default function LeitorPage({
     [id]
   );
 
-  function persistProgress(percent: number) {
+  const persistProgress = useCallback((percent: number) => {
     lastSavedProgressRef.current = percent;
     localStorage.setItem(`epub-progress-${id}`, String(percent));
     updateUserBook(userBookIdRef.current!, {
       status: "reading",
       progress: percent,
     }).catch(() => {});
-  }
+  }, [id]);
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const handleRendition = useCallback((rendition: any) => {
+  const handleRendition = useCallback((rendition: Rendition) => {
 
     rendition.book.ready.then(() => {
       rendition.book.locations.generate(1600).then(() => {
         totalLocationsRef.current = rendition.book.locations.length();
 
-        rendition.on("relocated", (loc: any) => {
+        rendition.on("relocated", (loc: Location) => {
           const percent = Math.round(
             rendition.book.locations.percentageFromCfi(loc.start.cfi) * 100
           );
 
-          const currentLocation = rendition.book.locations.locationFromCfi(loc.start.cfi);
+          // A implementação do epub.js retorna o índice numérico; a declaração
+          // de tipos da versão usada pelo pacote o expõe incorretamente como Location.
+          const currentLocation = rendition.book.locations.locationFromCfi(loc.start.cfi) as unknown as number;
           const total = totalLocationsRef.current;
           const remaining = Math.max(total - currentLocation, 0);
           setPagesLeft(remaining);
@@ -156,7 +161,7 @@ export default function LeitorPage({
         });
       });
     });
-  }, []);
+  }, [id, persistProgress]);
 
   function cycleDisplayMode() {
     setDisplayMode((prev) => {
@@ -167,11 +172,11 @@ export default function LeitorPage({
   }
 
   function renderReadingInfo() {
-    if (!userBookIdRef.current) return null;
+    if (!hasUserBook) return null;
 
     if (displayMode === "minutes" && minutesLeft !== null) {
       return (
-        <button
+        <button type="button"
           onClick={cycleDisplayMode}
           className="text-terra text-xs font-bold shrink-0 hover:opacity-70 transition-opacity"
         >
@@ -182,7 +187,7 @@ export default function LeitorPage({
 
     if (displayMode === "pages" && pagesLeft !== null) {
       return (
-        <button
+        <button type="button"
           onClick={cycleDisplayMode}
           className="text-terra text-xs font-bold shrink-0 hover:opacity-70 transition-opacity"
         >
@@ -192,7 +197,7 @@ export default function LeitorPage({
     }
 
     return (
-      <button
+      <button type="button"
         onClick={cycleDisplayMode}
         className="text-terra text-xs font-bold shrink-0 hover:opacity-70 transition-opacity"
       >
@@ -210,6 +215,9 @@ export default function LeitorPage({
   }
 
   if (epubError) {
+    if (epubError.message === "subscription_required") {
+      return <PaywallModal open onClose={() => router.push(`/explorar/${id}`)} />;
+    }
     return (
       <div className="flex flex-col items-center justify-center h-full gap-4">
         <p className="text-brown font-serif text-xl">Erro ao carregar o livro.</p>
@@ -243,7 +251,7 @@ export default function LeitorPage({
   return (
     <div className="flex flex-col h-full">
       <div className="flex items-center gap-4 px-6 py-3 border-b border-cream-border bg-cream shrink-0">
-        <button
+        <button type="button"
           onClick={() => router.back()}
           className="flex items-center gap-2 text-brown-soft text-sm font-bold hover:text-brown transition-colors"
         >
@@ -255,7 +263,7 @@ export default function LeitorPage({
         {renderReadingInfo()}
       </div>
 
-      {userBookIdRef.current && (
+      {hasUserBook && (
         <div className="h-0.5 bg-cream-border shrink-0">
           <div
             className="h-full bg-terra transition-all duration-500"

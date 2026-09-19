@@ -10,6 +10,7 @@ import {
   HelpCircle,
   BookMarked,
   LogOut,
+  Sparkles,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -27,6 +28,7 @@ const privateBottomLinks = [
 ];
 
 const bottomLinks = [
+  { href: "/planos", label: "Planos", icon: Sparkles },
   { href: "/suporte", label: "Suporte", icon: HelpCircle },
 ];
 
@@ -87,7 +89,7 @@ export default function Sidebar() {
             <p className="px-4 text-[11px] text-slate/50 uppercase tracking-widest font-bold mb-2">
               {user.username}
             </p>
-            <button
+            <button type="button"
               onClick={logout}
               className="flex items-center gap-3 px-4 py-2 w-full text-terra text-sm font-medium hover:bg-terra/10 rounded transition-colors"
             >

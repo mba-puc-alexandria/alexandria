@@ -4,12 +4,10 @@
 FROM maven:3.9-eclipse-temurin-17 AS build
 WORKDIR /app
 
-# Copia primeiro só o pom.xml para aproveitar cache de dependências
-# (só refaz o download se o pom.xml mudar, não a cada mudança no código)
+# Copia o projeto e baixa somente as dependências necessárias ao empacotamento.
+# `dependency:go-offline` tenta resolver dependências opcionais de plugins e
+# torna a primeira build desnecessariamente lenta.
 COPY pom.xml .
-RUN mvn -B dependency:go-offline
-
-# Agora copia o código-fonte e builda
 COPY src ./src
 RUN mvn -B clean package -DskipTests
 
@@ -19,7 +17,10 @@ FROM eclipse-temurin:17-jre-alpine
 WORKDIR /app
 
 # Usuário não-root por segurança
-RUN addgroup -S spring && adduser -S spring -G spring
+RUN addgroup -S spring \
+    && adduser -S spring -G spring \
+    && mkdir /app/logs \
+    && chown -R spring:spring /app
 USER spring:spring
 
 # Copia apenas o JAR gerado no estágio anterior

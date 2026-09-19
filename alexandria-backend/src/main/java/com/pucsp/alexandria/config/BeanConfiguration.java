@@ -6,13 +6,23 @@ import com.pucsp.alexandria.application.auth.RegisterUserUseCase;
 import com.pucsp.alexandria.application.book.CreateBookUseCase;
 import com.pucsp.alexandria.application.book.DeleteBookUseCase;
 import com.pucsp.alexandria.application.book.SyncAllGutendexBooksUseCase;
+import com.pucsp.alexandria.application.book.GetBookEpubUseCase;
 import com.pucsp.alexandria.application.book.GetBookUseCase;
 import com.pucsp.alexandria.application.book.ListBooksUseCase;
+import com.pucsp.alexandria.adapter.out.payment.PaymentApiClient;
 import com.pucsp.alexandria.application.book.SearchBookByTitleUseCase;
 import com.pucsp.alexandria.application.book.UpdateBookUseCase;
 import com.pucsp.alexandria.application.profile.GetProfileUseCase;
 import com.pucsp.alexandria.application.profile.UpdatePasswordUseCase;
 import com.pucsp.alexandria.application.profile.UpdateProfileUseCase;
+import com.pucsp.alexandria.application.subscription.CancelSubscriptionUseCase;
+import com.pucsp.alexandria.application.subscription.CheckoutUseCase;
+import com.pucsp.alexandria.application.subscription.ExpireSubscriptionsUseCase;
+import com.pucsp.alexandria.application.subscription.GetSubscriptionUseCase;
+import com.pucsp.alexandria.application.subscription.ProcessPaymentWebhookUseCase;
+import com.pucsp.alexandria.application.subscription.RecurringBillingUseCase;
+import com.pucsp.alexandria.application.subscription.StartTrialUseCase;
+import com.pucsp.alexandria.application.subscription.UpdatePaymentMethodUseCase;
 import com.pucsp.alexandria.application.userbooks.AddUserBooksUseCase;
 import com.pucsp.alexandria.application.userbooks.GetUserBookByBookIdUseCase;
 import com.pucsp.alexandria.application.userbooks.ListUserBooksUseCase;
@@ -21,8 +31,10 @@ import com.pucsp.alexandria.application.userbooks.UpdateUserBooksUseCase;
 import com.pucsp.alexandria.domain.author.AuthorRepository;
 import com.pucsp.alexandria.domain.book.BookRepository;
 import com.pucsp.alexandria.domain.book.external.BookApiClient;
+import com.pucsp.alexandria.domain.subscription.SubscriptionRepository;
 import com.pucsp.alexandria.domain.user.UserRepository;
 import com.pucsp.alexandria.domain.userbook.UserBooksRepository;
+import com.pucsp.alexandria.config.jwt.JwtTokenProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -50,6 +62,13 @@ public class BeanConfiguration {
       BookRepository bookRepository,
       AuthorRepository authorRepository) {
     return new GetBookUseCase(bookRepository, authorRepository);
+  }
+
+  @Bean
+  public GetBookEpubUseCase getBookEpubUseCase(
+      BookRepository bookRepository,
+      SubscriptionRepository subscriptionRepository) {
+    return new GetBookEpubUseCase(bookRepository, subscriptionRepository);
   }
 
   @Bean
@@ -117,8 +136,10 @@ public class BeanConfiguration {
   }
 
   @Bean
-  public RegisterUserUseCase registerUserUseCase(UserRepository userRepository) {
-    return new RegisterUserUseCase(userRepository);
+  public RegisterUserUseCase registerUserUseCase(
+      UserRepository userRepository,
+      StartTrialUseCase startTrialUseCase) {
+    return new RegisterUserUseCase(userRepository, startTrialUseCase);
   }
 
   @Bean
@@ -126,8 +147,10 @@ public class BeanConfiguration {
       UserRepository userRepository,
       PasswordEncoder passwordEncoder,
       RestTemplate restTemplate,
-      @Value("${google.client-id}") String googleClientId) {
-    return new GoogleAuthUseCase(userRepository, passwordEncoder, restTemplate, googleClientId);
+      @Value("${google.client-id}") String googleClientId,
+      StartTrialUseCase startTrialUseCase) {
+    return new GoogleAuthUseCase(
+        userRepository, passwordEncoder, restTemplate, googleClientId, startTrialUseCase);
   }
 
   @Bean
@@ -157,5 +180,66 @@ public class BeanConfiguration {
       UserRepository userRepository,
       PasswordEncoder passwordEncoder) {
     return new UpdatePasswordUseCase(userRepository, passwordEncoder);
+  }
+
+  @Bean
+  public StartTrialUseCase startTrialUseCase(
+      SubscriptionRepository subscriptionRepository,
+      SubscriptionProperties properties) {
+    return new StartTrialUseCase(subscriptionRepository, properties);
+  }
+
+  @Bean
+  public GetSubscriptionUseCase getSubscriptionUseCase(
+      SubscriptionRepository subscriptionRepository,
+      SubscriptionProperties properties) {
+    return new GetSubscriptionUseCase(subscriptionRepository, properties);
+  }
+
+  @Bean
+  public CheckoutUseCase checkoutUseCase(
+      SubscriptionRepository subscriptionRepository,
+      PaymentApiClient paymentApiClient,
+      SubscriptionProperties properties,
+      UserRepository userRepository) {
+    return new CheckoutUseCase(subscriptionRepository, paymentApiClient, properties, userRepository);
+  }
+
+  @Bean
+  public ProcessPaymentWebhookUseCase processPaymentWebhookUseCase(
+      SubscriptionRepository subscriptionRepository,
+      SubscriptionProperties properties) {
+    return new ProcessPaymentWebhookUseCase(subscriptionRepository, properties);
+  }
+
+  @Bean
+  public CancelSubscriptionUseCase cancelSubscriptionUseCase(
+      SubscriptionRepository subscriptionRepository) {
+    return new CancelSubscriptionUseCase(subscriptionRepository);
+  }
+
+  @Bean
+  public ExpireSubscriptionsUseCase expireSubscriptionsUseCase(
+      SubscriptionRepository subscriptionRepository) {
+    return new ExpireSubscriptionsUseCase(subscriptionRepository);
+  }
+
+  @Bean
+  public RecurringBillingUseCase recurringBillingUseCase(
+      SubscriptionRepository subscriptionRepository,
+      PaymentApiClient paymentApiClient,
+      SubscriptionProperties properties,
+      JwtTokenProvider jwtTokenProvider) {
+    return new RecurringBillingUseCase(subscriptionRepository, paymentApiClient, properties,
+        jwtTokenProvider);
+  }
+
+  @Bean
+  public UpdatePaymentMethodUseCase updatePaymentMethodUseCase(
+      SubscriptionRepository subscriptionRepository,
+      PaymentApiClient paymentApiClient,
+      RecurringBillingUseCase recurringBillingUseCase) {
+    return new UpdatePaymentMethodUseCase(subscriptionRepository, paymentApiClient,
+        recurringBillingUseCase);
   }
 }

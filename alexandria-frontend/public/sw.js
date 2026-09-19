@@ -1,4 +1,4 @@
-const CACHE_VERSION = "v1";
+const CACHE_VERSION = "v2";
 const STATIC_CACHE = `static-${CACHE_VERSION}`;
 const BOOKS_CACHE = `books-api-${CACHE_VERSION}`;
 
@@ -7,7 +7,12 @@ self.addEventListener("install", (event) => {
 });
 
 self.addEventListener("activate", (event) => {
-  event.waitUntil(clients.claim());
+  event.waitUntil(
+    caches
+      .keys()
+      .then((keys) => Promise.all(keys.filter((key) => key !== STATIC_CACHE && key !== BOOKS_CACHE).map((key) => caches.delete(key))))
+      .then(() => clients.claim()),
+  );
 });
 
 self.addEventListener("fetch", (event) => {
@@ -16,6 +21,13 @@ self.addEventListener("fetch", (event) => {
 
   // EPUB → network-only (cache já gerenciado pelo epub-cache.ts)
   if (url.pathname.startsWith("/api/epub")) {
+    return;
+  }
+
+  // Os chunks do Next têm nomes estáveis em alguns builds. Mantê-los em
+  // cache-first pode servir uma interface antiga depois de um deploy.
+  if (url.pathname.startsWith("/_next/")) {
+    event.respondWith(fetch(request).catch(() => caches.match(request)));
     return;
   }
 

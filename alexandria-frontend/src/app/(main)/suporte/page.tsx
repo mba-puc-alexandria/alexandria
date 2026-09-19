@@ -33,8 +33,8 @@ export default function SuportePage() {
         </div>
 
         <div className="flex flex-col gap-3">
-          {faqs.map((faq, i) => (
-            <div key={i} className="bg-cream-dark rounded-xl p-5 flex flex-col gap-2">
+          {faqs.map((faq) => (
+            <div key={faq.question} className="bg-cream-dark rounded-xl p-5 flex flex-col gap-2">
               <p className="text-brown font-bold text-sm">{faq.question}</p>
               <p className="text-slate text-sm leading-relaxed">{faq.answer}</p>
             </div>

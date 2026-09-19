@@ -27,7 +27,7 @@ function openDB(): Promise<IDBDatabase> {
     };
 
     request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
+    request.onerror = () => reject(request.error ?? new Error("IndexedDB request failed"));
   });
 }
 
@@ -35,14 +35,14 @@ function idbGet<T>(store: IDBObjectStore, key: IDBValidKey): Promise<T | undefin
   return new Promise((resolve, reject) => {
     const req = store.get(key);
     req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
+    req.onerror = () => reject(req.error ?? new Error("IndexedDB request failed"));
   });
 }
 
 function idbWait(tx: IDBTransaction): Promise<void> {
   return new Promise((resolve, reject) => {
     tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
+    tx.onerror = () => reject(tx.error ?? new Error("IndexedDB transaction failed"));
   });
 }
 
@@ -141,7 +141,7 @@ async function evictIfNeeded(): Promise<void> {
           resolve();
         }
       };
-      cursor.onerror = () => reject(cursor.error);
+      cursor.onerror = () => reject(cursor.error ?? new Error("IndexedDB cursor failed"));
     });
 
     tx.oncomplete = () => db.close();
@@ -206,7 +206,7 @@ export async function clearAllEpubCache(): Promise<string[]> {
           resolve();
         }
       };
-      cursor.onerror = () => reject(cursor.error);
+      cursor.onerror = () => reject(cursor.error ?? new Error("IndexedDB cursor failed"));
     });
 
     for (const key of keys) {

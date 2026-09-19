@@ -11,6 +11,8 @@
   --color-slate: #4c6078;
   --color-terra: #954925;
   --color-blue-light: #d1e4ff;
+  --color-success: #15803d;
+  --color-danger: #b91c1c;
 
   --font-sans: var(--font-manrope), system-ui, sans-serif;
   --font-serif: var(--font-playfair), Georgia, serif;
@@ -67,4 +69,6 @@ html.dark {
   --color-slate: #8c8c8c;
   --color-terra: #49afd0;
   --color-blue-light: #32526c;
+  --color-success: #4ade80;
+  --color-danger: #f87171;
 }
