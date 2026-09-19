@@ -26,6 +26,9 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+
 @RestController
 @RequestMapping("/subscriptions")
 @SecurityRequirement(name = "bearerAuth")
@@ -132,6 +135,7 @@ public class SubscriptionController {
     if (expected == null || expected.isBlank()) {
       return false;
     }
-    return expected.equals(secret);
+    return MessageDigest.isEqual(expected.getBytes(StandardCharsets.UTF_8),
+        secret.getBytes(StandardCharsets.UTF_8));
   }
 }
