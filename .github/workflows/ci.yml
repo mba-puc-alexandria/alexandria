@@ -113,7 +113,7 @@ jobs:
             || { docker logs alexandria-backend; exit 1; }
  
       - name: Subir frontend
-        run: docker run -d --name alexandria-frontend --network host alexandria-frontend
+        run: docker run -d --name alexandria-frontend --network host -e HOSTNAME=0.0.0.0 alexandria-frontend
  
       - name: Aguardar frontend
         run: |
