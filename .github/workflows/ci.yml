@@ -1,257 +1,138 @@
-# .github/workflows/ci.yml
-name: CI
-
+name: Alexandria CI
+ 
 on:
   push:
-    branches: [ "main", "develop" ]
+    branches: [main]
   pull_request:
-    branches: [ "main", "develop" ]
-
-
+ 
+env:
+  JWT_SECRET: ${{ secrets.JWT_SECRET || 'dev-secret-key-not-for-production-min-256bits' }}
+  SUBSCRIPTION_CALLBACK_SECRET: ${{ secrets.SUBSCRIPTION_CALLBACK_SECRET || 'dev-callback-secret' }}
+  MERCADOPAGO_ACCESS_TOKEN: ${{ secrets.MERCADOPAGO_ACCESS_TOKEN }}
+  MERCADOPAGO_WEBHOOK_SECRET: ${{ secrets.MERCADOPAGO_WEBHOOK_SECRET }}
+  MERCADOPAGO_ENVIRONMENT: ${{ vars.MERCADOPAGO_ENVIRONMENT || 'sandbox' }}
+  NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY: ${{ vars.NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY }}
+ 
 jobs:
-  build:
-    permissions:
-      contents: read
-      checks: write
-      pull-requests: write
-
+  integration:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: alexandria-backend
-
-    steps:
-      - name: Checkout do código
-        uses: actions/checkout@v4
-
-      - name: Configurar JDK 17
-        uses: actions/setup-java@v4
-        with:
-          java-version: '17'
-          distribution: 'temurin'
-          cache: maven
-          cache-dependency-path: alexandria-backend/pom.xml
-
-      - name: Build com Maven
-        run: mvn -B clean compile
-
-      - name: Rodar testes
-        run: mvn -B test
-
-      - name: Gerar relatório de cobertura (Jacoco)
-        run: mvn -B jacoco:report
-
-      - name: Publicar resultados dos testes
-        uses: dorny/test-reporter@v1
-        if: success() || failure()
-        with:
-          name: Resultados dos Testes (Backend)
-          path: 'alexandria-backend/target/surefire-reports/*.xml'
-          reporter: java-junit
-
-      - name: Empacotar aplicação
-        run: mvn -B package -DskipTests
-
-      - name: Upload do artefato JAR
-        uses: actions/upload-artifact@v4
-        with:
-          name: app-jar
-          path: alexandria-backend/target/*.jar
-
-  frontend:
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: alexandria-frontend
-
-    steps:
-      - name: Checkout do código
-        uses: actions/checkout@v4
-
-      - name: Configurar Node 20
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: npm
-          cache-dependency-path: alexandria-frontend/package-lock.json
-
-      - name: Instalar dependências
-        run: npm ci
-
-      - name: Lint (ESLint)
-        run: npm run lint
-
-      - name: Testes unitários (Vitest)
-        run: npm run test -- --run
-
-      - name: Build (Next.js)
-        run: npm run build
-
-  docker-build-backend:
-    runs-on: ubuntu-latest
-    needs: build   # só builda a imagem se o job "build" passar
-
-    steps:
-      - name: Checkout do código
-        uses: actions/checkout@v4
-
-      - name: Configurar Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Build da imagem Docker
-        uses: docker/build-push-action@v6
-        with:
-          context: ./alexandria-backend
-          file: ./alexandria-backend/Dockerfile
-          push: false
-          tags: |
-            alexandria-backend:${{ github.sha }}
-            alexandria-backend:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-  docker-build-frontend:
-    runs-on: ubuntu-latest
-    needs: frontend   # só builda a imagem se o job "frontend" passar
-
-    steps:
-      - name: Checkout do código
-        uses: actions/checkout@v4
-
-      - name: Configurar Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Build da imagem Docker (frontend)
-        uses: docker/build-push-action@v6
-        with:
-          context: ./alexandria-frontend
-          file: ./alexandria-frontend/Dockerfile
-          push: false
-          tags: |
-            alexandria-frontend:${{ github.sha }}
-            alexandria-frontend:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-  deploy-k3s-develop:
-    name: Deploy K3s (develop)
-    runs-on: ubuntu-latest
-    needs: [build, frontend, docker-build-backend, docker-build-frontend]
-    # Deploy automático temporariamente desativado. CI, testes e builds continuam ativos.
-    if: ${{ false }}
-    permissions:
-      contents: read
-      id-token: write
-    concurrency:
-      group: alexandria-k3s-develop
-      cancel-in-progress: true
-    env:
-      AWS_REGION: ${{ vars.AWS_REGION }}
-      AWS_DEPLOY_ROLE_ARN: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
-      EC2_INSTANCE_ID: ${{ vars.EC2_INSTANCE_ID }}
-      ECR_BACKEND_REPOSITORY: ${{ vars.ECR_BACKEND_REPOSITORY }}
-      ECR_FRONTEND_REPOSITORY: ${{ vars.ECR_FRONTEND_REPOSITORY }}
-      FRONTEND_API_URL: ${{ vars.FRONTEND_API_URL }}
-      MERCADOPAGO_PUBLIC_KEY: ${{ secrets.MERCADOPAGO_PUBLIC_KEY }}
-
-    steps:
-      - name: Validate deployment configuration
-        shell: bash
-        run: |
-          set -euo pipefail
-          for variable in AWS_REGION AWS_DEPLOY_ROLE_ARN EC2_INSTANCE_ID ECR_BACKEND_REPOSITORY ECR_FRONTEND_REPOSITORY FRONTEND_API_URL MERCADOPAGO_PUBLIC_KEY; do
-            if [ -z "${!variable}" ]; then
-              echo "Missing GitHub Actions configuration: ${variable}" >&2
-              exit 1
-            fi
-          done
-
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Configure AWS credentials through OIDC
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ env.AWS_DEPLOY_ROLE_ARN }}
-          aws-region: ${{ env.AWS_REGION }}
-
-      - name: Login to Amazon ECR
-        id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v2
-
-      - name: Build and push backend image
-        uses: docker/build-push-action@v6
-        with:
-          context: ./alexandria-backend
-          file: ./alexandria-backend/Dockerfile
-          push: true
-          platforms: linux/amd64
-          tags: |
-            ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_BACKEND_REPOSITORY }}:${{ github.sha }}
-            ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_BACKEND_REPOSITORY }}:develop
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-      - name: Build and push frontend image
-        uses: docker/build-push-action@v6
-        with:
-          context: ./alexandria-frontend
-          file: ./alexandria-frontend/Dockerfile
-          push: true
-          platforms: linux/amd64
-          build-args: |
-            NEXT_PUBLIC_API_URL=${{ env.FRONTEND_API_URL }}
-            NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY=${{ env.MERCADOPAGO_PUBLIC_KEY }}
-          tags: |
-            ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_FRONTEND_REPOSITORY }}:${{ github.sha }}
-            ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_FRONTEND_REPOSITORY }}:develop
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-      - name: Roll out immutable images through Systems Manager
-        id: deploy
-        shell: bash
+    timeout-minutes: 30
+ 
+    # Equivalentes a: postgres-payment e mysql
+    # O job roda direto no runner, então os serviços ficam em localhost:<porta>
+    services:
+      postgres-payment:
+        image: postgres:16-alpine
         env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          IMAGE_TAG: ${{ github.sha }}
+          POSTGRES_DB: paymentdb
+          POSTGRES_USER: paymentapi
+          POSTGRES_PASSWORD: paymentapi123
+        ports:
+          - 5434:5432
+        options: >-
+          --health-cmd "pg_isready -U paymentapi -d paymentdb"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+ 
+      mysql:
+        image: mysql:8.0.32
+        env:
+          MYSQL_ROOT_PASSWORD: alexandria123
+          MYSQL_DATABASE: alexandriadb
+          MYSQL_USER: alexandria
+          MYSQL_PASSWORD: alexandria123
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd "mysqladmin ping -h 127.0.0.1 -uroot -palexandria123 --silent"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+ 
+    steps:
+      - name: Checkout deste repositório
+        uses: actions/checkout@v4
+ 
+      # No compose o contexto era ../deliveryAPI/payment-api (outro repo, ao lado).
+      # Aqui ele é clonado dentro do workspace, em ./deliveryAPI
+      - name: Checkout deliveryAPI
+        uses: actions/checkout@v4
+        with:
+          repository: SEU_USUARIO/deliveryAPI # <- ajuste
+          path: deliveryAPI
+          token: ${{ secrets.DELIVERY_API_TOKEN || github.token }} # PAT se o repo for privado
+ 
+      - name: Build das imagens
         run: |
-          set -euo pipefail
-
-          BACKEND_IMAGE="${ECR_REGISTRY}/${ECR_BACKEND_REPOSITORY}:${IMAGE_TAG}"
-          FRONTEND_IMAGE="${ECR_REGISTRY}/${ECR_FRONTEND_REPOSITORY}:${IMAGE_TAG}"
-
-          REMOTE_COMMANDS="$(jq -cn \
-            --arg region "$AWS_REGION" \
-            --arg backend "$BACKEND_IMAGE" \
-            --arg frontend "$FRONTEND_IMAGE" \
-            '[
-              "set -euo pipefail",
-              "ECR_PASSWORD=\"$(aws ecr get-login-password --region \($region))\"",
-              "k3s ctr images pull --user \"AWS:${ECR_PASSWORD}\" \($backend)",
-              "k3s ctr images pull --user \"AWS:${ECR_PASSWORD}\" \($frontend)",
-              "k3s kubectl -n alexandria set image deployment/alexandria-backend alexandria-backend=\($backend)",
-              "k3s kubectl -n alexandria set image deployment/alexandria-frontend alexandria-frontend=\($frontend)",
-              "k3s kubectl -n alexandria rollout status deployment/alexandria-backend --timeout=180s",
-              "k3s kubectl -n alexandria rollout status deployment/alexandria-frontend --timeout=180s"
-            ]')"
-
-          COMMAND_ID="$(aws ssm send-command \
-            --document-name AWS-RunShellScript \
-            --instance-ids "$EC2_INSTANCE_ID" \
-            --parameters commands="$REMOTE_COMMANDS" \
-            --timeout-seconds 600 \
-            --query 'Command.CommandId' \
-            --output text)"
-
-          echo "command_id=${COMMAND_ID}" >> "$GITHUB_OUTPUT"
-
-          if ! aws ssm wait command-executed --command-id "$COMMAND_ID" --instance-id "$EC2_INSTANCE_ID"; then
-            aws ssm get-command-invocation --command-id "$COMMAND_ID" --instance-id "$EC2_INSTANCE_ID" >&2 || true
-            exit 1
-          fi
-
-          aws ssm get-command-invocation \
-            --command-id "$COMMAND_ID" \
-            --instance-id "$EC2_INSTANCE_ID" \
-            --query 'StandardOutputContent' \
-            --output text
+          docker build -t payment-api ./deliveryAPI/payment-api
+          docker build -t alexandria-backend ./alexandria-backend
+          docker build -t alexandria-frontend \
+            --build-arg NEXT_PUBLIC_API_URL=http://localhost:8080 \
+            --build-arg NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY="$NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY" \
+            ./alexandria-frontend
+ 
+      # --network host: os containers enxergam os services em localhost
+      # e enxergam uns aos outros em localhost (substitui os hosts "backend", "payment-api" etc.)
+      - name: Subir payment-api
+        run: |
+          docker run -d --name payment-api --network host \
+            -e SPRING_PROFILES_ACTIVE=docker \
+            -e SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5434/paymentdb \
+            -e SPRING_DATASOURCE_USERNAME=paymentapi \
+            -e SPRING_DATASOURCE_PASSWORD=paymentapi123 \
+            -e JWT_SECRET \
+            -e PAYMENT_KAFKA_ENABLED=false \
+            -e PAYMENT_CALLBACK_URL=http://localhost:8080/subscriptions/payment-webhook \
+            -e SUBSCRIPTION_CALLBACK_SECRET \
+            -e MERCADOPAGO_ACCESS_TOKEN \
+            -e MERCADOPAGO_PUBLIC_KEY="$NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY" \
+            -e MERCADOPAGO_WEBHOOK_SECRET \
+            -e MERCADOPAGO_ENVIRONMENT \
+            payment-api
+ 
+      - name: Aguardar payment-api
+        run: |
+          timeout 180 bash -c 'until curl -s -o /dev/null http://localhost:8082; do sleep 3; done' \
+            || { docker logs payment-api; exit 1; }
+ 
+      - name: Subir backend
+        run: |
+          docker run -d --name alexandria-backend --network host \
+            -e SPRING_DATASOURCE_URL=jdbc:mysql://localhost:3306/alexandriadb \
+            -e SPRING_DATASOURCE_USERNAME=alexandria \
+            -e SPRING_DATASOURCE_PASSWORD=alexandria123 \
+            -e CORS_ALLOWED_ORIGINS=http://localhost:3000 \
+            -e JWT_SECRET \
+            -e PAYMENT_API_URL=http://localhost:8082 \
+            -e SUBSCRIPTION_CALLBACK_SECRET \
+            alexandria-backend
+ 
+      - name: Aguardar backend
+        run: |
+          timeout 180 bash -c 'until curl -s -o /dev/null http://localhost:8080; do sleep 3; done' \
+            || { docker logs alexandria-backend; exit 1; }
+ 
+      - name: Subir frontend
+        run: docker run -d --name alexandria-frontend --network host alexandria-frontend
+ 
+      - name: Aguardar frontend
+        run: |
+          timeout 120 bash -c 'until curl -s -o /dev/null http://localhost:3000; do sleep 3; done' \
+            || { docker logs alexandria-frontend; exit 1; }
+ 
+      # Troque por seus testes reais (Playwright, Cypress, Newman, etc.)
+      - name: Smoke test
+        run: |
+          curl -sf http://localhost:3000 > /dev/null
+          echo "Stack no ar"
+ 
+      - name: Logs dos containers em caso de falha
+        if: failure()
+        run: |
+          for c in payment-api alexandria-backend alexandria-frontend; do
+            echo "::group::$c"
+            docker logs "$c" 2>&1 | tail -n 200 || true
+            echo "::endgroup::"
+          done
+ 
