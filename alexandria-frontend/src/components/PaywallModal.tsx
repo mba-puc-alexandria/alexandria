@@ -12,13 +12,18 @@ export default function PaywallModal({ open, onClose }: PaywallModalProps) {
   if (!open) return null;
 
   return (
-    <div
-      className="modal-overlay fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
-      onClick={onClose}
-    >
+    <div className="modal-overlay fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+      <button
+        type="button"
+        className="absolute inset-0 cursor-default"
+        onClick={onClose}
+        aria-label="Fechar modal"
+      />
       <div
-        className="modal-card bg-cream rounded-2xl max-w-md w-full p-8 shadow-2xl relative"
-        onClick={(e) => e.stopPropagation()}
+        className="modal-card bg-cream rounded-2xl max-w-md w-full p-8 shadow-2xl relative z-10"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="paywall-title"
       >
         <button type="button"
           onClick={onClose}
@@ -33,7 +38,7 @@ export default function PaywallModal({ open, onClose }: PaywallModalProps) {
             <Lock size={28} className="text-terra" />
           </div>
 
-          <h2 className="font-serif font-bold text-brown text-2xl mb-2">
+          <h2 id="paywall-title" className="font-serif font-bold text-brown text-2xl mb-2">
             Alexandria Premium
           </h2>
           <p className="text-slate text-sm mb-6">
