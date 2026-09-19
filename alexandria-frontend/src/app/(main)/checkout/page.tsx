@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   QrCode,
@@ -43,6 +43,16 @@ export default function CheckoutPage() {
   const status = subscription?.status;
   const inTrial = status === "TRIALING";
   const [method, setMethod] = useState<Method>(inTrial ? "card" : "pix");
+
+  // A assinatura é carregada de forma assíncrona pelo contexto de autenticação.
+  // Ao abrir esta rota diretamente, o primeiro render ainda não sabe se o usuário
+  // está no trial e começava em PIX, deixando os dois painéis ocultos depois da
+  // atualização. Durante o trial, cartão é o único método disponível.
+  useEffect(() => {
+    if (status === "TRIALING") {
+      setMethod("card");
+    }
+  }, [status]);
 
   const price = formatMoney(subscription?.price ?? 10, subscription?.currency);
   const periodDays = subscription?.periodDays ?? 30;
@@ -221,7 +231,7 @@ export default function CheckoutPage() {
       : status === "EXPIRED" || status === "CANCELED"
         ? "Reative sua assinatura e volte a ler de onde parou."
         : inTrial
-          ? "Salve seu cartão para continuar lendo após o teste."
+          ? `Confirme o pagamento de ${price} após o término do seu teste.`
           : "Assine o Alexandria Premium.";
 
   return (
@@ -261,22 +271,34 @@ export default function CheckoutPage() {
             </ul>
 
             <div className="border-t border-cream-border pt-4 flex flex-col gap-1.5 text-sm">
-              <div className="flex justify-between">
-                <span className="text-brown-soft">Total hoje</span>
-                <span className="text-brown font-bold">{inTrial ? formatMoney(0) : price}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-brown-soft">{inTrial ? "Primeira cobrança" : "Período"}</span>
-                <span className="text-brown font-bold">
-                  {inTrial ? (trialEndsAt ?? "Fim do teste") : `${periodDays} dias`}
-                </span>
-              </div>
+              {inTrial ? (
+                <>
+                  <div className="flex justify-between">
+                    <span className="text-brown-soft">Cobrança após o teste</span>
+                    <span className="text-brown font-bold">{price}/mês</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-brown-soft">Primeira cobrança</span>
+                    <span className="text-brown font-bold">{trialEndsAt ?? "Fim do teste"}</span>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="flex justify-between">
+                    <span className="text-brown-soft">Total</span>
+                    <span className="text-brown font-bold">{price}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-brown-soft">Período</span>
+                    <span className="text-brown font-bold">{periodDays} dias</span>
+                  </div>
+                </>
+              )}
             </div>
 
             {inTrial && (
               <p className="text-terra text-xs font-bold">
-                Nada é cobrado agora. Cancele antes{trialEndsAt ? ` de ${trialEndsAt}` : " do fim do teste"} e
-                você não paga nada.
+                Você será cobrado em {price} apenas depois do teste. Cancele antes{trialEndsAt ? ` de ${trialEndsAt}` : " do fim do teste"} e você não paga nada.
               </p>
             )}
 
@@ -376,7 +398,7 @@ export default function CheckoutPage() {
                 <MercadoPagoCardForm
                   processing={processing}
                   onToken={handleCard}
-                  submitLabel={inTrial ? "Salvar cartão — R$ 0,00 hoje" : `Pagar ${price}`}
+                  submitLabel={inTrial ? "Confirmar pagamento após o teste" : `Pagar ${price}`}
                 />
               </div>
             )}

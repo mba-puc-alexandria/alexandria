@@ -19,9 +19,24 @@ CREATE TABLE IF NOT EXISTS subscriptions (
 );
 
 -- The original V0 schema predates the User.role enum that Hibernate used to
--- create implicitly. Keep a clean Flyway installation compatible with it.
-ALTER TABLE users
-    ADD COLUMN IF NOT EXISTS role ENUM('ADMIN', 'USER') NOT NULL DEFAULT 'USER';
+-- create implicitly. MySQL 8.0 does not support ADD COLUMN IF NOT EXISTS, so
+-- build the statement dynamically to support both a clean schema and an
+-- existing schema created by earlier versions of the application.
+SET @role_column_exists := (
+    SELECT COUNT(*)
+    FROM information_schema.columns
+    WHERE table_schema = DATABASE()
+      AND table_name = 'users'
+      AND column_name = 'role'
+);
+SET @role_column_statement := IF(
+    @role_column_exists = 0,
+    "ALTER TABLE users ADD COLUMN role ENUM('ADMIN', 'USER') NOT NULL DEFAULT 'USER'",
+    'SELECT 1'
+);
+PREPARE add_role_column FROM @role_column_statement;
+EXECUTE add_role_column;
+DEALLOCATE PREPARE add_role_column;
 
 CREATE INDEX idx_subscriptions_status_trial_end ON subscriptions(status, trial_ends_at);
 CREATE INDEX idx_subscriptions_status_period_end ON subscriptions(status, current_period_ends_at);
