@@ -50,7 +50,8 @@ tarefa em questão.
 
 - Backend Alexandria: ~90% implementado.
 - Frontend Alexandria: ~85% implementado.
-- payment-api: em adaptação (seção 1 do plano). Já concluído: `orderId` (UUID) → `referenceId` (String).
+- payment-api: adaptação SaaS implementada (referência, JWT, Customer/Card, callback,
+  produção e Kafka opcional); falta validação integrada/E2E.
 - Infra/CI: 0%.
 - Documentação: parcialmente atualizada.
 

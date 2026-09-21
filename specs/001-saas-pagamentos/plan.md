@@ -1,26 +1,17 @@
 # Plano técnico — SaaS Alexandria (payment-api como microsserviço)
 
-> Documento **refinado** com base no código atual do repositório.
+> Plano histórico, atualizado em 20/09/2026: as seções 1 e a maior parte das seções 2--3
+> já foram implementadas. Para o estado efetivo e pendências verificadas, prevalecem
+> [current-state.md](./current-state.md) e [tasks.md](./tasks.md).
 > Vinculado a: [spec.md](./spec.md) · [current-state.md](./current-state.md) · [tasks.md](./tasks.md)
 
-## 0. Pré-requisitos e bloqueios
+## 0. Bloqueios atuais
 
-Antes de começar a implementação, resolver os seguintes pontos encontrados no código:
-
-1. **Conflito de merge commitado em `application.properties`** — o arquivo
-   `alexandria-backend/src/main/resources/application.properties` contém marcadores
-   `<<<<<<< HEAD`, `=======` e `>>>>>>> feature/infraestrutura` **commitados**.
-   O conteúdo correto (lado `HEAD`) já é o do Alexandria. Corrigir o arquivo antes de
-   adicionar as novas chaves de assinatura.
-2. **Duas classes `@SpringBootApplication`** — `com.pucsp.alexandria.AlexandriaApplication`
-   (ativa, com `@EnableAsync`) e `com.alexandria.alexandria_backend.AlexandriaBackendApplication`
-   (legada). Definir `AlexandriaApplication` como única entrypoint e remover a legada.
-3. **`iac/` é template de outro projeto** — a pasta `iac/` contém Terraform do projeto
+1. **`iac/` é template de outro projeto** — a pasta `iac/` contém Terraform do projeto
    "linuxtips-sorteador" (FARGATE, serviço único, paths SSM `/linuxtips/*`). Não reutilizar
    como está; será substituída pela estrutura `infra/terraform` da seção 4.
    `infraestrutura/` contém apenas 2 arquivos `.tf` soltos; consolidar/remover.
-4. **`payment-api` está em outro repositório** (Gohan Food). As mudanças da seção 1
-   acontecem lá e precisam ser coordenadas separadamente.
+2. **Validação integrada**: não há teste de contrato/E2E entre os dois serviços e Mercado Pago.
 
 ## Decisão de arquitetura
 
@@ -44,37 +35,19 @@ Mercado Pago (PIX + Cartão)
   por header `X-Webhook-Secret` (secret compartilhada `SUBSCRIPTION_CALLBACK_SECRET`),
   mais simples que assinar JWT de serviço e suficiente para server-to-server.
 
-## 1. payment-api (adaptações — repo separado)
+## 1. payment-api (adaptações implementadas — repo separado)
 
 > **Detalhes verificados no código** (`/Users/talitaalves/IdeaProjects/payment-api`):
 > pacote `com.delivery.payment`, Spring Boot 3, PostgreSQL + Flyway, SDK Mercado Pago 2.x,
-> Kafka, Bucket4j. Endpoints em `/api/v1/payments`: `POST /`, `POST /{id}/process`,
+> Kafka opcional, Bucket4j. Endpoints em `/api/v1/payments`: `POST /`, `POST /{id}/process`,
 > `GET /{id}`, `GET /`, `POST /refund`, `POST /webhook` (IPN).
-> `user_id` é `VARCHAR` (migration `V3`), `order_id` ainda é `UUID` (migration `V1`).
+> `user_id` é `VARCHAR` (migration `V3`) e `reference_id` é `VARCHAR` desde a migration `V4`.
 
-- Generalizar `orderId` (UUID) para `referenceId` (String) em request, domain, entity,
-  mapper, services e migrations.
-  - Onde aparece hoje: `CreatePaymentRequest`, `Payment`, `PaymentEntity`, `PaymentResponse`,
-    `CreatePaymentService`, `PaymentRepository.findByOrderId(UUID)`,
-    `KafkaPaymentProducer` (mensagem `{"paymentId","orderId"}`), migrations `V1`/`V2`.
-  - Convenção usada pelo Alexandria: `referenceId = "subscription:{subscriptionId}"`.
-  - Descrição hoje é gerada como `"Pedido #" + orderId` (PIX) e `"Pedido " + orderId` (cartão);
-    trocar por `"Assinatura " + referenceId`.
-- `JwtAuthenticationFilter`: aceitar claim `userId` do token do Alexandria
-  (hoje lê `sub` ou claim `id`). Alexandria gera `sub=username` e `userId=Long`.
-  - Como o controller usa `getCurrentUserId()` → `auth.getName()` como `userId` (String),
-    o filtro deve popular o principal com `claims.get("userId").toString()`.
-- `MercadoPagoProperties`/`MercadoPagoGateway`: permitir `MERCADOPAGO_ENVIRONMENT=production`
-  e token `APP_USR-` (hoje `init()` lança `IllegalStateException` quando `isProductionToken()`).
-  - Já existe a propriedade `mercadopago.environment`; falta deixar o `init()` aceitar produção
-    quando o ambiente for `production`.
-- Tornar Kafka opcional (feature flag) e adicionar callback HTTP:
-  - Hoje o Kafka é sempre ativo fora do profile `test` (`KafkaConfig` com `@Profile("!test")`).
-  - Adicionar `@ConditionalOnProperty`/flag para desligar em produção se não houver broker.
-  - `SUBSCRIPTION_CALLBACK_URL` (ex.: `http://alexandria-backend:8080/subscriptions/payment-webhook`).
-  - `SUBSCRIPTION_CALLBACK_SECRET` para o header `X-Webhook-Secret`.
-  - Disparar em `payment.completed` e `payment.refunded` (mesmo lugar onde hoje chama
-    `KafkaPaymentProducer.publishPaymentCompleted/Refunded`, no `PaymentStatusSyncService`).
+- `referenceId`, a convenção `subscription:{subscriptionId}`, descrições de assinatura,
+  Customer + Card e a cobrança com cartão salvo estão implementados.
+- O filtro JWT aceita `userId`; Mercado Pago aceita produção quando explicitamente configurado;
+  Kafka é condicionado por `payment.kafka.enabled`.
+- Há callback HTTP com `PAYMENT_CALLBACK_URL` e `SUBSCRIPTION_CALLBACK_SECRET`.
 - Contrato do callback (idempotente):
   ```json
   {
@@ -86,15 +59,6 @@ Mercado Pago (PIX + Cartão)
     "occurredAt": "2026-08-30T12:00:00Z"
   }
   ```
-- Adicionar endpoints de **Customer + Card** (cartão salvo) para recorrência:
-  - `POST /api/v1/customers` — cria o Customer e salva o cartão a partir de um `cardToken`;
-    retorna `customerId`, `cardId` e `paymentMethodId`.
-  - `POST /api/v1/customers/{id}/cards` — adiciona/troca o cartão (novo `cardToken`),
-    retorna o novo `cardId` (que passa a ser o default).
-  - `DELETE /api/v1/customers/{id}/cards/{cardId}` — remove o cartão (usado no cancelamento).
-- Estender `POST /api/v1/payments` para aceitar `cardId` (em vez de `gatewayToken`) e criar
-  a cobrança recorrente com `payer.type = "customer"` + `customerId`. Permite cobrar no fim
-  do trial e nas renovações sem novo `cardToken` e sem dados de cartão.
 - Manter PostgreSQL próprio do payment-api.
 
 ## 2. Alexandria backend — domínio de assinatura
@@ -357,7 +321,8 @@ infra/
 - **Vazamento do EPUB** se o gate ficar só no frontend → mitigado pelo gate no backend (`/books/{id}/epub`).
 - **Dessincronia JWT** entre serviços → mesma secret e mesma claim `userId`.
 - **PIX assíncrono** depende de IPN + callback → idempotência no `payment-webhook` e em `payment-api`.
-- **Conflito de merge commitado** em `application.properties` → corrigir antes de tocar nas configs.
+- **Validação local dependente de múltiplos serviços** → subir e exercitar o compose antes de
+  validar os fluxos integrados.
 - **`iac/` legado** pode ser reutilizado por engano → substituir por `infra/terraform`.
 - **Cookie vs `localStorage`**: o proxy `/api/epub` roda no servidor e só enxerga o cookie
   `auth-token`, não o `localStorage`; manter os dois em sincronia no `AuthContext`.

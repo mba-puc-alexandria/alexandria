@@ -21,11 +21,11 @@ Transformar o Alexandria (hoje gratuito) em um SaaS com assinatura paga:
 
 | Camada | Status | Observação |
 |---|---|---|
-| Alexandria backend | 🟢 ~90% | Domínio, endpoints, gate de EPUB e job prontos |
-| Alexandria frontend | 🟢 ~85% | Telas, gating e integração com a API prontos |
-| payment-api | 🔴 0% | Branch criada, mas nenhuma alteração feita ainda |
-| Infra/CI | 🔴 0% | Terraform, docker-compose e CI/CD pendentes |
-| Documentação | 🟡 atualizada, não commitada | `README.md` e `specs/README.md` |
+| Alexandria backend | 🟡 | Domínio e fluxos existem; dunning, recusa de cartão e webhook sem header precisam correção/teste |
+| Alexandria frontend | 🟡 | Telas e CardForm prontos; cache EPUB não revalida assinatura |
+| payment-api | 🟡 | Contrato SaaS implementado; falta prova E2E e retry durável do callback |
+| Infra/CI | 🔴 | Compose inclui os serviços e o contexto de build é válido; Terraform/CI pendentes |
+| Documentação | 🟢 | Estado corrigido conforme auditoria de 20/09/2026 |
 
 ---
 
@@ -135,14 +135,11 @@ O gate é **duplo**: login no frontend + validação de assinatura no backend.
 
 ## 6. O que falta implementar
 
-### 6.1 payment-api (0% — próximo grande bloco)
+### 6.1 payment-api (implementado; validação integrada pendente)
 
-- [ ] `orderId` (UUID) → `referenceId` (String).
-- [ ] `JwtAuthenticationFilter` aceitar claim `userId`.
-- [ ] Mercado Pago produção (`APP_USR-` + `MERCADOPAGO_ENVIRONMENT=production`).
-- [ ] Kafka opcional.
-- [ ] Callback HTTP (`SUBSCRIPTION_CALLBACK_URL`/`SECRET`).
-- [ ] Atualizar testes e migrations.
+- [x] `referenceId` (String), claim `userId`, produção, Kafka opcional e callback HTTP.
+- [x] Customer + Card e cobrança recorrente com `cardId`.
+- [ ] Executar E2E entre os serviços e adicionar retry durável do callback.
 
 ### 6.2 Backend — pendências de robustez
 
