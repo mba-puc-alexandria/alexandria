@@ -12,3 +12,13 @@ services:
 
 volumes:
   mysql_data:
+  
+  backend:
+    image: alexandria
+    depends_on:
+      - db
+    environment:
+      JWT_SECRET: dev-secret-key-not-for-production-min-256bits
+      SPRING_DATASOURCE_URL: jdbc:mysql://db:3306/alexandria
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD:  root

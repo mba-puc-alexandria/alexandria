@@ -11,7 +11,9 @@ spec:
     targetRevision: feature/infracomargo
     path: alexandria-backend
   destination: 
-    namespace: argocd
+    namespace: alexandria
     server: 'https://kubernetes.daefault.svc'
   syncPolicy:
-    automated: {}   
+    automated: {}  
+    syncOptions:
+    - CreateNamespace=true 

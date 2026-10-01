@@ -1,12 +1,11 @@
+
 # alexandria-backend/Dockerfile
 
 # ---------- Estágio 1: Build ----------
 FROM maven:3.9-eclipse-temurin-17 AS build
 WORKDIR /app
 
-# Copia o projeto e baixa somente as dependências necessárias ao empacotamento.
-# `dependency:go-offline` tenta resolver dependências opcionais de plugins e
-# torna a primeira build desnecessariamente lenta.
+# Copia o projeto e empacota (sem rodar os testes)
 COPY pom.xml .
 COPY src ./src
 RUN mvn -B clean package -DskipTests
