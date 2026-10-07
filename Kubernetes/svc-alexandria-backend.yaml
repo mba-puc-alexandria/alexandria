@@ -4,8 +4,10 @@ metadata:
   name: alexandria-backend
   namespace: alexandria
 spec:
-  ports:
-    - port: 8080
-      targetPort: 8080
+  type: ClusterIP
   selector:
     app: alexandria-backend
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http

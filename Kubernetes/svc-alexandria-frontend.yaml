@@ -4,10 +4,10 @@ metadata:
   name: alexandria-frontend
   namespace: alexandria
 spec:
-  type: NodePort
+  type: ClusterIP
   selector:
     app: alexandria-frontend
   ports:
-    - port: 3000
-      targetPort: 3000
-      nodePort: 30080
+    - name: http
+      port: 3000
+      targetPort: http

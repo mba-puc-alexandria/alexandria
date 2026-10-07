@@ -1,0 +1,52 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: alexandria-frontend
+  namespace: alexandria
+  labels:
+    app: alexandria-frontend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: alexandria-frontend
+  template:
+    metadata:
+      labels:
+        app: alexandria-frontend
+    spec:
+      containers:
+        - name: alexandria-frontend
+          # O pipeline substitui esta imagem por uma tag SHA do seu registry.
+          # ATENÇÃO: NEXT_PUBLIC_API_URL é fixado no BUILD da imagem:
+          #   --build-arg NEXT_PUBLIC_API_URL=https://k8s.bibliotecaalexandria.com.br
+          image: alexandriafrontend:1.0.1
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 3000
+          env:
+            # No k8s, HOSTNAME vira o nome do pod e o Next standalone passaria
+            # a escutar só nesse host. Força escutar em todas as interfaces.
+            - name: HOSTNAME
+              value: "0.0.0.0"
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              memory: 512Mi
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 20
+---
+
