@@ -37,11 +37,26 @@ services:
       # aponta para o host quando o backend roda dentro do container.
       PAYMENT_API_URL: http://host.docker.internal:8082
       SUBSCRIPTION_CALLBACK_SECRET: dev-callback-secret
+      # Agente de atendimento com modelo local (Ollama). O modelo é baixado no 1º start.
+      AI_PROVIDER: ollama
+      OLLAMA_URL: http://ollama:11434
+      OLLAMA_PULL_STRATEGY: when_missing
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:
       mysql:
         condition: service_healthy
+      ollama:
+        condition: service_started
+
+  ollama:
+    image: ollama/ollama
+    container_name: alexandria-ollama
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
 
   frontend:
     build:
@@ -62,3 +77,4 @@ services:
 
 volumes:
   mysql_data:
+  ollama_data:

@@ -23,6 +23,7 @@ import com.pucsp.alexandria.application.subscription.ProcessPaymentWebhookUseCas
 import com.pucsp.alexandria.application.subscription.RecurringBillingUseCase;
 import com.pucsp.alexandria.application.subscription.StartTrialUseCase;
 import com.pucsp.alexandria.application.subscription.UpdatePaymentMethodUseCase;
+import com.pucsp.alexandria.application.support.ChatWithSupportUseCase;
 import com.pucsp.alexandria.application.userbooks.AddUserBooksUseCase;
 import com.pucsp.alexandria.application.userbooks.GetUserBookByBookIdUseCase;
 import com.pucsp.alexandria.application.userbooks.ListUserBooksUseCase;
@@ -32,6 +33,7 @@ import com.pucsp.alexandria.domain.author.AuthorRepository;
 import com.pucsp.alexandria.domain.book.BookRepository;
 import com.pucsp.alexandria.domain.book.external.BookApiClient;
 import com.pucsp.alexandria.domain.subscription.SubscriptionRepository;
+import com.pucsp.alexandria.domain.support.SupportAgent;
 import com.pucsp.alexandria.domain.user.UserRepository;
 import com.pucsp.alexandria.domain.userbook.UserBooksRepository;
 import com.pucsp.alexandria.config.jwt.JwtTokenProvider;
@@ -241,5 +243,10 @@ public class BeanConfiguration {
       RecurringBillingUseCase recurringBillingUseCase) {
     return new UpdatePaymentMethodUseCase(subscriptionRepository, paymentApiClient,
         recurringBillingUseCase);
+  }
+
+  @Bean
+  public ChatWithSupportUseCase chatWithSupportUseCase(SupportAgent supportAgent) {
+    return new ChatWithSupportUseCase(supportAgent);
   }
 }

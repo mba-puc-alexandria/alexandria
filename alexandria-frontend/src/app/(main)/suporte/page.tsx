@@ -1,6 +1,10 @@
 "use client";
 
-import { HelpCircle, Mail, BookOpen } from "lucide-react";
+import { useState } from "react";
+import { HelpCircle, Mail, BookOpen, Bot, Send } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { useAuthModal } from "@/contexts/AuthModalContext";
+import { sendSupportMessage, type SupportMessage } from "@/lib/api";
 
 const faqs = [
   {
@@ -17,6 +21,96 @@ const faqs = [
   },
 ];
 
+function SupportChat() {
+  const { user } = useAuth();
+  const { openLoginModal } = useAuthModal();
+  const [messages, setMessages] = useState<SupportMessage[]>([]);
+  const [input, setInput] = useState("");
+  const [sending, setSending] = useState(false);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const text = input.trim();
+    if (!text || sending) return;
+    const next: SupportMessage[] = [...messages, { role: "user", content: text }];
+    setMessages(next);
+    setInput("");
+    setSending(true);
+    try {
+      const reply = await sendSupportMessage(next);
+      setMessages([...next, { role: "assistant", content: reply }]);
+    } catch (err) {
+      const detail = err instanceof Error ? ` (${err.message})` : "";
+      setMessages([
+        ...next,
+        { role: "assistant", content: `Não consegui responder agora${detail}. Tente de novo ou use o e-mail de contato abaixo.` },
+      ]);
+    } finally {
+      setSending(false);
+    }
+  }
+
+  return (
+    <section className="flex flex-col gap-3">
+      <div className="flex items-center gap-2 mb-1">
+        <Bot size={14} className="text-terra" />
+        <span className="text-brown text-xs font-bold uppercase tracking-widest">Assistente virtual</span>
+      </div>
+
+      <div className="bg-cream-dark rounded-xl p-5 flex flex-col gap-3">
+        <p className="text-slate text-xs">
+          Você está falando com uma IA. Ela pode errar; para casos não resolvidos, use o e-mail de contato.
+        </p>
+
+        {!user ? (
+          <button
+            type="button"
+            onClick={openLoginModal}
+            className="text-terra font-bold text-sm hover:underline w-fit"
+          >
+            Entre na sua conta para conversar com o assistente
+          </button>
+        ) : (
+          <>
+            <div className="flex flex-col gap-2 max-h-80 overflow-y-auto" aria-live="polite">
+              {messages.map((m, i) => (
+                <p
+                  key={i}
+                  className={`text-sm leading-relaxed rounded-lg px-3 py-2 max-w-[85%] whitespace-pre-wrap ${
+                    m.role === "user" ? "self-end bg-terra text-white" : "self-start bg-cream text-brown"
+                  }`}
+                >
+                  {m.content}
+                </p>
+              ))}
+              {sending && <p className="self-start text-slate text-sm">Digitando…</p>}
+            </div>
+
+            <form onSubmit={handleSubmit} className="flex gap-2">
+              <input
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                maxLength={1000}
+                placeholder="Ex.: quando vence minha assinatura?"
+                aria-label="Mensagem para o assistente"
+                className="flex-1 bg-cream rounded-lg px-3 py-2 text-sm text-brown outline-none focus:ring-2 focus:ring-terra"
+              />
+              <button
+                type="submit"
+                disabled={sending || !input.trim()}
+                aria-label="Enviar"
+                className="bg-terra text-white rounded-lg px-3 disabled:opacity-50"
+              >
+                <Send size={16} />
+              </button>
+            </form>
+          </>
+        )}
+      </div>
+    </section>
+  );
+}
+
 export default function SuportePage() {
   return (
     <div className="px-6 md:px-8 pt-8 md:pt-12 pb-8 flex flex-col gap-8 max-w-2xl">
@@ -24,6 +118,8 @@ export default function SuportePage() {
         <h1 className="font-serif font-bold text-brown text-2xl">Suporte</h1>
         <p className="text-slate text-sm mt-1">Dúvidas e ajuda para usar o Alexandria</p>
       </div>
+
+      <SupportChat />
 
       {/* FAQ */}
       <section className="flex flex-col gap-3">

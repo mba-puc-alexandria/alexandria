@@ -322,3 +322,20 @@ export async function apiFetch(path: string, init: RequestInit = {}): Promise<Re
     },
   });
 }
+
+export interface SupportMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
+export async function sendSupportMessage(messages: SupportMessage[]): Promise<string> {
+  const res = await apiFetch('/support/chat', {
+    method: 'POST',
+    body: JSON.stringify({ messages }),
+  });
+  if (!res.ok) {
+    throw new Error(res.status === 401 ? 'Sessão expirada. Entre de novo.' : `Falha ao falar com o assistente (erro ${res.status})`);
+  }
+  const data: { reply: string } = await res.json();
+  return data.reply;
+}
