@@ -4,7 +4,7 @@ import { use, useEffect, useState, useCallback, useRef } from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Maximize2, Minimize2 } from "lucide-react";
 import type { Location, Rendition } from "epubjs";
 import { getBookById, getUserBooks, updateUserBook, getAuthorDisplay, type BookApiResponse } from "@/lib/api";
 import { useEpub } from "@/hooks/useEpub";
@@ -45,6 +45,7 @@ export default function LeitorPage({
   const [pagesLeft, setPagesLeft] = useState<number | null>(null);
   const [displayMode, setDisplayMode] = useState<DisplayMode>("percent");
   const [hasUserBook, setHasUserBook] = useState(false);
+  const [fullscreen, setFullscreen] = useState(false);
 
   const userBookIdRef = useRef<number | null>(null);
   const lastSavedProgressRef = useRef<number>(0);
@@ -55,6 +56,31 @@ export default function LeitorPage({
   const sessionStartProgressRef = useRef<number | null>(null);
 
   const { epubData, loading: epubLoading, error: epubError } = useEpub(id);
+
+  // Sai da tela cheia quando o usuário aperta Esc (o navegador sai sozinho da Fullscreen API).
+  useEffect(() => {
+    const onChange = () => {
+      if (!document.fullscreenElement) setFullscreen(false);
+    };
+    document.addEventListener("fullscreenchange", onChange);
+    return () => document.removeEventListener("fullscreenchange", onChange);
+  }, []);
+
+  // O leitor EPUB só refaz o layout no resize da janela.
+  useEffect(() => {
+    const t = setTimeout(() => window.dispatchEvent(new Event("resize")), 50);
+    return () => clearTimeout(t);
+  }, [fullscreen]);
+
+  function toggleFullscreen() {
+    if (fullscreen) {
+      setFullscreen(false);
+      if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+    } else {
+      setFullscreen(true);
+      document.documentElement.requestFullscreen?.().catch(() => {});
+    }
+  }
 
   useEffect(() => {
     async function init() {
@@ -249,7 +275,7 @@ export default function LeitorPage({
   }
 
   return (
-    <div className="flex flex-col h-full">
+    <div className={fullscreen ? "fixed inset-0 z-40 flex flex-col bg-cream" : "flex flex-col h-full"}>
       <div className="flex items-center gap-4 px-6 py-3 border-b border-cream-border bg-cream shrink-0">
         <button type="button"
           onClick={() => router.back()}
@@ -261,6 +287,14 @@ export default function LeitorPage({
         <h1 className="font-serif font-bold text-brown text-sm truncate flex-1">{book.title}</h1>
         <span className="text-brown-soft text-xs shrink-0">{getAuthorDisplay(book)}</span>
         {renderReadingInfo()}
+        <button type="button"
+          onClick={toggleFullscreen}
+          title={fullscreen ? "Sair da tela cheia" : "Tela cheia"}
+          aria-label={fullscreen ? "Sair da tela cheia" : "Tela cheia"}
+          className="text-brown-soft hover:text-brown transition-colors shrink-0"
+        >
+          {fullscreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+        </button>
       </div>
 
       {hasUserBook && (
@@ -272,7 +306,7 @@ export default function LeitorPage({
         </div>
       )}
 
-      <div className="relative h-[calc(100vh-57px)]">
+      <div className={fullscreen ? "relative flex-1 min-h-0" : "relative h-[calc(100vh-57px)]"}>
         {epubData ? (
           <ReactReader
             url={epubData}
