@@ -185,6 +185,7 @@ continuar aberta, o item volta para investigação.
 | Data | Gate | Segurança | Confiabilidade | Manutenibilidade | Vulns | Bugs | Smells | Observação |
 |---|---|---|---|---|---|---|---|---|
 | 22/08/2026 | ❌ | D | C | A | 6 | 4 | 53 | Linha de base (commit `9df313e`) |
+| 18/10/2026 | ❌ | A | A | A | 0 | 0 | 2 | PR #93 (`feature/agente-atendimento`), New Code do PR; reprovado só por cobertura (0%) |
 
 ---
 
@@ -275,3 +276,108 @@ produção do frontend concluído. Os testes Vitest rodam no CI (`npm test`).
 | `V002__Create_Authors_And_BookAuthors.sql:18` (`= NULL`) | Migration Flyway já aplicada: alterar o arquivo muda o checksum e quebra a inicialização de todos os ambientes | Corrigir numa migration nova, se a lógica estiver errada, e marcar esta issue como *Accept* |
 | `sanity.test.ts` (asserção sempre verdadeira) | Arquivo só existe na `main` | Remover ou trocar por um teste real na `main` |
 | S2004 (aninhamento no leitor), S3358 (ternário aninhado), S6772 (espaçamento JSX) | Exigem refatoração de componentes grandes; baixo risco | Próxima fase |
+
+### 19/09/2026 — PR #80 (`fix/sonar-quality-gate`): pipeline destravado
+
+**Contexto.** O PR #80 (correções de Terraform) falhou nos dois jobs do Sonar por problemas que já
+estavam na `main`:
+
+| Job | Erro | Causa raiz | Correção |
+|---|---|---|---|
+| Backend | `[FATAL] Non-parseable POM ... <<<<<<<` | O merge `111f2b9` (`feature/infraestrutura`) entrou na `main` com marcadores de conflito em 5 arquivos. O outro lado do conflito era um esqueleto do Spring Initializr (Boot 4, Lombok) | Mantido o lado da aplicação (Boot 3.4.4, igual à `develop`) e fixado o `mainClass`, porque o merge trouxe uma segunda classe `main` |
+| Frontend | `npm error Missing script: "test"` | Configuração do Vitest commitada pela metade: havia `vitest.config.ts`, mas nem o script nem as dependências | Script `test` (`vitest run --coverage`) e dependências do Vitest |
+| Ambos | (latente) `-Dsonar.projectKey=mba-puc-alexandria` | A chave usada era o nome da organização, duplicada nos dois jobs | Workflow alinhado ao da `feature/001-saas-pagamentos` |
+
+Por que **não** usar os testes E2E (Playwright) no lugar do Vitest: os specs estão no `.gitignore`,
+dependem do app rodando com backend e banco e não geram o `lcov` que o Sonar lê.
+
+**Validação local:** `mvn -B verify` com 274 testes e 0 falhas; `npm test` gerando o `coverage/lcov.info`.
+
+**Resultado no CI** (run `35412007823`, commit `18d98bd`):
+
+| Job | Resultado |
+|---|---|
+| SonarCloud - Backend | ✅ Build, 274 testes e análise concluídos |
+| SonarCloud - Frontend | ❌ Instalação e testes ok; o **scan** falhou com `sonar-scanner ... exit code 3` |
+
+O projeto `alexandria` não recebeu análise nova (a última continua sendo a de 22/08). Esse
+comportamento é compatível com o problema C2 (*Automatic Analysis* ativa rejeitando a análise
+via CI). A mensagem exata está no log do job, que só pode ser lido por membros autenticados do
+repositório.
+
+**Achado paralelo:** `pipeline-ci.yml` (vazio) e `pipeline-cd.yml` (88 bytes) na `main` são
+workflows inválidos. Eles falham em todo push sem executar nenhum job; já acontecia antes deste PR.
+
+**Atualização (19/09/2026):** o log do job confirmou a causa do C2:
+`ERROR You are running CI analysis while Automatic Analysis is enabled`. O projeto afetado é
+`mba-puc-alexandria_alexandria`. A correção é no painel (*Administration → Analysis Method* →
+desligar *Automatic Analysis*); o workflow não precisa mudar.
+
+### 18/10/2026 — PR #93 (`feature/agente-atendimento`): Gate reprovado por cobertura
+
+**Contexto.** O PR #93 adiciona o agente de IA de atendimento (backend com Spring AI, chat na
+página `/suporte`). No commit `c9faebf`, os jobs *SonarCloud - Backend* e *SonarCloud - Frontend*
+terminaram com sucesso, mas o check **SonarCloud Code Analysis** falhou: o Quality Gate do projeto
+`mba-puc-alexandria_alexandria` (frontend) reprovou.
+
+Dados coletados pela API pública (`qualitygates/project_status`, `issues/search`,
+`hotspots/search` e `measures/component_tree`, com `pullRequest=93`).
+
+**Quality Gate do PR: REPROVADO**
+
+| Condição (New Code) | Limite | Obtido | Status |
+|---|---|---|---|
+| **Cobertura** | ≥ 80% | **0,0%** | ❌ |
+| Security Rating | A | A | ✅ |
+| Reliability Rating | A | A | ✅ |
+| Maintainability Rating | A | A | ✅ |
+| Linhas duplicadas | ≤ 3% | 0,0% | ✅ |
+| Hotspots revisados | 100% | 100% (nenhum hotspot) | ✅ |
+
+A condição de cobertura é a que a seção 4.2 propunha (`new_coverage ≥ 80%`); ela já está ativa
+no Gate. Este é o primeiro PR com código novo de frontend relevante depois disso.
+
+**Causa: código novo de frontend sem teste Vitest.**
+
+| Arquivo | Linhas novas a cobrir | Sem cobertura |
+|---|---|---|
+| `src/app/(main)/suporte/page.tsx` (componente `SupportChat`) | 83 | 83 |
+| `src/lib/api.ts` (`sendSupportMessage`) | 11 | 11 |
+
+O backend do agente tem testes (JUnit: `ChatWithSupportUseCaseTest`, `SupportToolsTest`,
+`SupportControllerIntegrationTest`), mas eles alimentam o projeto `alexandria-backend`, não o
+Gate do frontend.
+
+**Issues novas (não reprovam o Gate, mas devem ser corrigidas):**
+
+| # | Sev. | Arquivo | Regra | Problema | Correção proposta |
+|---|---|---|---|---|---|
+| S1 | MAJOR | `suporte/page.tsx:78` | typescript:S6479 | Índice do array como `key` na lista de mensagens | `id` estável em cada mensagem (ex.: `crypto.randomUUID()` ao criar) |
+| S2 | MINOR | `suporte/page.tsx:31` | typescript:S1874 | `React.FormEvent` está obsoleto no React 19 | Usar `React.FormEvent<HTMLFormElement>` ou `React.SubmitEvent` conforme os tipos instalados |
+
+**Plano de correção (mesma branch, para o PR #93 ficar verde):**
+
+| Prioridade | Providência |
+|---|---|
+| **P0** | `src/lib/api.support.test.ts`: `sendSupportMessage` envia `POST /support/chat` com as mensagens; devolve o `reply`; 401 → "Sessão expirada"; outro erro → mensagem com o código HTTP (padrão de `api.subscription.test.ts`) |
+| **P0** | `src/app/(main)/suporte/page.test.tsx`: sem login mostra o botão de entrar; com login envia a pergunta e exibe a resposta; erro da API aparece na conversa; botão desabilitado durante o envio (mock de `useAuth`, `useAuthModal` e `sendSupportMessage`) |
+| P1 | Corrigir S1 e S2 |
+
+**Observação:** a API pública não retorna dados do projeto `mba-puc-alexandria_alexandria-backend`
+(*"Project doesn't exist"* para acesso anônimo). Como o job do backend concluiu a análise, o
+projeto provavelmente existe e está privado; a verificação do Gate do backend precisa ser feita
+no painel por um membro da organização.
+
+**Correção aplicada (18/10/2026, `feature/agente-atendimento`):**
+
+| Item | Arquivo | Mudança |
+|---|---|---|
+| Cobertura | `src/lib/api.support.test.ts` (novo) | 2 testes: envio com JWT e corpo correto; 401 → "Sessão expirada"; 500 → mensagem com o código |
+| Cobertura | `src/app/(main)/suporte/page.test.tsx` (novo) | 4 testes: aviso de IA e login para visitante; envio com histórico; mensagem vazia bloqueada e "Digitando…" durante o envio; erro exibido na conversa |
+| S1 | `suporte/page.tsx` | Cada mensagem ganhou um `id` local (contador em `useRef`), usado como `key`; o `id` é removido antes de chamar a API. `crypto.randomUUID()` foi descartado porque só existe em contexto seguro (HTTPS ou localhost) |
+| S2 | `suporte/page.tsx` | `React.FormEvent` → `SubmitEvent<HTMLFormElement>`. No `@types/react` 19 o próprio `FormEvent` é obsoleto (*"FormEvent doesn't actually exist"*), então só trocar o import não bastaria |
+
+Verificação local: Vitest com 30 testes passando (12 arquivos); cobertura de
+`suporte/page.tsx` em 149 de 150 linhas e de `sendSupportMessage` em 100%; `eslint` e `tsc` sem
+erros nos arquivos alterados. O resultado no SonarCloud entra na tabela da seção 5 depois do
+próximo push.

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState, type SubmitEvent } from "react";
 import { HelpCircle, Mail, BookOpen, Bot, Send } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAuthModal } from "@/contexts/AuthModalContext";
@@ -21,29 +21,38 @@ const faqs = [
   },
 ];
 
+// O id só existe na tela (key estável da lista); não é enviado ao backend.
+type ChatEntry = SupportMessage & { id: number };
+
 function SupportChat() {
   const { user } = useAuth();
   const { openLoginModal } = useAuthModal();
-  const [messages, setMessages] = useState<SupportMessage[]>([]);
+  const [messages, setMessages] = useState<ChatEntry[]>([]);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
+  const nextId = useRef(0);
 
-  async function handleSubmit(e: React.FormEvent) {
+  function entry(role: SupportMessage["role"], content: string): ChatEntry {
+    nextId.current += 1;
+    return { id: nextId.current, role, content };
+  }
+
+  async function handleSubmit(e: SubmitEvent<HTMLFormElement>) {
     e.preventDefault();
     const text = input.trim();
     if (!text || sending) return;
-    const next: SupportMessage[] = [...messages, { role: "user", content: text }];
+    const next = [...messages, entry("user", text)];
     setMessages(next);
     setInput("");
     setSending(true);
     try {
-      const reply = await sendSupportMessage(next);
-      setMessages([...next, { role: "assistant", content: reply }]);
+      const reply = await sendSupportMessage(next.map(({ role, content }) => ({ role, content })));
+      setMessages([...next, entry("assistant", reply)]);
     } catch (err) {
       const detail = err instanceof Error ? ` (${err.message})` : "";
       setMessages([
         ...next,
-        { role: "assistant", content: `Não consegui responder agora${detail}. Tente de novo ou use o e-mail de contato abaixo.` },
+        entry("assistant", `Não consegui responder agora${detail}. Tente de novo ou use o e-mail de contato abaixo.`),
       ]);
     } finally {
       setSending(false);
@@ -73,9 +82,9 @@ function SupportChat() {
         ) : (
           <>
             <div className="flex flex-col gap-2 max-h-80 overflow-y-auto" aria-live="polite">
-              {messages.map((m, i) => (
+              {messages.map((m) => (
                 <p
-                  key={i}
+                  key={m.id}
                   className={`text-sm leading-relaxed rounded-lg px-3 py-2 max-w-[85%] whitespace-pre-wrap ${
                     m.role === "user" ? "self-end bg-terra text-white" : "self-start bg-cream text-brown"
                   }`}
