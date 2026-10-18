@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL!;
+// Esta rota roda no servidor: dentro do Docker, "localhost" é o próprio contêiner do frontend.
+// API_INTERNAL_URL aponta para o backend pela rede interna; sem ela, usa a URL pública.
+const API_URL = process.env.API_INTERNAL_URL ?? process.env.NEXT_PUBLIC_API_URL!;
 
 export async function GET(request: NextRequest) {
   const bookId = request.nextUrl.searchParams.get("bookId");
