@@ -412,6 +412,27 @@ Acesse `http://localhost:3000` — redireciona automaticamente para `/explorar`.
 docker compose up -d --build
 ```
 
+### Agente de IA de atendimento (Ollama)
+
+O chat da página `/suporte` usa um modelo local no **Ollama**. Detalhes em [`docs/agente-atendimento.md`](docs/agente-atendimento.md).
+
+**Com a stack Docker** não precisa instalar nada: o `docker-compose.yml` já sobe o contêiner `alexandria-ollama`, e o backend baixa o modelo `qwen2.5:3b` (~1,9 GB) na primeira subida.
+
+- A primeira subida demora até o modelo terminar de baixar. Para acompanhar: `docker logs -f alexandria-backend`.
+- O modelo fica no volume `ollama_data`, então não é baixado de novo.
+- Reserve de 6 a 8 GB de RAM para o Docker Desktop. Funciona sem GPU, só que mais lento.
+
+**Com o backend rodando fora do Docker** (`./mvnw spring-boot:run` ou pela IDE), o modelo não é baixado automaticamente:
+
+1. Instale o Ollama: https://ollama.com/download
+2. Baixe o modelo:
+   ```bash
+   ollama pull qwen2.5:3b
+   ```
+3. Rode o backend normalmente. Ele procura o Ollama em `http://localhost:11434` (para outro endereço, use a variável `OLLAMA_URL`).
+
+Se o Ollama não estiver rodando, o resto do sistema funciona normalmente e o chat responde com o contato do suporte humano.
+
 ---
 
 ## Testes
