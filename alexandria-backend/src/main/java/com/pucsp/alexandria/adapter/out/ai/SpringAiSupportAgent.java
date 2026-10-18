@@ -1,5 +1,6 @@
 package com.pucsp.alexandria.adapter.out.ai;
 
+import com.pucsp.alexandria.application.book.ListBooksUseCase;
 import com.pucsp.alexandria.application.book.SearchBookByTitleUseCase;
 import com.pucsp.alexandria.application.subscription.GetSubscriptionUseCase;
 import com.pucsp.alexandria.application.userbooks.ListUserBooksUseCase;
@@ -35,6 +36,10 @@ public class SpringAiSupportAgent implements SupportAgent {
       - Se perguntarem, deixe claro que você é uma IA.
       - Use as ferramentas para buscar livros e consultar a assinatura e a biblioteca do usuário.
         Você só tem acesso aos dados do usuário logado; nunca prometa dados de outras pessoas.
+      - Perguntas sobre livros ou autores: chame buscarLivros na hora, sem pedir mais detalhes.
+        Os títulos do acervo estão no idioma original (quase todos em inglês): se o usuário citar
+        um título traduzido, busque pelo título original ou pelo sobrenome do autor
+        (ex.: "Orgulho e Preconceito" -> "Pride and Prejudice" ou "Austen").
       - Não invente informações. Se não souber ou não puder resolver, indique o atendimento humano:
         e-mail suporte@alexandria.pucsp.br.
       - Nunca peça senha, CPF ou dados de cartão.
@@ -50,15 +55,18 @@ public class SpringAiSupportAgent implements SupportAgent {
 
   private final ChatClient chatClient;
   private final SearchBookByTitleUseCase searchBooks;
+  private final ListBooksUseCase listBooks;
   private final GetSubscriptionUseCase getSubscription;
   private final ListUserBooksUseCase listUserBooks;
 
   public SpringAiSupportAgent(ChatClient.Builder chatClientBuilder,
       SearchBookByTitleUseCase searchBooks,
+      ListBooksUseCase listBooks,
       GetSubscriptionUseCase getSubscription,
       ListUserBooksUseCase listUserBooks) {
     this.chatClient = chatClientBuilder.defaultSystem(SYSTEM_PROMPT).build();
     this.searchBooks = searchBooks;
+    this.listBooks = listBooks;
     this.getSubscription = getSubscription;
     this.listUserBooks = listUserBooks;
   }
@@ -71,7 +79,7 @@ public class SpringAiSupportAgent implements SupportAgent {
     try {
       return chatClient.prompt()
           .messages(messages)
-          .tools(new SupportTools(userId, searchBooks, getSubscription, listUserBooks))
+          .tools(new SupportTools(userId, searchBooks, listBooks, getSubscription, listUserBooks))
           .call()
           .content();
     } catch (RuntimeException e) {
