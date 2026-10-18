@@ -113,7 +113,7 @@ const VARIANTS: Record<
     badge: "Teste ativo",
     badgeTone: "ok",
     cta: { href: "/configuracoes", label: "Gerenciar assinatura", icon: Settings },
-    note: "Seu cartão está salvo com segurança. A primeira cobrança acontece apenas após o teste.",
+    note: "Seu pagamento está confirmado no Mercado Pago. A primeira cobrança acontece apenas após o teste.",
   },
   ACTIVE: {
     badge: "Plano ativo",

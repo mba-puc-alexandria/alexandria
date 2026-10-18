@@ -94,13 +94,31 @@ Alexandria é uma biblioteca digital que permite ao usuário organizar sua cole�
 └─────────────────────────────┘
 ```
 
-### Microsserviço de pagamento
+### Microsserviço de pagamento (`payment-api`)
 
-A assinatura **Alexandria Premium** é processada pelo microsserviço `payment-api`
-(repositório separado), responsável pela integração com o Mercado Pago (PIX e cartão).
-O backend do Alexandria se comunica com ele via HTTP usando `Authorization: Bearer`
-(repassando o token do usuário), e recebe o status do pagamento por callback HTTP
-(`POST /subscriptions/payment-webhook`).
+A assinatura **Alexandria Premium** usa o [`payment-api`](https://github.com/GohanFood/payment-api), um
+microsserviço em repositório separado. Ele concentra a integração com o Mercado Pago
+(PIX e cartão) e mantém seu próprio banco PostgreSQL. O Alexandria mantém usuários e
+assinaturas; o `payment-api` processa pagamentos e entrega eventos de status.
+
+```
+Frontend ── CardForm seguro ──> Mercado Pago
+    │                               │
+    └──── token do cartão ──> Alexandria ──> payment-api
+                                             │
+Mercado Pago <──── API de pagamentos ───────┘
+                                             │ callback assinado
+Alexandria <────────────────────────────────┘
+```
+
+- O navegador usa a **Public Key** para montar os campos seguros do Mercado Pago.
+- PAN, validade e CVV não passam pelo Alexandria nem pelo `payment-api`.
+- O **Access Token** fica somente no `payment-api`; nunca use `NEXT_PUBLIC_` para ele.
+- O `payment-api` não mantém perfis de usuários. Para renovação automática, o Mercado
+  Pago administra o método de pagamento e o Alexandria mantém apenas o estado e as
+  referências da assinatura.
+- O callback para `POST /subscriptions/payment-webhook` usa `X-Webhook-Secret`. O
+  `payment-api` registra tentativas de entrega e as reprocessa em caso de falha.
 
 ### Estrutura de Pastas
 
@@ -274,10 +292,42 @@ O bloqueio é duplo: login no frontend + validação de assinatura no backend
 
 ### Fluxo de pagamento
 
-- **Durante o trial**: apenas cartão de crédito (a cobrança é agendada para o fim do trial).
+- **Durante o trial**: apenas cartão de crédito. O usuário confirma a cobrança de
+  R$ 10,00/mês, que só ocorre no fim do trial.
 - **Após o trial**: PIX (pagamento imediato) ou cartão.
 
-### Configuração (backend)
+### Configuração local do Mercado Pago e `payment-api`
+
+Crie o arquivo `.env` na raiz do repositório. Ele é ignorado pelo Git e não deve ser
+versionado. Para testes, use exclusivamente as credenciais de **Teste** (`TEST-...`).
+
+```env
+# Chave pública: incorporada no build do frontend e usada apenas pelo CardForm.
+NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY=TEST-...
+
+# Segredo: enviado somente ao payment-api para chamadas à API do Mercado Pago.
+MERCADOPAGO_ACCESS_TOKEN=TEST-...
+
+MERCADOPAGO_ENVIRONMENT=sandbox
+SUBSCRIPTION_CALLBACK_SECRET=troque-por-um-segredo-local
+MERCADOPAGO_WEBHOOK_SECRET=troque-por-um-segredo-local
+```
+
+Para obter as credenciais:
+
+1. Entre em [Mercado Pago Developers](https://www.mercadopago.com.br/developers/pt/docs/your-integrations/credentials).
+2. Abra **Suas integrações** e selecione ou crie a aplicação.
+3. Em **Testes > Credenciais de teste**, copie a **Public Key** e o **Access Token**.
+4. Preencha as duas variáveis acima e execute `docker compose up -d --build`.
+
+As credenciais de teste ficam disponíveis logo após criar a aplicação. O Access Token é
+uma credencial privada de backend e não deve ser copiado para código, logs, frontend ou
+repositórios. Consulte a [documentação oficial de credenciais](https://www.mercadopago.com.br/developers/pt/docs/your-integrations/credentials).
+
+> O frontend recebe `NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY` durante o **build**. Depois de
+> alterar essa chave, reconstrua o frontend com `docker compose up -d --build frontend`.
+
+### Configuração do backend
 
 ```properties
 subscription.trial-days=${SUBSCRIPTION_TRIAL_DAYS:15}
@@ -287,6 +337,61 @@ subscription.currency=BRL
 payment-api.url=${PAYMENT_API_URL:http://localhost:8082}
 subscription.callback-secret=${SUBSCRIPTION_CALLBACK_SECRET:dev-callback-secret}
 ```
+
+### Teste manual de pagamento sandbox
+
+1. No Devsite, crie ou selecione uma conta de teste do tipo **Comprador** no mesmo país
+   da conta vendedora. Não invente um endereço `@testuser.com`: use os dados gerados
+   para a conta de teste.
+2. Configure as credenciais de teste no `.env` e suba a stack completa:
+
+   ```bash
+   docker compose up -d --build
+   ```
+
+3. Confirme os serviços:
+
+   ```bash
+   # Frontend, Alexandria e payment-api
+   curl http://localhost:3000
+   curl http://localhost:8080/actuator/health
+   curl http://localhost:8082/actuator/health
+   ```
+
+4. Em `http://localhost:3000`, registre uma conta Alexandria, acesse **Planos** e abra o
+   checkout. Durante o trial, confirme o pagamento após o teste; não há cobrança no dia
+   da confirmação.
+5. Acompanhe a criação do pagamento e a entrega do callback:
+
+   ```bash
+   docker compose logs -f payment-api backend
+   ```
+
+O Mercado Pago requer uma conta vendedora (a conta da integração) e uma conta de teste
+compradora para simular a compra. Veja como criá-las na [documentação de contas de teste](https://www.mercadopago.com.br/developers/pt/docs/your-integrations/test/accounts).
+
+### Cartões e CPF de teste
+
+Use somente os dados abaixo no ambiente sandbox. Eles são dados públicos de teste do
+Mercado Pago, não cartões reais.
+
+| Bandeira | Número | CVV | Validade |
+|---|---|---:|---|
+| Mastercard | `5480 8328 0103 3311` | `123` | `11/30` |
+| Visa | `4235 6477 2802 5682` | `123` | `11/30` |
+| American Express | `3753 651535 56885` | `1234` | `11/30` |
+| Elo (débito) | `5067 7667 8388 8311` | `123` | `11/30` |
+
+O resultado do cenário é definido pelo titular e pelo documento, não pela bandeira:
+
+| Resultado esperado | Titular | Documento |
+|---|---|---|
+| Pagamento aprovado | `APRO` | CPF `12345678909` |
+| Recusado por erro geral | `OTHE` | CPF `12345678909` |
+
+Para os demais cenários (pendente, fundos insuficientes, CVV inválido, duplicado etc.),
+use os titulares de teste definidos pelo Mercado Pago; a tabela oficial indica quando
+nenhum CPF é necessário. Fonte: [Cartões de teste do Mercado Pago](https://www.mercadopago.com.br/developers/pt/docs/your-integrations/test/cards).
 
 ---
 
