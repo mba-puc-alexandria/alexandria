@@ -110,6 +110,8 @@ services:
         NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY: ${NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY:-}
     container_name: alexandria-frontend
     restart: unless-stopped
+    environment:
+      API_INTERNAL_URL: http://backend:8080
     ports:
       - "3000:3000"
     depends_on:
