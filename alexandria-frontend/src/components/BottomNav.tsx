@@ -43,7 +43,7 @@ export default function BottomNav() {
       })}
 
       {user ? (
-        <button
+        <button type="button"
           onClick={logout}
           className="flex flex-col items-center gap-1 px-4 py-1 rounded-xl text-terra/70 transition-colors"
         >
@@ -51,7 +51,7 @@ export default function BottomNav() {
           <span className="text-[9px] tracking-wide uppercase font-bold text-terra/50">Sair</span>
         </button>
       ) : (
-        <button
+        <button type="button"
           onClick={openLoginModal}
           className="flex flex-col items-center gap-1 px-4 py-1 rounded-xl text-slate/60"
         >

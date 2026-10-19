@@ -64,20 +64,20 @@ export default function LoginModal() {
   }
 
   return (
-    <div
-      className="modal-overlay fixed inset-0 z-50 flex items-center justify-center"
-      onClick={closeLoginModal}
-    >
-      {/* Overlay */}
-      <div className="absolute inset-0 bg-brown/60 backdrop-blur-sm" />
+    <div className="modal-overlay fixed inset-0 z-50 flex items-center justify-center">
+      {/* Overlay: botão nativo, então fecha por clique e por teclado */}
+      <button
+        type="button"
+        aria-label="Fechar"
+        tabIndex={-1}
+        onClick={closeLoginModal}
+        className="absolute inset-0 bg-brown/60 backdrop-blur-sm cursor-default"
+      />
 
       {/* Card */}
-      <div
-        className="modal-card relative z-10 w-full max-w-sm mx-4 bg-cream rounded-2xl shadow-xl border border-cream-border p-8 flex flex-col gap-6"
-        onClick={(e) => e.stopPropagation()}
-      >
+      <div className="modal-card relative z-10 w-full max-w-sm mx-4 bg-cream rounded-2xl shadow-xl border border-cream-border p-8 flex flex-col gap-6">
         {/* Fechar */}
-        <button
+        <button type="button"
           onClick={closeLoginModal}
           className="absolute top-4 right-4 text-slate hover:text-brown transition-colors"
         >
@@ -93,10 +93,11 @@ export default function LoginModal() {
         {/* Formulário */}
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-bold text-brown-soft uppercase tracking-widest">
+            <label htmlFor="login-username" className="text-xs font-bold text-brown-soft uppercase tracking-widest">
               Usuário
             </label>
             <input
+              id="login-username"
               type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
@@ -108,10 +109,11 @@ export default function LoginModal() {
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-bold text-brown-soft uppercase tracking-widest">
+            <label htmlFor="login-password" className="text-xs font-bold text-brown-soft uppercase tracking-widest">
               Senha
             </label>
             <input
+              id="login-password"
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}

@@ -5,6 +5,7 @@ import static org.mockito.Mockito.*;
 
 import com.pucsp.alexandria.application.auth.dto.RegisterInput;
 import com.pucsp.alexandria.application.auth.dto.RegisterOutput;
+import com.pucsp.alexandria.application.subscription.StartTrialUseCase;
 import com.pucsp.alexandria.domain.user.User;
 import com.pucsp.alexandria.domain.user.UserRepository;
 import org.junit.jupiter.api.Test;
@@ -20,6 +21,9 @@ class RegisterUserUseCaseTest {
 
     @Mock
     private UserRepository userRepository;
+
+    @Mock
+    private StartTrialUseCase startTrialUseCase;
 
     @InjectMocks
     private RegisterUserUseCase registerUserUseCase;

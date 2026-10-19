@@ -4,6 +4,8 @@ Este guia descreve todos os arquivos que precisam ser criados/modificados para a
 
 > ⚠️ **Nota:** Este guia usa "Author" como exemplo, mas Author **já está implementado** no código. Use este guia como referência para criar **outros** domínios (Publisher, Category, Loan, etc.).
 
+> 📌 **Regra de ouro:** antes de começar, consulte [`ARCHITECTURE.md`](./ARCHITECTURE.md) (mapa de pacotes/classes) e este guia (passo a passo). Eles evitam ter que varrer o projeto de ponta a ponta. Ao terminar, **atualize ambos** com o que foi criado.
+
 ---
 
 ## 📊 Checklist por Camada
@@ -42,11 +44,21 @@ Novo Domínio: Xxx (ex: Publisher)
 │       ├── jpa/XxxJpaRepository.java
 │       └── mapper/XxxMapper.java
 │
-├── ⚙️ CONFIGURAÇÃO (1 modificação)
-│   └── config/BeanConfiguration.java (adicionar @Bean)
+├── ⚙️ CONFIGURAÇÃO (1~2 modificações)
+│   ├── config/BeanConfiguration.java (adicionar @Bean dos Use Cases)
+│   └── config/XxxProperties.java (opcional — @ConfigurationProperties p/ config do domínio)
 │
 ├── 🔐 SEGURANÇA
 │   └── config/SecurityConfig.java (se o endpoint precisar ser autenticado)
+│
+├── ⏰ JOB AGENDADO (opcional)
+│   └── adapter/in/job/XxxJobService.java (@Scheduled, ex.: expiração de assinatura)
+│
+├── 🌐 SAÍDA EXTERNA (opcional — ex.: API de pagamento)
+│   └── adapter/out/xxx/
+│       ├── XxxApiClient.java        (porta de saída)
+│       ├── RestXxxApiClient.java    (implementação com RestTemplate)
+│       └── dto/                     (records de request/response)
 │
 └── 🛡️ EXCEÇÕES (opcional)
     └── advice/GlobalExceptionHandler.java (se necessário adicionar handler)
@@ -836,4 +848,66 @@ adapter/out/persistence/  ← *Impl, Entity, JpaRepository, Mapper vão AQUI
 └── advice/GlobalExceptionHandler.java    (MODIFICAR - se criar novas exceções)
 ```
 
-> 💡 **Dica final:** Sempre olhe o código real dos domínios já implementados (`Author`, `Book`, `User`, `UserBooks`) como referência mais confiável. Este guia é um template genérico.
+> 💡 **Dica final:** Sempre olhe o código real dos domínios já implementados (`Author`, `Book`, `User`, `UserBooks`, `Subscription`) como referência mais confiável. Este guia é um template genérico.
+
+---
+
+## 🎯 Referência real: domínio Subscription (SaaS Alexandria Premium)
+
+A feature 001 implementou o domínio `Subscription` seguindo este guia **+** padrões extras que
+podem ser reutilizados. Resumo do que existe hoje (use como referência, não precisa recriar):
+
+### Arquivos criados
+
+| Camada | Arquivos |
+|--------|----------|
+| Domínio | `domain/subscription/Subscription.java`, `SubscriptionId.java`, `SubscriptionStatus.java`, `SubscriptionRepository.java`, `exception/*` |
+| Aplicação | `application/subscription/StartTrialUseCase`, `GetSubscriptionUseCase`, `CheckoutUseCase`, `ProcessPaymentWebhookUseCase`, `CancelSubscriptionUseCase`, `ExpireSubscriptionsUseCase` + `dto/*` |
+| Entrada REST | `adapter/in/rest/subscription/SubscriptionController.java` + `dto/CheckoutRequest.java`, `dto/PaymentWebhookRequest.java` |
+| Entrada job | `adapter/in/job/SubscriptionExpiryJobService.java` (`@Scheduled`) |
+| Saída persistência | `adapter/out/persistence/SubscriptionRepositoryImpl`, `entity/SubscriptionEntity`, `jpa/SubscriptionJpaRepository`, `mapper/SubscriptionMapper` |
+| Saída externa | `adapter/out/payment/PaymentApiClient`, `RestPaymentApiClient`, `dto/PaymentApiCreateRequest`, `dto/PaymentApiResult` |
+| Config | `config/SubscriptionProperties.java` (`@ConfigurationProperties(prefix="subscription")`) |
+
+### Padrões extras que a Subscription demonstra
+
+1. **Config do domínio (`@ConfigurationProperties`)**
+   `SubscriptionProperties` expõe `trial-days`, `price`, `period-days`, `currency`,
+   `callback-secret` e `expiry-cron`, injetada nos Use Cases sem poluir `@Value`.
+
+2. **Saída externa (cliente HTTP)**
+   `PaymentApiClient` é a porta; `RestPaymentApiClient` usa `RestTemplate` e
+   `@Value("${payment-api.url}")`. Segue o mesmo desenho de `BookApiClient`/`BookApiClientImpl`,
+   mas fora do pacote `persistence`.
+
+3. **Job `@Scheduled`**
+   `SubscriptionExpiryJobService` chama `ExpireSubscriptionsUseCase`. Requer `@EnableScheduling`
+   na `AlexandriaApplication`.
+
+4. **Iniciar o agregado a partir de outro Use Case**
+   `RegisterUserUseCase` e `GoogleAuthUseCase` recebem `StartTrialUseCase` no construtor e o
+   invocam **apenas na criação de novo usuário** (no `orElseGet` do Google, login existente não recria).
+
+5. **Webhook/callback idempotente**
+   `POST /subscriptions/payment-webhook` é `permitAll` e valida o header `X-Webhook-Secret` dentro
+   do controller (`SubscriptionProperties.callbackSecret`). O Use Case (`ProcessPaymentWebhookUseCase`)
+   é idempotente por `mpPaymentId`.
+
+6. **Gate em endpoint já existente**
+   `GET /books/{id}/epub` usa `GetBookEpubUseCase` para validar assinatura antes de devolver a
+   `downloadUrl`; o controller faz o proxy dos bytes sem expor a URL.
+
+### Erros de Subscription mapeados
+
+| Exceção | HTTP | Onde |
+|---------|------|------|
+| `SubscriptionNotFoundException` | 404 | `GlobalExceptionHandler` |
+| `PaymentMethodNotAllowedException` | 400 | `GlobalExceptionHandler` |
+| `SubscriptionRequiredException` | 402 | `GlobalExceptionHandler` (`SUBSCRIPTION_REQUIRED`) |
+
+### Observação
+
+O **payment-api** é um microsserviço separado (repositório Gohan Food). Neste repositório só
+existem o cliente HTTP (`adapter/out/payment`) e o endpoint de callback. A migração do schema de
+`subscriptions` ainda é gerada pelo Hibernate (`ddl-auto=update`), pois o Flyway continua desabilitado
+no Alexandria.

@@ -23,6 +23,7 @@ Alexandria é uma biblioteca digital que permite ao usuário organizar sua cole�
 | **Leitor de EPUB/PDF** | Visualizador integrado com trackeamento automático de progresso, tempo restante estimado e páginas restantes |
 | **Autenticação** | Login/registro com JWT e autenticação via Google OAuth |
 | **Perfil e Configurações** | Edição de dados da conta, alteração de senha, preferências |
+| **Alexandria Premium** | Assinatura mensal (R$ 10,00) com trial de 15 dias, pagamento via PIX ou cartão, paywall de leitura |
 | **Modo Escuro** | Tema claro/escuro com persistência local |
 | **PWA** | Service worker e manifest para instalação como aplicativo |
 
@@ -88,9 +89,36 @@ Alexandria é uma biblioteca digital que permite ao usuário organizar sua cole�
 ├─────────────────────────────┤
 │   Repository Implementations│  ← adapter/out/persistence
 ├─────────────────────────────┤
-│   External APIs (Gutendex)  │  ← adapter/out/persistence/external
+│   External APIs             │  ← adapter/out/persistence/external (Gutendex)
+│                             │    adapter/out/payment (payment-api)
 └─────────────────────────────┘
 ```
+
+### Microsserviço de pagamento (`payment-api`)
+
+A assinatura **Alexandria Premium** usa o [`payment-api`](https://github.com/GohanFood/payment-api), um
+microsserviço em repositório separado. Ele concentra a integração com o Mercado Pago
+(PIX e cartão) e mantém seu próprio banco PostgreSQL. O Alexandria mantém usuários e
+assinaturas; o `payment-api` processa pagamentos e entrega eventos de status.
+
+```
+Frontend ── CardForm seguro ──> Mercado Pago
+    │                               │
+    └──── token do cartão ──> Alexandria ──> payment-api
+                                             │
+Mercado Pago <──── API de pagamentos ───────┘
+                                             │ callback assinado
+Alexandria <────────────────────────────────┘
+```
+
+- O navegador usa a **Public Key** para montar os campos seguros do Mercado Pago.
+- PAN, validade e CVV não passam pelo Alexandria nem pelo `payment-api`.
+- O **Access Token** fica somente no `payment-api`; nunca use `NEXT_PUBLIC_` para ele.
+- O `payment-api` não mantém perfis de usuários. Para renovação automática, o Mercado
+  Pago administra o método de pagamento e o Alexandria mantém apenas o estado e as
+  referências da assinatura.
+- O callback para `POST /subscriptions/payment-webhook` usa `X-Webhook-Secret`. O
+  `payment-api` registra tentativas de entrega e as reprocessa em caso de falha.
 
 ### Estrutura de Pastas
 
@@ -104,8 +132,8 @@ Alexandria é uma biblioteca digital que permite ao usuário organizar sua cole�
 │   │   │   │   └── job/         # SyncGutendexJobService
 │   │   │   └── out/persistence/ # JPA repositories, mappers, entidades
 │   │   │       └── external/    # Gutendex client
-│   │   ├── application/         # Use cases (CreateBookUseCase, Auth, etc.)
-│   │   ├── domain/              # Entidades de domínio (Book, User, Author, UserBooks)
+│   │   ├── application/         # Use cases (CreateBookUseCase, Auth, Subscription, etc.)
+│   │   ├── domain/              # Entidades de domínio (Book, User, Author, UserBooks, Subscription)
 │   │   ├── config/              # Security, JWT, CORS, OpenAPI
 │   │   └── advice/              # GlobalExceptionHandler
 │   ├── src/main/resources/
@@ -134,6 +162,8 @@ Alexandria é uma biblioteca digital que permite ao usuário organizar sua cole�
 │   │   │   │   ├── leitor/page.tsx            # Leitor (mock)
 │   │   │   │   ├── leitor/[id]/page.tsx       # Leitor EPUB real
 │   │   │   │   ├── configuracoes/page.tsx     # Perfil e preferências
+│   │   │   │   ├── planos/page.tsx            # Alexandria Premium (preço e CTA)
+│   │   │   │   ├── checkout/page.tsx          # Checkout PIX/cartão
 │   │   │   │   └── suporte/page.tsx           # FAQ e contato
 │   │   │   └── api/epub/route.ts             # Proxy de EPUB
 │   │   ├── components/
@@ -180,6 +210,7 @@ Alexandria é uma biblioteca digital que permite ao usuário organizar sua cole�
 | `users` | Usuários (username, email, senha hash, role USER/ADMIN) |
 | `user_books` | Relação usuário-livro (status: reading/done/toread, progresso %, rating) |
 | `authors` | Autores (nome, ano nascimento/falecimento) |
+| `subscriptions` | Assinaturas Alexandria Premium (status, trial, período pago, pagamento) |
 
 ### Migrations (Flyway)
 
@@ -204,9 +235,18 @@ Alexandria é uma biblioteca digital que permite ao usuário organizar sua cole�
 | GET | `/books` | Listar livros (paginado, filtro por idioma) | Público |
 | GET | `/books/{id}` | Detalhes do livro | Público |
 | GET | `/books/search?query=` | Buscar por título | Público |
+| GET | `/books/{id}/epub` | Baixar EPUB (exige assinatura válida) | Autenticado |
 | POST | `/books` | Criar livro | ADMIN |
 | PUT | `/books/{id}` | Atualizar livro | ADMIN |
 | DELETE | `/books/{id}` | Remover livro | ADMIN |
+
+### Assinatura (Alexandria Premium)
+| Método | Rota | Descrição | Autenticação |
+|---|---|---|---|
+| GET | `/subscriptions/me` | Status da assinatura do usuário | Autenticado |
+| POST | `/subscriptions/checkout` | Criar pagamento (PIX ou cartão) | Autenticado |
+| POST | `/subscriptions/payment-webhook` | Callback de status do payment-api | `X-Webhook-Secret` |
+| POST | `/subscriptions/cancel` | Cancelar assinatura | Autenticado |
 
 ### Biblioteca do Usuário
 | Método | Rota | Descrição | Autenticação |
@@ -227,6 +267,131 @@ Alexandria é uma biblioteca digital que permite ao usuário organizar sua cole�
 | Método | Rota | Descrição | Autenticação |
 |---|---|---|---|
 | POST | `/api/jobs/sync-gutendex` | Sincronizar livros do Gutendex | ADMIN |
+
+---
+
+## Alexandria Premium
+
+Modelo de assinatura que libera a leitura de EPUBs:
+
+- **Trial**: todo novo usuário ganha **15 dias grátis** ao se cadastrar (ou no primeiro login Google).
+- **Valor**: **R$ 10,00/mês** após o trial.
+- **Pagamento**: PIX ou cartão de crédito, processados pelo Mercado Pago via `payment-api`.
+
+### Regras de acesso
+
+| Situação | Acesso à leitura |
+|---|---|
+| Sem login | Bloqueado (redireciona para login) |
+| Trial ativo | Liberado |
+| Assinatura ativa | Liberado |
+| Trial expirado / assinatura vencida | Bloqueado (paywall) |
+
+O bloqueio é duplo: login no frontend + validação de assinatura no backend
+(`GET /books/{id}/epub`). O EPUB nunca é exposto diretamente no frontend.
+
+### Fluxo de pagamento
+
+- **Durante o trial**: apenas cartão de crédito. O usuário confirma a cobrança de
+  R$ 10,00/mês, que só ocorre no fim do trial.
+- **Após o trial**: PIX (pagamento imediato) ou cartão.
+
+### Configuração local do Mercado Pago e `payment-api`
+
+Crie o arquivo `.env` na raiz do repositório. Ele é ignorado pelo Git e não deve ser
+versionado. Para testes, use exclusivamente as credenciais de **Teste** (`TEST-...`).
+
+```env
+# Chave pública: incorporada no build do frontend e usada apenas pelo CardForm.
+NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY=TEST-...
+
+# Segredo: enviado somente ao payment-api para chamadas à API do Mercado Pago.
+MERCADOPAGO_ACCESS_TOKEN=TEST-...
+
+MERCADOPAGO_ENVIRONMENT=sandbox
+SUBSCRIPTION_CALLBACK_SECRET=troque-por-um-segredo-local
+MERCADOPAGO_WEBHOOK_SECRET=troque-por-um-segredo-local
+```
+
+Para obter as credenciais:
+
+1. Entre em [Mercado Pago Developers](https://www.mercadopago.com.br/developers/pt/docs/your-integrations/credentials).
+2. Abra **Suas integrações** e selecione ou crie a aplicação.
+3. Em **Testes > Credenciais de teste**, copie a **Public Key** e o **Access Token**.
+4. Preencha as duas variáveis acima e execute `docker compose up -d --build`.
+
+As credenciais de teste ficam disponíveis logo após criar a aplicação. O Access Token é
+uma credencial privada de backend e não deve ser copiado para código, logs, frontend ou
+repositórios. Consulte a [documentação oficial de credenciais](https://www.mercadopago.com.br/developers/pt/docs/your-integrations/credentials).
+
+> O frontend recebe `NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY` durante o **build**. Depois de
+> alterar essa chave, reconstrua o frontend com `docker compose up -d --build frontend`.
+
+### Configuração do backend
+
+```properties
+subscription.trial-days=${SUBSCRIPTION_TRIAL_DAYS:15}
+subscription.price=${SUBSCRIPTION_PRICE:10.00}
+subscription.period-days=${SUBSCRIPTION_PERIOD_DAYS:30}
+subscription.currency=BRL
+payment-api.url=${PAYMENT_API_URL:http://localhost:8082}
+subscription.callback-secret=${SUBSCRIPTION_CALLBACK_SECRET:dev-callback-secret}
+```
+
+### Teste manual de pagamento sandbox
+
+1. No Devsite, crie ou selecione uma conta de teste do tipo **Comprador** no mesmo país
+   da conta vendedora. Não invente um endereço `@testuser.com`: use os dados gerados
+   para a conta de teste.
+2. Configure as credenciais de teste no `.env` e suba a stack completa:
+
+   ```bash
+   docker compose up -d --build
+   ```
+
+3. Confirme os serviços:
+
+   ```bash
+   # Frontend, Alexandria e payment-api
+   curl http://localhost:3000
+   curl http://localhost:8080/actuator/health
+   curl http://localhost:8082/actuator/health
+   ```
+
+4. Em `http://localhost:3000`, registre uma conta Alexandria, acesse **Planos** e abra o
+   checkout. Durante o trial, confirme o pagamento após o teste; não há cobrança no dia
+   da confirmação.
+5. Acompanhe a criação do pagamento e a entrega do callback:
+
+   ```bash
+   docker compose logs -f payment-api backend
+   ```
+
+O Mercado Pago requer uma conta vendedora (a conta da integração) e uma conta de teste
+compradora para simular a compra. Veja como criá-las na [documentação de contas de teste](https://www.mercadopago.com.br/developers/pt/docs/your-integrations/test/accounts).
+
+### Cartões e CPF de teste
+
+Use somente os dados abaixo no ambiente sandbox. Eles são dados públicos de teste do
+Mercado Pago, não cartões reais.
+
+| Bandeira | Número | CVV | Validade |
+|---|---|---:|---|
+| Mastercard | `5480 8328 0103 3311` | `123` | `11/30` |
+| Visa | `4235 6477 2802 5682` | `123` | `11/30` |
+| American Express | `3753 651535 56885` | `1234` | `11/30` |
+| Elo (débito) | `5067 7667 8388 8311` | `123` | `11/30` |
+
+O resultado do cenário é definido pelo titular e pelo documento, não pela bandeira:
+
+| Resultado esperado | Titular | Documento |
+|---|---|---|
+| Pagamento aprovado | `APRO` | CPF `12345678909` |
+| Recusado por erro geral | `OTHE` | CPF `12345678909` |
+
+Para os demais cenários (pendente, fundos insuficientes, CVV inválido, duplicado etc.),
+use os titulares de teste definidos pelo Mercado Pago; a tabela oficial indica quando
+nenhum CPF é necessário. Fonte: [Cartões de teste do Mercado Pago](https://www.mercadopago.com.br/developers/pt/docs/your-integrations/test/cards).
 
 ---
 
@@ -299,6 +464,8 @@ Todas as cores são invertidas dinamicamente via variáveis CSS quando a classe 
 | Empréstimos | `/emprestimos` | Registros com status visual e FAB |
 | Leitor | `/leitor`, `/leitor/[id]` | Leitor de EPUB com progresso automático |
 | Configurações | `/configuracoes` | Perfil, senha, notificações, aparência |
+| Planos | `/planos` | Preço e CTA do Alexandria Premium |
+| Checkout | `/checkout` | Pagamento PIX/cartão |
 | Suporte | `/suporte` | FAQ, contato e informações |
 | Login | `/login` | Autenticação |
 | Registrar | `/registrar` | Criação de conta |
@@ -349,6 +516,27 @@ Acesse `http://localhost:3000` — redireciona automaticamente para `/explorar`.
 ```bash
 docker compose up -d --build
 ```
+
+### Agente de IA de atendimento (Ollama)
+
+O chat da página `/suporte` usa um modelo local no **Ollama**. Detalhes em [`docs/agente-atendimento.md`](docs/agente-atendimento.md).
+
+**Com a stack Docker** não precisa instalar nada: o `docker-compose.yml` já sobe o contêiner `alexandria-ollama`, e o backend baixa o modelo `qwen2.5:3b` (~1,9 GB) na primeira subida.
+
+- A primeira subida demora até o modelo terminar de baixar. Para acompanhar: `docker logs -f alexandria-backend`.
+- O modelo fica no volume `ollama_data`, então não é baixado de novo.
+- Reserve de 6 a 8 GB de RAM para o Docker Desktop. Funciona sem GPU, só que mais lento.
+
+**Com o backend rodando fora do Docker** (`./mvnw spring-boot:run` ou pela IDE), o modelo não é baixado automaticamente:
+
+1. Instale o Ollama: https://ollama.com/download
+2. Baixe o modelo:
+   ```bash
+   ollama pull qwen2.5:3b
+   ```
+3. Rode o backend normalmente. Ele procura o Ollama em `http://localhost:11434` (para outro endereço, use a variável `OLLAMA_URL`).
+
+Se o Ollama não estiver rodando, o resto do sistema funciona normalmente e o chat responde com o contato do suporte humano.
 
 ---
 

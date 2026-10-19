@@ -1,4 +1,47 @@
 services:
+  postgres-payment:
+    image: postgres:16-alpine
+    container_name: payment-api-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: paymentdb
+      POSTGRES_USER: paymentapi
+      POSTGRES_PASSWORD: paymentapi123
+    ports:
+      - "5434:5432"
+    volumes:
+      - postgres_payment_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U paymentapi -d paymentdb"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  payment-api:
+    build:
+      context: ../deliveryAPI/payment-api
+      dockerfile: Dockerfile
+    container_name: payment-api
+    restart: unless-stopped
+    ports:
+      - "8082:8082"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-payment:5432/paymentdb
+      SPRING_DATASOURCE_USERNAME: paymentapi
+      SPRING_DATASOURCE_PASSWORD: paymentapi123
+      JWT_SECRET: ${JWT_SECRET:-dev-secret-key-not-for-production-min-256bits}
+      PAYMENT_KAFKA_ENABLED: "false"
+      PAYMENT_CALLBACK_URL: http://backend:8080/subscriptions/payment-webhook
+      SUBSCRIPTION_CALLBACK_SECRET: ${SUBSCRIPTION_CALLBACK_SECRET:-dev-callback-secret}
+      MERCADOPAGO_ACCESS_TOKEN: ${MERCADOPAGO_ACCESS_TOKEN:-}
+      MERCADOPAGO_PUBLIC_KEY: ${NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY:-}
+      MERCADOPAGO_WEBHOOK_SECRET: ${MERCADOPAGO_WEBHOOK_SECRET:-}
+      MERCADOPAGO_ENVIRONMENT: ${MERCADOPAGO_ENVIRONMENT:-sandbox}
+    depends_on:
+      postgres-payment:
+        condition: service_healthy
+
   mysql:
     image: mysql:8.0.32
     container_name: alexandria-db
@@ -12,21 +55,16 @@ services:
       - "3306:3306"
     volumes:
       - mysql_data:/var/lib/mysql
-
-  redis:
-    image: redis:7
-    container_name: alexandria-redis
-    restart: unless-stopped
-    ports:
-      - "6379:6379"
     healthcheck:
-      test: [ "CMD", "redis-cli", "ping" ]
-      interval: 10s
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -p$$MYSQL_ROOT_PASSWORD --silent"]
+      interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 12
 
   backend:
-    image: ${DOCKER_USERNAME}/alexandria-backend:${APP_TAG:-latest}
+    build:
+      context: ./alexandria-backend
+      dockerfile: Dockerfile
     container_name: alexandria-backend
     restart: unless-stopped
     ports:
@@ -35,26 +73,50 @@ services:
       SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/alexandriadb
       SPRING_DATASOURCE_USERNAME: alexandria
       SPRING_DATASOURCE_PASSWORD: alexandria123
-      SPRING_DATA_REDIS_HOST: redis
-      SPRING_DATA_REDIS_PORT: 6379
-      OPENAI_API_KEY: ${OPENAI_API_KEY}
-      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
-      JWT_SECRET: ${JWT_SECRET}
+      CORS_ALLOWED_ORIGINS: http://localhost:3000
+      # Mesma chave JWT do payment-api (para validar o token repassado no checkout).
+      JWT_SECRET: dev-secret-key-not-for-production-min-256bits
+      PAYMENT_API_URL: http://payment-api:8082
+      SUBSCRIPTION_CALLBACK_SECRET: ${SUBSCRIPTION_CALLBACK_SECRET:-dev-callback-secret}
+      # Agente de atendimento com modelo local (Ollama). O modelo é baixado no 1º start.
+      AI_PROVIDER: ollama
+      OLLAMA_URL: http://ollama:11434
+      OLLAMA_PULL_STRATEGY: when_missing
     depends_on:
       mysql:
-        condition: service_started
-      redis:
         condition: service_healthy
-        
+      payment-api:
+        condition: service_started
+      ollama:
+        condition: service_started
+
+  ollama:
+    image: ollama/ollama
+    container_name: alexandria-ollama
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+
   frontend:
-    image: ${DOCKER_USERNAME}/angalexandria-frontend:${APP_TAG:-latest}
+    build:
+      context: ./alexandria-frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:8080
+        # Variáveis NEXT_PUBLIC_* são incorporadas pelo Next.js durante o build.
+        # Defina esta chave no arquivo .env da raiz antes de subir o Compose.
+        NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY: ${NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY:-}
     container_name: alexandria-frontend
     restart: unless-stopped
     ports:
-      - "80:80"
+      - "3000:3000"
     depends_on:
       backend:
         condition: service_started
 
 volumes:
   mysql_data:
+  ollama_data:
+  postgres_payment_data:

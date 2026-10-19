@@ -429,7 +429,7 @@ public class SyncGutendexJobService {
 
 **`queueCapacity = 0` + Flag no Banco (Opção E)**
 
-Ou usar um lock distribuído via **AWS DynamoDB Lock Client** ou **Redis (Redisson)**, mas isso é over-engineering para o cenário atual.
+Ou usar um lock distribuído via **AWS DynamoDB Lock Client**, mas isso é over-engineering para o cenário atual.
 
 ---
 

@@ -2,23 +2,27 @@
 
 import { use, useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ArrowLeft, BookOpen, Plus } from "lucide-react";
 import { getBookById, addUserBook, getAuthorDisplay, type BookApiResponse } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAuthModal } from "@/contexts/AuthModalContext";
+import PaywallModal from "@/components/PaywallModal";
 
 export default function BookDetailPage({
   params,
-}: {
+}: Readonly<{
   params: Promise<{ id: string }>;
-}) {
+}>) {
   const { id } = use(params);
+  const router = useRouter();
   const [book, setBook] = useState<BookApiResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [adding, setAdding] = useState(false);
   const [added, setAdded] = useState(false);
-  const { user } = useAuth();
+  const [showPaywall, setShowPaywall] = useState(false);
+  const { user, subscription } = useAuth();
   const { openLoginModal } = useAuthModal();
 
   useEffect(() => {
@@ -73,6 +77,24 @@ export default function BookDetailPage({
     }
   }
 
+  function handleReadNow() {
+    if (!user) {
+      openLoginModal();
+      return;
+    }
+    const now = new Date();
+    const hasAccess = subscription?.status === "TRIALING"
+      || (subscription?.status === "ACTIVE" && subscription.currentPeriodEndsAt != null
+        && new Date(subscription.currentPeriodEndsAt) > now)
+      || (subscription?.status === "CANCELED" && subscription.currentPeriodEndsAt != null
+        && new Date(subscription.currentPeriodEndsAt) > now);
+    if (!hasAccess) {
+      setShowPaywall(true);
+      return;
+    }
+    router.push(`/leitor/${book!.id}`);
+  }
+
   const subjects = book.subjects
     ? book.subjects.split(",").map((s) => s.trim()).filter(Boolean)
     : [];
@@ -85,6 +107,7 @@ export default function BookDetailPage({
 
   return (
     <div className="flex flex-col px-6 pt-8 pb-16 md:px-12 md:pt-12 gap-8 max-w-4xl">
+      <PaywallModal open={showPaywall} onClose={() => setShowPaywall(false)} />
       <Link
         href="/explorar"
         className="flex items-center gap-2 text-brown-soft text-sm font-bold hover:text-brown transition-colors w-fit"
@@ -155,13 +178,14 @@ export default function BookDetailPage({
           {/* Ações */}
           <div className="flex flex-col sm:flex-row gap-3 mt-2">
             {book.downloadUrl ? (
-              <Link
-                href={`/leitor/${book.id}`}
+              <button
+                type="button"
+                onClick={handleReadNow}
                 className="flex items-center justify-center gap-2 bg-brown text-cream font-bold text-sm px-8 py-4 rounded-xl hover:bg-brown/90 transition-colors"
               >
                 <BookOpen size={16} />
                 Ler agora
-              </Link>
+              </button>
             ) : (
               <span className="flex items-center justify-center gap-2 bg-cream-border text-brown-soft font-bold text-sm px-8 py-4 rounded-xl cursor-not-allowed">
                 <BookOpen size={16} />

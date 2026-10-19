@@ -1,5 +1,7 @@
 ﻿# 🏛️ Arquitetura do Alexandria Backend
 
+> 📌 **Leia antes de implementar:** este documento + [`HOW_TO_ADD_NEW_DOMAIN.md`](./HOW_TO_ADD_NEW_DOMAIN.md) são a fonte de referência do projeto. Use-os para localizar pacotes, padrões e classes **sem precisar varrer o código de ponta a ponta**.
+
 ## Tecnologias
 
 | Tecnologia | Versão | Propósito |
@@ -10,7 +12,8 @@
 | MySQL 8 | - | Banco de dados relacional |
 | Spring Data JPA + Hibernate | - | ORM e acesso a dados |
 | Flyway | - | Migrações de banco (habilitado no perfil `rds` post-MVP) |
-| RestTemplate | - | HTTP Client (Gutendex API + Google TokenInfo) |
+| RestTemplate | - | HTTP Client (Gutendex API + Google TokenInfo + payment-api) |
+| Spring Scheduling | - | Job `@Scheduled` de expiração de assinaturas |
 | Jackson | - | Serialização JSON |
 | Spring Security | - | Autenticação e autorização (JWT + role-based) |
 | Spring Boot Validation | - | Validação de beans com Jakarta Validation |
@@ -105,12 +108,24 @@ com.pucsp.alexandria
 │           ├── DuplicateUserBooksException.java
 │           └── UserBooksNotFoundException.java
 │
+│   └── subscription/                       # Agregado: Subscription (SaaS Alexandria Premium)
+│       ├── Subscription.java               # Aggregate Root
+│       ├── SubscriptionId.java             # Value Object: id da assinatura
+│       ├── SubscriptionStatus.java         # enum: TRIALING | ACTIVE | PAST_DUE | EXPIRED | CANCELED
+│       ├── SubscriptionRepository.java     # Porta de saída (interface)
+│       └── exception/
+│           ├── InvalidSubscriptionException.java
+│           ├── PaymentMethodNotAllowedException.java
+│           ├── SubscriptionNotFoundException.java
+│           └── SubscriptionRequiredException.java
+│
 ├── application/                            # ⚙️ APLICAÇÃO (Use Cases)
 │   ├── package-info.java
 │   │
 │   ├── book/                               # Casos de uso de Book
 │   │   ├── CreateBookUseCase.java          # Importa página da Gutendex
 │   │   ├── GetBookUseCase.java
+│   │   ├── GetBookEpubUseCase.java         # Valida assinatura e devolve downloadUrl do EPUB (gate)
 │   │   ├── ListBooksUseCase.java
 │   │   ├── UpdateBookUseCase.java
 │   │   ├── DeleteBookUseCase.java
@@ -153,14 +168,33 @@ com.pucsp.alexandria
 │           ├── AddUserBooksInput.java
 │           └── UpdateUserBooksInput.java
 │
+│   └── subscription/                       # Casos de uso de Subscription (SaaS)
+│       ├── StartTrialUseCase.java          # Cria trial TRIALING (15 dias)
+│       ├── GetSubscriptionUseCase.java     # Retorna status/preço/prazos
+│       ├── CheckoutUseCase.java            # PIX/CARD; regras por estado do trial
+│       ├── ProcessPaymentWebhookUseCase.java # Callback do payment-api (idempotente)
+│       ├── CancelSubscriptionUseCase.java  # CANCELED preservando acesso até o fim
+│       ├── ExpireSubscriptionsUseCase.java # Expira trials/assinaturas (job)
+│       └── dto/
+│           ├── SubscriptionOutput.java
+│           ├── CheckoutInput.java
+│           ├── CheckoutOutput.java
+│           └── PaymentWebhookInput.java
+│
 ├── adapter/                                # 🏗️ INFRAESTRUTURA (Adapters)
 │   ├── in/                                 # 🔵 Adapters de Entrada
 │   │   ├── job/
-│   │   │   └── SyncGutendexJobService.java  # Job assíncrono de sincronização Gutendex
+│   │   │   ├── SyncGutendexJobService.java  # Job assíncrono de sincronização Gutendex
+│   │   │   └── SubscriptionExpiryJobService.java # Job @Scheduled de expiração de assinaturas
 │   │   └── rest/
 │   │       ├── BookController.java         # REST Controller (/books)
 │   │       ├── JobController.java          # REST Controller (/api/jobs)
 │   │       ├── UserBooksController.java    # REST Controller (/user-books)
+│   │       ├── subscription/
+│   │       │   ├── SubscriptionController.java # REST Controller (/subscriptions)
+│   │       │   └── dto/
+│   │       │       ├── CheckoutRequest.java
+│   │       │       └── PaymentWebhookRequest.java
 │   │       ├── auth/
 │   │       │   ├── AuthController.java     # REST Controller (/auth, /auth/google)
 │   │       │   └── dto/
@@ -186,27 +220,37 @@ com.pucsp.alexandria
 │   │           └── UpdateUserBooksRequest.java
 │   │
 │   └── out/                                # 🟠 Adapters de Saída
+│       ├── payment/                        # Cliente HTTP do payment-api (repo separado)
+│       │   ├── PaymentApiClient.java       # Porta de saída (interface)
+│       │   ├── RestPaymentApiClient.java   # Implementa PaymentApiClient (RestTemplate)
+│       │   └── dto/
+│       │       ├── PaymentApiCreateRequest.java
+│       │       └── PaymentApiResult.java
 │       └── persistence/
 │           ├── BookRepositoryImpl.java     # Implementa BookRepository
 │           ├── AuthorRepositoryImpl.java   # Implementa AuthorRepository
 │           ├── UserRepositoryImpl.java     # Implementa UserRepository
 │           ├── UserBooksRepositoryImpl.java# Implementa UserBooksRepository
+│           ├── SubscriptionRepositoryImpl.java # Implementa SubscriptionRepository
 │           ├── BookApiClientImpl.java      # Implementa BookApiClient
 │           ├── entity/
 │           │   ├── BookEntity.java         # JPA @Entity (tabela: books)
 │           │   ├── AuthorEntity.java       # JPA @Entity (tabela: authors)
 │           │   ├── UserEntity.java         # JPA @Entity (tabela: users)
-│           │   └── UserBooksEntity.java    # JPA @Entity (tabela: user_books)
+│           │   ├── UserBooksEntity.java    # JPA @Entity (tabela: user_books)
+│           │   └── SubscriptionEntity.java # JPA @Entity (tabela: subscriptions)
 │           ├── jpa/
 │           │   ├── BookJpaRepository.java
 │           │   ├── AuthorJpaRepository.java
 │           │   ├── UserJpaRepository.java
-│           │   └── UserBooksJpaRepository.java
+│           │   ├── UserBooksJpaRepository.java
+│           │   └── SubscriptionJpaRepository.java
 │           ├── mapper/
 │           │   ├── BookMapper.java         # BookEntity ↔ Book
 │           │   ├── AuthorMapper.java       # AuthorEntity ↔ Author
 │           │   ├── UserMapper.java         # UserEntity ↔ User
-│           │   └── UserBooksMapper.java    # UserBooksEntity ↔ UserBooks
+│           │   ├── UserBooksMapper.java    # UserBooksEntity ↔ UserBooks
+│           │   └── SubscriptionMapper.java # SubscriptionEntity ↔ Subscription
 │           └── external/
 │               ├── gutendex/
 │               │   ├── GutendexClient.java # HTTP Client p/ Gutendex API
@@ -222,6 +266,7 @@ com.pucsp.alexandria
 │   ├── AsyncConfig.java                    # Thread pool p/ execução assíncrona de jobs
 │   ├── BeanConfiguration.java              # Beans: Use Cases + RestTemplate
 │   ├── SecurityConfig.java                 # Security Filter Chain + CORS + role-based
+│   ├── SubscriptionProperties.java         # @ConfigurationProperties(prefix="subscription")
 │   ├── CorsConfig.java                     # Configuração CORS
 │   ├── OpenApiConfig.java                  # Configuração Swagger/OpenAPI
 │   ├── UserDetailsServiceImpl.java         # UserDetailsService p/ Spring Security
@@ -332,6 +377,10 @@ public interface BookApiClient {
 | | `password` | Obrigatório, min 8 chars, max 255 chars |
 | | `email` | Formato válido (regex) |
 | **UserBooks** | `status` + `progress` + `rating` | Depende do status (ver abaixo) |
+| **Subscription** | `userId` | Obrigatório, deve ser positivo |
+| | `trialEndsAt` | Presente somente em `TRIALING` |
+| | `currentPeriodEndsAt` | Presente em `ACTIVE`/`CANCELED`; sempre no futuro |
+| | `mpPaymentId` | Obrigatório ao registrar/ativar pagamento (Mercado Pago) |
 
 **Regras de UserBooks por status:**
 
@@ -340,6 +389,18 @@ public interface BookApiClient {
 | `TOREAD` | Deve ser `null` | Deve ser `null` |
 | `READING` | Obrigatório (0–100) | Deve ser `null` |
 | `DONE` | Deve ser `null` | Obrigatório (0–5) |
+
+**Transições de status da Subscription:**
+
+| De | Para | Gatilho |
+|----|------|---------|
+| (novo usuário) | `TRIALING` | `StartTrialUseCase` no registro ou primeiro login Google |
+| `TRIALING` | `ACTIVE` | Pagamento confirmado (`activate`) ou job ao fim do trial com período pago |
+| `TRIALING` | `EXPIRED` | Job: trial vencido sem pagamento |
+| `ACTIVE` | `PAST_DUE` | Job: `currentPeriodEndsAt` no passado |
+| `ACTIVE` | `CANCELED` | `CancelSubscriptionUseCase` (preserva acesso até `currentPeriodEndsAt`) |
+
+Acesso à leitura (`isAccessActive`): liberado durante `TRIALING` dentro do prazo **ou** quando `currentPeriodEndsAt` está no futuro com status `ACTIVE`/`CANCELED`.
 
 ---
 
@@ -387,6 +448,46 @@ void execute(Long userId, UpdatePasswordInput input);
 UserBooksOutput execute(Long userId, Long bookId);
 ```
 
+### Casos de uso de Subscription (SaaS):
+
+```java
+// StartTrialUseCase — cria assinatura TRIALING (trial-days) para um userId
+Subscription execute(Long userId);
+
+// GetSubscriptionUseCase — status, prazos, preço/moeda/período e paymentScheduled
+SubscriptionOutput execute(Long userId);
+
+// CheckoutUseCase — PIX/CARD conforme o estado da assinatura
+//   - durante o trial: somente CARD, agenda cobrança para o fim do trial
+//   - após o trial: PIX ou CARD imediatos
+CheckoutOutput execute(CheckoutInput input, String bearerToken);
+
+// ProcessPaymentWebhookUseCase — callback idempotente por mpPaymentId
+//   - somente COMPLETED ativa; reenvios não duplicam ativação
+void execute(PaymentWebhookInput input);
+
+// CancelSubscriptionUseCase — CANCELED preservando acesso até currentPeriodEndsAt
+void execute(Long userId);
+
+// ExpireSubscriptionsUseCase — expira trials e assinaturas ativas (usado pelo job)
+void execute();
+```
+
+### GetBookEpubUseCase (gate de leitura no backend):
+
+```java
+// 1. Busca o livro e valida downloadUrl
+// 2. Busca a assinatura do usuário (senão: SubscriptionRequiredException → 402)
+// 3. Libera somente se isAccessActive(now); senão: SubscriptionRequiredException
+// 4. Retorna a downloadUrl para o BookController fazer o proxy (sem expor a URL)
+String execute(Long userId, Long bookId);
+```
+
+### Trial nos dois pontos de criação de usuário:
+
+- `RegisterUserUseCase`: após `userRepository.save(...)` chama `startTrialUseCase.execute(saved.getId().getValue())`.
+- `GoogleAuthUseCase`: somente no bloco `orElseGet` (usuário novo); login de usuário existente **não** recria trial.
+
 ---
 
 ## 🏗️ Camada de Infraestrutura — Adapters
@@ -403,6 +504,7 @@ UserBooksOutput execute(Long userId, Long bookId);
 | `GET` | `/books/search?query=` | Buscar livros por título/autor |
 | `GET` | `/books` | Listar livros (paginado) |
 | `GET` | `/books/{id}` | Buscar livro por ID |
+| `POST` | `/subscriptions/payment-webhook` | Callback do payment-api (valida `X-Webhook-Secret`) |
 | `GET` | `/actuator/health` | Health check |
 | `GET` | `/swagger-ui/**`, `/api-docs/**` | Documentação Swagger |
 
@@ -427,6 +529,10 @@ UserBooksOutput execute(Long userId, Long bookId);
 | `GET` | `/profile/me` | Obter dados do perfil do usuário logado |
 | `PUT` | `/profile/me` | Atualizar username/firstName/lastName |
 | `PUT` | `/profile/password` | Alterar senha (requer senha atual) |
+| `GET` | `/books/{id}/epub` | Baixar EPUB (gate de assinatura: 402/403 sem acesso) |
+| `GET` | `/subscriptions/me` | Status/preço/prazos da assinatura do usuário |
+| `POST` | `/subscriptions/checkout` | Criar checkout PIX/CARD via payment-api |
+| `POST` | `/subscriptions/cancel` | Cancelar assinatura |
 
 ### Fluxo de DTOs entre camadas
 
@@ -506,6 +612,19 @@ user_books
 ├── rating          INT NULL                              ← 0–5 (para DONE)
 ├── created_at      DATETIME
 ├── UNIQUE (user_id, book_id)
+
+-- Assinatura (Alexandria Premium)
+subscriptions
+├── id                    BIGINT PK AUTO_INCREMENT
+├── user_id               BIGINT UNIQUE NOT NULL FK → users.id
+├── status                VARCHAR(20) NOT NULL  ← TRIALING|ACTIVE|PAST_DUE|EXPIRED|CANCELED
+├── trial_ends_at         DATETIME NULL          ← fim do trial (TRIALING)
+├── current_period_ends_at DATETIME NULL         ← fim do período pago (ACTIVE/CANCELED)
+├── mp_payment_id         BIGINT NULL            ← ID do pagamento no Mercado Pago
+├── scheduled_payment_id  VARCHAR(255) NULL      ← ID do pagamento agendado no payment-api
+├── payment_scheduled     BOOLEAN NOT NULL       ← true se há cobrança agendada
+├── created_at            DATETIME
+└── updated_at            DATETIME
 ```
 
 > **Nota:** A coluna `role` na tabela `users` e o enum `Role.ADMIN` foram adicionados para suporte a autorização seletiva por papel.
@@ -533,6 +652,41 @@ GoogleAuthUseCase
     → busca ou cria usuário por email
 ```
 
+#### Payment API (Alexandria Premium)
+
+O **payment-api** é um microsserviço separado (repositório Gohan Food) responsável pela
+integração com o Mercado Pago. O Alexandria fala com ele via `RestTemplate` no adapter
+`adapter/out/payment`.
+
+```
+CheckoutUseCase
+    → PaymentApiClient (porta de saída)
+        → RestPaymentApiClient (RestTemplate, baseUrl = payment-api.url)
+            → POST {payment-api.url}/api/v1/payments            (PIX ou CARD)
+            → POST {payment-api.url}/api/v1/payments/{id}/process (captura de cartão)
+    → repassa Authorization: Bearer <token do usuário>
+```
+
+Contrato:
+- `referenceId = "subscription:{subscriptionId}"` (o payment-api usa `referenceId` String).
+- O callback volta pelo endpoint `POST /subscriptions/payment-webhook`, autenticado por
+  header `X-Webhook-Secret` (`subscription.callback-secret`).
+- Callback é **idempotente por `mpPaymentId`**: reenvios não duplicam a ativação.
+
+#### Job de expiração (SubscriptionExpiryJobService)
+
+```
+@Scheduled(cron = "${subscription.expiry-cron:0 0 3 * * *}")
+SubscriptionExpiryJobService
+    → ExpireSubscriptionsUseCase
+        → TRIALING vencido com período pago futuro → ACTIVE
+        → TRIALING vencido sem pagamento → EXPIRED
+        → TRIALING vencido com cobrança agendada → aguarda processamento
+        → ACTIVE vencido → PAST_DUE
+```
+
+O agendamento é habilitado por `@EnableScheduling` na `AlexandriaApplication`.
+
 ---
 
 ## 🔐 Autenticação e Segurança
@@ -553,8 +707,8 @@ A `SecurityConfig` utiliza `requestMatchers` com `hasRole("ADMIN")` para restrin
 
 | Role | Acesso liberado |
 |------|-----------------|
-| **Público** | `GET /books/**`, `/auth/**`, `/actuator/health`, `/swagger-ui/**`, `/api-docs/**` |
-| **USER** (autenticado) | `/user-books/**`, `/profile/**` |
+| **Público** | `GET /books/**`, `/auth/**`, `/subscriptions/payment-webhook`, `/actuator/health`, `/swagger-ui/**`, `/api-docs/**` |
+| **USER** (autenticado) | `/user-books/**`, `/profile/**`, `/books/*/epub`, `/subscriptions/me`, `/subscriptions/checkout`, `/subscriptions/cancel` |
 | **ADMIN** | Tudo que USER tem + `POST/PUT/DELETE /books/**`, `/api/jobs/**` |
 
 ### Componentes de segurança:
@@ -588,6 +742,18 @@ O fluxo do Google OAuth:
 4. Verifica se `aud` (audience) corresponde ao `google.client-id`
 5. Busca usuário por email — retorna token JWT se existir, ou cria novo usuário automaticamente
 
+### Propriedades de assinatura (SubscriptionProperties)
+
+| Propriedade | Descrição | Padrão |
+|-------------|-----------|--------|
+| `subscription.trial-days` | Duração do trial em dias | `15` |
+| `subscription.price` | Preço mensal | `10.00` |
+| `subscription.period-days` | Duração do período pago em dias | `30` |
+| `subscription.currency` | Moeda do valor | `BRL` |
+| `subscription.callback-secret` | Secret para validar `X-Webhook-Secret` | `dev-callback-secret` |
+| `subscription.expiry-cron` | Cron do job de expiração | `0 0 3 * * *` |
+| `payment-api.url` | Base URL do payment-api | `http://localhost:8082` |
+
 ---
 
 ## 📜 Migrações Flyway
@@ -620,6 +786,10 @@ public class BeanConfiguration {
   @Bean
   public GetBookUseCase getBookUseCase(...) { ... }
   @Bean
+  public GetBookEpubUseCase getBookEpubUseCase(
+      BookRepository bookRepository,
+      SubscriptionRepository subscriptionRepository) { ... }
+  @Bean
   public ListBooksUseCase listBooksUseCase(...) { ... }
   @Bean
   public UpdateBookUseCase updateBookUseCase(...) { ... }
@@ -638,11 +808,13 @@ public class BeanConfiguration {
   @Bean
   public GetUserBookByBookIdUseCase getUserBookByBookIdUseCase(...) { ... }
   @Bean
-  public RegisterUserUseCase registerUserUseCase(...) { ... }
+  public RegisterUserUseCase registerUserUseCase(
+      UserRepository userRepository,
+      StartTrialUseCase startTrialUseCase) { ... }
   @Bean
   public AuthenticateUserUseCase authenticateUserUseCase(...) { ... }
   @Bean
-  public GoogleAuthUseCase googleAuthUseCase(...) { ... }  // recebe @Value("${google.client-id}")
+  public GoogleAuthUseCase googleAuthUseCase(...) { ... }  // recebe @Value("${google.client-id}") e StartTrialUseCase
   @Bean
   public SyncAllGutendexBooksUseCase syncAllGutendexBooksUseCase(...) { ... }
   @Bean
@@ -651,6 +823,23 @@ public class BeanConfiguration {
   public UpdateProfileUseCase updateProfileUseCase(...) { ... }
   @Bean
   public UpdatePasswordUseCase updatePasswordUseCase(...) { ... }
+  @Bean
+  public StartTrialUseCase startTrialUseCase(
+      SubscriptionRepository subscriptionRepository,
+      SubscriptionProperties properties) { ... }
+  @Bean
+  public GetSubscriptionUseCase getSubscriptionUseCase(...) { ... }
+  @Bean
+  public CheckoutUseCase checkoutUseCase(
+      SubscriptionRepository subscriptionRepository,
+      PaymentApiClient paymentApiClient,
+      SubscriptionProperties properties) { ... }
+  @Bean
+  public ProcessPaymentWebhookUseCase processPaymentWebhookUseCase(...) { ... }
+  @Bean
+  public CancelSubscriptionUseCase cancelSubscriptionUseCase(...) { ... }
+  @Bean
+  public ExpireSubscriptionsUseCase expireSubscriptionsUseCase(...) { ... }
 }
 ```
 
@@ -706,6 +895,9 @@ Isso mantém a camada de aplicação **pura** (sem anotações Spring) e facilit
 | `BookNotFoundException` | 404 | Livro não encontrado |
 | `UserBooksNotFoundException` | 404 | Relação user-book não encontrada |
 | `UserNotFoundException` | 404 | Usuário não encontrado |
+| `SubscriptionNotFoundException` | 404 | Assinatura não encontrada (por userId ou mpPaymentId) |
+| `PaymentMethodNotAllowedException` | 400 | Método de pagamento inválido para o estado da assinatura |
+| `SubscriptionRequiredException` | 402 | Leitura de EPUB sem assinatura ativa (`SUBSCRIPTION_REQUIRED`) |
 | `InvalidUserBooksException` | 400 | Violação de regra de UserBooks (ex: progress + TOREAD) |
 | `IllegalArgumentException` | 400 | Argumento inválido |
 | `DuplicateUserBooksException` | 409 | Livro já adicionado à coleção |
@@ -793,6 +985,11 @@ docker-compose up -d
 | `JWT_EXPIRATION_MS` | Não | `86400000` | Expiração do token (24h) |
 | `CORS_ALLOWED_ORIGINS` | Não | `http://localhost:3000` | Origens permitidas CORS |
 | `GOOGLE_CLIENT_ID` | Sim (p/ Google Auth) | — | Google OAuth Client ID |
+| `SUBSCRIPTION_TRIAL_DAYS` | Não | `15` | Duração do trial em dias |
+| `SUBSCRIPTION_PRICE` | Não | `10.00` | Preço mensal da assinatura |
+| `SUBSCRIPTION_PERIOD_DAYS` | Não | `30` | Duração do período pago em dias |
+| `SUBSCRIPTION_CALLBACK_SECRET` | Não | `dev-callback-secret` | Secret do callback `payment-webhook` |
+| `PAYMENT_API_URL` | Não | `http://localhost:8082` | Base URL do payment-api |
 
 ---
 
@@ -815,6 +1012,12 @@ Para manter a dependência externa mínima. O `GoogleAuthUseCase` valida o token
 
 ### Por que a Gutendex busca livros sem filtro de idioma?
 O `GutendexClient` busca livros sem filtro de idioma, mas o foco da aplicação é o público brasileiro. Caso deseje filtrar por idioma, basta adicionar o parâmetro `languages=pt` na URL da requisição.
+
+### Por que o payment-api é um microsserviço separado?
+A cobrança via Mercado Pago fica em um repositório/serviço próprio (`payment-api`), isolando o domínio de pagamentos do domínio de leitura. O Alexandria se comunica via HTTP (`RestPaymentApiClient`) repassando o JWT do usuário, e recebe o callback de status pelo endpoint `/subscriptions/payment-webhook` autenticado por `X-Webhook-Secret`.
+
+### Por que o gate do EPUB fica no backend?
+O `GET /books/{id}/epub` valida a assinatura no servidor e faz o proxy da `downloadUrl`, sem expor a URL do Gutendex. Confiar apenas no frontend permitiria contornar o paywall; o gate duplo (login + assinatura) evita vazamento do EPUB.
 
 ---
 

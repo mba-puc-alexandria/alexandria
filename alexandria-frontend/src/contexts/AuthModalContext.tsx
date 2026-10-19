@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useState, ReactNode } from "react";
+import { createContext, useContext, useMemo, useState, ReactNode } from "react";
 
 interface AuthModalContextType {
   isOpen: boolean;
@@ -10,17 +10,19 @@ interface AuthModalContextType {
 
 const AuthModalContext = createContext<AuthModalContextType | null>(null);
 
-export function AuthModalProvider({ children }: { children: ReactNode }) {
+export function AuthModalProvider({ children }: Readonly<{ children: ReactNode }>) {
   const [isOpen, setIsOpen] = useState(false);
+  const value = useMemo(
+    () => ({
+      isOpen,
+      openLoginModal: () => setIsOpen(true),
+      closeLoginModal: () => setIsOpen(false),
+    }),
+    [isOpen],
+  );
 
   return (
-    <AuthModalContext.Provider
-      value={{
-        isOpen,
-        openLoginModal: () => setIsOpen(true),
-        closeLoginModal: () => setIsOpen(false),
-      }}
-    >
+    <AuthModalContext.Provider value={value}>
       {children}
     </AuthModalContext.Provider>
   );

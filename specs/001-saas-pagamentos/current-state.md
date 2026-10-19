@@ -47,10 +47,16 @@ Documento de baseline para a migração de Alexandria de monolito gratuito para 
 
 ### 1.3 Infra/CI/CD
 
-- `docker-compose.yml`: mysql + backend + frontend.
-- `docker-compose.aws.yml`: backend + frontend (banco via RDS).
-- `docker-compose.ci.yml`: mysql + backend + frontend.
-- **CI**: backend (`mvn clean verify`), frontend (lint/build) e integração via Docker Compose.
+- `docker-compose.yml` (raiz): mysql + redis + backend + frontend.
+- `backups-wf/`: contém `docker-compose.aws.yml` e `docker-compose.ci.yml` (backups de workflows antigos).
+- `.github/workflows/`:
+  - `ci.yml`: build/teste do backend, lint/test/build do frontend e build Docker de backend/frontend.
+  - `main.yml`: scan de imagem (Hadolint/Trivy/Cosign) e push para ECR.
+  - `cd.yml`: **vazio** (apenas dispara ao final do CI).
+- ⚠️ **`iac/`** é Terraform de outro projeto (`linuxtips-sorteador`): FARGATE, serviço único,
+  data sources SSM `/linuxtips/*`. Não reutilizar; será substituída por `infra/terraform`.
+- ⚠️ **`infraestrutura/`** contém apenas 2 arquivos `.tf` soltos (`nat-gateway.tf`, `public-subnet.tf`).
+- `Kubernetes/`: manifestos (backend/frontend/mysql/redis) fora do escopo atual.
 - **Deploy**: constrói imagens backend/frontend, copia para EC2 e sobe containers manualmente.
 
 ---
@@ -98,8 +104,9 @@ Documento de baseline para a migração de Alexandria de monolito gratuito para 
 
 - `PaymentStatusSyncService`:
   - Recebe IPN → busca por `gatewayTransactionId` → consulta status no MP → marca como `COMPLETED`.
-  - Publica evento Kafka ao aprovar.
+  - Publica evento Kafka (`publishPaymentCompleted`) ao aprovar.
   - **Não possui callback HTTP** para outro serviço.
+- `KafkaConfig` é `@Profile("!test")`: fora dos testes o Kafka está sempre ativo.
 
 ---
 
@@ -148,10 +155,12 @@ Documento de baseline para a migração de Alexandria de monolito gratuito para 
 
 ### 3.5 Precisa ajustar na Infra/CI/CD
 
-- Adicionar `payment-api` + `postgres-payment` nos três docker-compose.
+- Adicionar `payment-api` + `postgres-payment` ao `docker-compose.yml`.
 - Compartilhar `JWT_SECRET` entre backend e payment-api.
-- Adicionar envs do Mercado Pago e `SUBSCRIPTION_CALLBACK_URL`.
-- Atualizar CI e deploy para construir/subir o payment-api.
+- Adicionar envs do Mercado Pago, `SUBSCRIPTION_CALLBACK_URL` e `SUBSCRIPTION_CALLBACK_SECRET`.
+- Substituir `iac/` (template de outro projeto) por `infra/terraform` (dev/prod).
+- Implementar o `cd.yml` (hoje vazio): push ECR + `terraform plan`/`apply`.
+- Atualizar CI para construir/testar a imagem do payment-api.
 
 ---
 

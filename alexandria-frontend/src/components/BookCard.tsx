@@ -11,7 +11,7 @@ type Props = {
   book: BookApiResponse;
 };
 
-export default function BookCard({ book }: Props) {
+export default function BookCard({ book }: Readonly<Props>) {
   const [state, setState] = useState<"idle" | "loading" | "added">("idle");
   const { user } = useAuth();
   const { openLoginModal } = useAuthModal();
