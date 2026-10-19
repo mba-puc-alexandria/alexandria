@@ -78,11 +78,26 @@ services:
       JWT_SECRET: dev-secret-key-not-for-production-min-256bits
       PAYMENT_API_URL: http://payment-api:8082
       SUBSCRIPTION_CALLBACK_SECRET: ${SUBSCRIPTION_CALLBACK_SECRET:-dev-callback-secret}
+      # Agente de atendimento com modelo local (Ollama). O modelo é baixado no 1º start.
+      AI_PROVIDER: ollama
+      OLLAMA_URL: http://ollama:11434
+      OLLAMA_PULL_STRATEGY: when_missing
     depends_on:
       mysql:
         condition: service_healthy
       payment-api:
         condition: service_started
+      ollama:
+        condition: service_started
+
+  ollama:
+    image: ollama/ollama
+    container_name: alexandria-ollama
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
 
   frontend:
     build:
@@ -103,4 +118,5 @@ services:
 
 volumes:
   mysql_data:
+  ollama_data:
   postgres_payment_data:
