@@ -94,7 +94,7 @@ Criar fixtures isoladas por teste, usando repositórios/seed de teste, sem endpo
 | Remover da biblioteca livro que ainda está na seleção | pode reaparecer por filtro atual, sem nova geração |
 | Atualização diária sem mudança no perfil/base | seleção pode ser igual; não prometer30 títulos diferentes |
 | Trocar usuário/logout com GET pendente | nenhum cartão da conta anterior aparece |
-| Falha do job com seleção anterior | última válida STALE, data e aviso visíveis, exclusões atuais |
+| Falha do job com seleção anterior | última válida STALE, aviso visível sem data, exclusões atuais |
 | Primeiro acesso sem seleção atual | 202 enquanto gera; polling limitado; READY posterior sem recálculo na recarga |
 | Sem READY de hoje e sem perfil positivo, inclusive com seleção antiga | EMPTY/NO_PROFILE com Explorar; não servir STALE nem varrer catálogo; novo sinal pode iniciar a primeira geração do dia |
 | READY de hoje e perfil alterado intradiariamente | reutilizar a seleção com exclusões atuais; no dia seguinte, NO_PROFILE prevalece se os sinais continuarem ausentes |
@@ -154,7 +154,7 @@ Validar com tempo controlado em RecommendationMetricsTest: pendência nova abaix
 - STALE originalmente vazia ou filtrada até zero mantém pendência de hoje e ação GET para verificar; FAILED oferece POST apenas após cooldown.
 - Um cartão visível em celular/desktop; ocultos fora da navegação Tab/leitura; Anterior revisita, um item se reapresenta, indicador usa itens atuais.
 - NO_PROFILE com biblioteca vazia, notas 0–2 ou metadados insuficientes usa mensagem sem pressupor vazio.
-- Justificativa permanece histórica após reavaliação/remoção da evidência; data vem de referenceDate, nunca data inventada da avaliação.
+- Justificativa e referenceDate permanecem históricos na API após reavaliação/remoção da evidência; não são exibidos na interface.
 - A proposta original de T051 para relevância/interesse do top-5 e rejeições foi dispensada pelo usuário junto ao gate humano. Não inventar resultados de satisfação nem substituir leitores por agentes; registrar a dispensa e manter os testes automatizados dos fluxos.
 
 ## Casos finais da rodada 2
@@ -238,3 +238,7 @@ O globalSetup inicia o backend/MySQL isolado; a ação capacity do harness usa o
 Os E2E reiniciam o contexto Spring, executores e provider mantendo MySQL e relógio; verificam id/generatedAt persistidos e retomada automática de BUILDING expirado na inicialização, sem GET intermediário que dispare geração. Isso é reinício real do serviço Spring na mesma JVM, não um ensaio de kill do processo do sistema operacional sob carga. Falhas de claim, rollback e token são testadas separadamente no MySQL.
 
 O teste de cancelamento do provider mantém a construção compartilhada bloqueada e interrompe outro consumidor, que deve liberar seu handle antes de concluir a construção. A corrida de heartbeat usa barreiras na interrupção da thread para provar que callback antigo não interrompe a próxima tentativa no pool. Não cancelar a construção compartilhada por cancelar apenas um consumidor.
+
+## Revisão visual solicitada em 2026-10-30
+
+No Painel, verificar “Você também pode gostar” com capas verticais em destaque e vários cartões conforme a largura. Comparar com Explorar: a mesma capa e sobreposição no hover com título/autor/+; nas recomendações, título e autor também ficam visíveis abaixo, sem botões abaixo. Clique na capa navega e + adiciona sem navegar; teclado revela a mesma sobreposição. Não deve haver data, motivo, quantidade ou contador visual. Anterior/Próximo têm cursor de mão e nomes acessíveis. Percorrer todos os grupos até reiniciar sem nova requisição; o último grupo pode ser parcial. Verificar 390px, desktop, teclado, inclusão e foco após retirada. A posição continua disponível somente para leitores de tela.

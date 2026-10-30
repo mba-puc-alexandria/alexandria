@@ -179,14 +179,22 @@ Estes exemplos são oportunidades de trabalho, não instrução para iniciar age
 
 Não iniciar infraestrutura distribuída externa, IA, cadastro local ou substituição intradiária. O usuário autorizou posteriormente um único commit local do avanço em 2026-10-30; push/deploy continuam fora do escopo. Ao executar tarefas futuramente, atualizar as caixas somente após implementação e validação correspondentes, com notas em português sobre decisões, resultado e limitações.
 
+## Fase 7 — Revisão visual solicitada pelo usuário
+
+A solicitação de 2026-10-30 substitui a apresentação inicial de um cartão com justificativa/data/contador; mantém seleção diária, API e regras de inclusão.
+
+- [X] T053 Atualizar spec, plano, contrato do Painel e guia para título amigável, ausência de data/quantidade/motivo e grupos de capas responsivos em specs/002-recomendacoes-painel/.
+- [X] T054 Compartilhar a apresentação CoverCard do Explorar (capas e sobreposição no hover/foco com título/autor/+; legenda de título e autor abaixo somente nas recomendações), controles no cabeçalho com cursor pointer e navegação por grupos; atualizar testes unitários preservando inclusão, foco e gestos em alexandria-frontend/src/ (depende de T053).
+- [X] T055 Adaptar e executar E2E reais; revisar desktop/390px e registrar evidências da revisão visual em specs/002-recomendacoes-painel/validation-results.md (depende de T054).
+
 ## Rastreabilidade de requisitos
 
 | Requisitos/critérios | Tarefas principais |
 | --- | --- |
-| FR-001, FR-007, FR-008, FR-015 | T025–T029, T036–T037, T042–T045 |
+| FR-001, FR-007, FR-008, FR-015 | T025–T029, T036–T037, T042–T045, T053–T055 |
 | FR-002, FR-003, FR-004, FR-005, FR-012 | T008–T009, T013–T015, T018–T022 |
 | FR-006, FR-010 | T005–T007, T020–T024, T030, T032–T037 |
-| FR-009, FR-016 | T010, T031, T036–T045 |
+| FR-009, FR-016 | T010, T031, T036–T045, T054–T055 |
 | FR-011, FR-013 | T016–T017, T023–T029, T030–T037 |
 | FR-014 | T010, T016–T017, T025, T027, T039, T044, T047 |
 | FR-017 | T005–T007, T012, T022–T024, T030, T032–T035 |
@@ -197,4 +205,4 @@ Não iniciar infraestrutura distribuída externa, IA, cadastro local ou substitu
 
 ## Resumo da geração
 
-52 tarefas: Setup 2; Base 11; US1 16; US3 8; US2 8; validação/documentação 7. As 52 tarefas foram concluídas nesta execução; T051 registra a dispensa explícita do aceite humano pelo usuário. Evidências e limites em [validation-results.md](validation-results.md).
+55 tarefas: Setup 2; Base 11; US1 16; US3 8; US2 8; validação/documentação 7; revisão visual 3. As 55 tarefas estão concluídas; T053–T055 registram a revisão visual posterior; T051 registra a dispensa explícita do aceite humano pelo usuário. Evidências e limites em [validation-results.md](validation-results.md).

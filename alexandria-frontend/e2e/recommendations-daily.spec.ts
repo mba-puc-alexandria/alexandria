@@ -10,9 +10,16 @@ test('top30 repete localmente e a recarga reutiliza a seleção pronta', async (
   let requests = 0;
   page.on('request', request => { if (new URL(request.url()).pathname.startsWith('/recommendations')) requests++; });
   const next = section(page).getByRole('button', { name: 'Próxima recomendação' });
-  for (let index = 0; index < 60; index++) await next.click();
-  await expect(section(page)).toContainText('1 de 30');
-  await expect(section(page).locator('article')).toHaveCount(1);
+  const seen = new Set<number>();
+  for (let index = 0; index < 60; index++) {
+    for (const id of await section(page).locator('article').evaluateAll(articles => articles.map(article => Number(article.getAttribute('data-book-id'))))) seen.add(id);
+    await next.click();
+  }
+  expect([...seen].sort((a, b) => a - b)).toEqual(before.items.map((item: { book: { id: number } }) => item.book.id).sort((a: number, b: number) => a - b));
+  const position = section(page).getByText('1 de 30', { exact: true });
+  await expect(position).toHaveAttribute('role', 'status');
+  await expect(position).toHaveCSS('width', '1px');
+  await expect(section(page).locator('article')).toHaveCount(5);
   expect(requests).toBe(0);
   await page.reload();
   await expect(section(page)).toHaveAttribute('data-state', 'READY');
@@ -33,13 +40,14 @@ test('READY vazia permanece final do dia sem reposição', async ({ page, reques
   await expect(section(page).getByRole('button', { name: 'Tentar novamente' })).toHaveCount(0);
 });
 
-test('STALE vazia mantém data e verifica conclusão usando GET', async ({ page }) => {
+test('STALE vazia mantém seleção histórica sem data visível e verifica conclusão usando GET', async ({ page, request }) => {
   const fixture = await reset('stale_empty');
   await authenticate(page, fixture.users.a);
   await page.goto('/dashboard');
   await expect(section(page)).toHaveAttribute('data-state', 'STALE');
-  await expect(section(page)).toContainText('29/10/2026');
-  await expect(section(page)).toContainText('A atualização de hoje está pendente');
+  expect((await selection(request, fixture)).data.selection.referenceDate).toBe('2026-10-29');
+  await expect(section(page)).not.toContainText('29/10/2026');
+  await expect(section(page)).toContainText('A atualização está pendente');
   let posts = 0;
   page.on('request', request => { if (request.method() === 'POST' && new URL(request.url()).pathname === '/recommendations/generation') posts++; });
   await fixtureCommand({ action: 'complete' });

@@ -23,7 +23,7 @@ Dados brutos: [capacidade backend](validation/backend-capacity.json) e [exibiç�
 ## Comportamento entregue
 
 - Perfil calculado sobre a biblioteca completa, pesos de avaliação/status, afinidade determinística por assuntos/autores e justificativa histórica verificável.
-- Seleção diária persistida de até 30 livros após considerar todo o catálogo, sem fallback popular ou reposição intradiária; carrossel local com um cartão visível e sem requisições por volta.
+- Seleção diária persistida de até 30 livros após considerar todo o catálogo, sem fallback popular ou reposição intradiária; carrossel local sem requisições por volta. A revisão visual posterior, descrita ao final, substitui o cartão único por grupos responsivos.
 - Geração assíncrona com PENDING durável, fila limitada/coalescida, três claims AUTO por data, retry MANUAL, lease/heartbeat/CAS e publicação atômica. Recuperação, retenção e WARN agregado implementados.
 - Exclusões atuais, inclusão sem duplicidade, tratamento de livro indisponível, cancelamento de respostas antigas e isolamento entre sessões/abas. Rotas privadas de recomendações ficam network-only no Service Worker.
 - Teclado, 390px, desktop, foco após retirada, estados vazios/STALE/falha e demais seções do Painel preservados.
@@ -42,7 +42,7 @@ Navegador: 17 casos da aplicação usam backend/MySQL reais, incluindo 30 seleci
 
 O E2E também reinicia o contexto Spring mantendo MySQL/relógio: preserva id/generatedAt de READY e, no dia seguinte, retoma BUILDING expirado pelo startup, sem GET intermediário que inicie a geração.
 
-Revisão visual dos recortes estáveis: [desktop](validation/desktop.png) e [390px](validation/mobile390.png). Não foram encontrados cortes das ações/conteúdo; há foco visível, justificativa/data e capa alternativa. Isto não substitui feedback de leitores.
+Revisão visual inicial (antes da alteração de apresentação solicitada pelo usuário) dos recortes estáveis: [desktop](validation/desktop.png) e [390px](validation/mobile390.png). Não foram encontrados cortes das ações/conteúdo; há foco visível, justificativa/data e capa alternativa. Isto não substitui feedback de leitores.
 
 ## Ambiente e resultados de capacidade
 
@@ -99,3 +99,25 @@ Validação documental: 52 IDs únicos, cobertura dos 25 critérios ativos e ras
 Os resultados são do cenário sintético/local de referência, não medição de produção ou de todos os navegadores/redes. A referência integral de capacidade abrange três leitores controlados; a correção do comparador/heap também tem testes próprios. O reinício E2E é do serviço Spring na mesma JVM, com MySQL mantido; não foi medido kill do processo do sistema operacional sob carga. RSS foi amostrado nas fronteiras da janela; não se alega pico instantâneo completo. Nenhum resultado de satisfação com leitores foi inventado.
 
 Não existem hooks after_implement configurados. O estado real das tarefas e da branch foi conferido no encerramento; os processos/containers de teste foram encerrados. O snapshot Git local foi autorizado posteriormente pelo usuário; não foi realizado push ou deploy.
+
+## Revisão visual posterior — 2026-10-30
+
+Resultado final solicitado pelo usuário: título “Você também pode gostar”, sem data, quantidade ou motivo visíveis; capas 2:3 em grupos de 2/3/4/5 conforme a largura; controles com cursor pointer. O BookCover é compartilhado com o cartão efetivamente usado no Explorar: hover/foco mostra a mesma sobreposição e o +; clique na capa abre os detalhes, sem botões abaixo. Somente nas recomendações, título e autor permanecem visíveis abaixo da capa. Em telas sem hover, o + permanece acessível sobre a capa nítida; o fundo/blur aparece apenas no foco. Metadados, ranking e persistência diária permanecem na API.
+
+| Verificação da revisão | Resultado |
+| --- | --- |
+| Frontend completo | 83 testes em 19 arquivos aprovados |
+| Regressões focalizadas após refinamento touch | 26/26 aprovadas |
+| Lint / TypeScript | Zero erros; cinco avisos de imagem preexistentes / aprovado |
+| E2E completo com MySQL/backend reais | 19/19 aprovados, 2,8min |
+| Verificação final desktop e toque após CSS | 2/2 aprovados |
+| Revisão independente | Sem achados relevantes pendentes |
+| Documentação e rastreabilidade | 55 tarefas concluídas, 26 identificadores cobertos, sem ciclos |
+
+O E2E adicional reproduz BOOK_NOT_FOUND real recebido depois de navegar e desmontar o cartão. A confirmação agora chega ao hook da conta mesmo após a desmontagem; respostas genéricas revalidam sem confirmar indisponibilidade. Guards de sessão e estado local desmontado foram preservados. Navegação por grupos, último grupo parcial, mil voltas sem rede/clones, gestos sem clique residual, foco, inclusão, 409, 404 e respostas GET atrasadas continuam cobertos.
+
+Capturas finais revistas pelo orquestrador com capas reais: [desktop](validation/ui-refresh-desktop.png), [hover](validation/ui-refresh-hover.png), [390px](validation/ui-refresh-mobile390.png), [viewport móvel](validation/ui-refresh-mobile390-viewport.png) e [dispositivo com toque](validation/ui-refresh-mobile-touch.png). Referência compartilhada do Explorar: [normal](validation/explore-reference-card.png) e [hover](validation/explore-reference-hover.png).
+
+O smoke de leitura em localhost:3000 verificou larguras 1440, 1280, 1024, 768, 390 e 320px sem overflow horizontal; uma volta completa dos 29 itens elegíveis no snapshot da demo, em seis grupos e sem novos GETs; cursor pointer e teclado. Zero alterações na biblioteca por esse smoke; interações do usuário foram preservadas. [Dados do smoke](validation/ui-refresh-demo.json). A captura touch aguardou opacity=1 do + e opacity=0 do fundo sem desabilitar animações na captura, evitando artefato do Playwright sobre transições.
+
+O frontend E2E usa distDir separado em .next/e2e, por variável passada apenas ao processo de teste; a demo em 3000/8080 permanece disponível. Artefatos gerados de cobertura/configuração foram restaurados. Os ensaios pesados de backend/capacidade e o p95 acima pertencem à implementação inicial e não foram repetidos para esta alteração de apresentação. Não houve novo commit, push ou deploy nesta revisão.

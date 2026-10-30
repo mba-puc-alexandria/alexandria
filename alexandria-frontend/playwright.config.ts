@@ -22,6 +22,6 @@ export default defineConfig({
     url: `http://localhost:${port}`,
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
-    env: { NEXT_PUBLIC_API_URL: process.env.E2E_API_URL || 'http://localhost:18080' },
+    env: { E2E_ISOLATED_BUILD: '1', NEXT_PUBLIC_API_URL: process.env.E2E_API_URL || 'http://localhost:18080' },
   },
 });

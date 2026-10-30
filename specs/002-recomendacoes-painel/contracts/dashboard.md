@@ -2,11 +2,11 @@
 
 ## Posição e apresentação
 
-Seção “Recomendados para você” após “Lendo Agora”, com carregamento e falha independentes das estatísticas. Exibir a data da seleção; quando stale, informar “Atualização pendente — mostrando a última seleção disponível”. Até 30 livros no estado do componente, responsivos e com controles sempre visíveis ao toque e teclado.
+Seção “Você também pode gostar” após “Lendo Agora”, com carregamento e falha independentes das estatísticas. Não exibir data, quantidade de sugestões nem motivo. Quando stale, informar “Atualização pendente — mostrando a última seleção disponível”. Até 30 livros no estado do componente, responsivos e com controles de navegação sempre visíveis ao toque e teclado.
 
-Cartão: capa ou substituto, título, autores, motivo e ações “Ver livro” (/explorar/{id}) e “Adicionar à biblioteca”. A API de recomendação traz um DTO compacto próprio; adaptar getAuthorDisplay para receber os campos necessários, sem forçar esse DTO a implementar BookApiResponse inteiro.
+Cartão igual ao CoverCard efetivamente usado em Explorar: somente capa ou substituto em proporção 2:3. Ao passar o mouse, exibir a mesma sobreposição escura com blur, título, autores e botão circular +. Nas recomendações, título e autor permanecem visíveis abaixo da capa por solicitação final do usuário; não há botões abaixo. O Explorar mantém sua apresentação atual sem legenda. Clique na capa abre /explorar/{id}; o + adiciona sem navegar. Foco por teclado também revela a sobreposição. Em dispositivos sem hover, o + fica visível sobre a capa nítida; fundo/blur e textos da sobreposição aparecem apenas no foco. Compartilhar a apresentação entre Explorar e recomendações para preservar a consistência. A API mantém seu DTO compacto próprio, inclusive metadados internos de justificativa e seleção.
 
-Não mostrar contagem enganosa de 30 se houver menos. Pode-se exibir “N sugestões disponíveis”. Não prometer renovação de todos os títulos diariamente: os melhores podem permanecer iguais se o perfil/base não mudou.
+Não exibir contagem visual, inclusive “X de N”. Um status sr-only pode informar a posição para leitores de tela. Não prometer renovação de todos os títulos diariamente: os melhores podem permanecer iguais se o perfil/base não mudou.
 
 ## Estados
 
@@ -19,7 +19,7 @@ Precedência: READY de hoje é reutilizada, mesmo se o perfil mudar depois. Sem 
 | EMPTY + NO_PROFILE | “Ainda não encontramos interesses suficientes para recomendar. Explore o catálogo e adicione livros que quer ler.” e Explorar; não pressupor biblioteca vazia |
 | EMPTY + NO_MATCHES | sem sugestões compatíveis na seleção diária; link Explorar |
 | EMPTY + ALL_ADDED_OR_UNAVAILABLE | seleção esgotada; informar próxima atualização diária |
-| STALE | aviso de data e atualização pendente, com ou sem itens; filtro atual preservado; “Verificar atualização” faz somente GET |
+| STALE | aviso de atualização pendente, com ou sem itens e sem data; filtro atual preservado; “Verificar atualização” faz somente GET |
 | GENERATING / 202 | “Preparando suas recomendações”; polling limitado por Retry-After |
 | 503 ou falha de rede | preservar cartões anteriores; mensagem e nova tentativa |
 | 401 | seguir fluxo de autenticação; apagar dados e cancelar requisições |
@@ -28,9 +28,9 @@ Polling: no máximo 10 consultas automáticas consecutivas por abertura, com int
 
 ## Navegação circular
 
-- Default: um cartão visível por vez em 390px e desktop, largura responsiva, avanço de um item e indicador “X de N” calculado pelos itens elegíveis retornados, sem usar posições persistidas com lacunas. Somente o cartão visível participa do foco e da árvore de acessibilidade; desmontar ou aplicar hidden aos demais.
-- Volta sem repetição refere-se a avanços consecutivos em Próximo; Anterior pode reapresentar um cartão. Com um item, manter “1 de 1”. Testar 1→2→Anterior→1 e volta completa.
-- Avançar e voltar alteram o índice modular na lista retornada. Ao fim, avançar vai ao início sem rede, sem novo ranking e sem crescer o DOM.
+- Vários cartões visíveis por grupo conforme a largura disponível (dois em 390px, três a partir de sm, quatro em lg e cinco em xl). Avanço de um grupo, com último grupo parcial para não repetir livros antes do fim da volta. Somente os cartões do grupo visível participam do foco e da árvore de acessibilidade; desmontar ou aplicar hidden aos demais.
+- Volta sem repetição refere-se a avanços consecutivos em Próximo; Anterior pode reapresentar um grupo. Com um item, manter o cartão. Anunciar a posição somente via sr-only; sem indicador visual ou contagem de sugestões.
+- Avançar e voltar alteram o grupo na lista retornada. Ao fim, avançar vai ao início sem rede, sem novo ranking e sem crescer o DOM. Controles no cabeçalho têm nomes acessíveis Anterior/Próximo, cursor pointer e foco visível.
 - Sem autoplay, timers ou movimento por ausência de interação. “Reinício automático” significa continuar a navegação sem botão separado de reiniciar.
 - Sem clones infinitos de cartões. Até 30 cartões/dados; usar keys por bookId e uma única ocorrência por cartão, mesmo nas várias voltas.
 - Ao sobrar um livro, avançar pode mantê-lo/reapresentá-lo sem novas consultas. Com zero, desabilitar controles e mostrar estado vazio.
@@ -51,9 +51,9 @@ Remover posteriormente o livro da biblioteca pode fazê-lo reaparecer se ele já
 
 ## Acessibilidade e verificação
 
-Usar selection.referenceDate em “Selecionado com base na sua biblioteca em DD/MM/AAAA”. Razões descrevem a coincidência histórica de assunto/autor com evidência real, sem afirmar gosto atual ou conclusão quando o sinal era a ler. Não tratar referenceDate como data da avaliação. Mudança de nota/remoção da evidência não altera motivos congelados do dia, inclusive em STALE.
+Por solicitação do usuário em 2026-10-30, data, quantidade e razão não aparecem na interface. selection.referenceDate e reason continuam no contrato de API para rastreabilidade histórica, sem alterar ranking ou persistência. Mudança de nota/remoção da evidência não altera motivos congelados do dia, inclusive em STALE.
 
-Região rotulada, controles com nomes claros, foco visível, Tab/Shift+Tab naturais, Enter/Espaço nas ações, anúncio discreto de inclusão/falha e respeito a prefers-reduced-motion. Não depender de hover/capa/cor. Verificar celular de 390px, desktop e teclado. Sem autoplay não é necessário botão de pausar rotação.
+Região rotulada, controles com nomes claros, foco visível, Tab/Shift+Tab naturais, Enter/Espaço nas ações, anúncio discreto de inclusão/falha e respeito a prefers-reduced-motion. Oferecer nomes acessíveis para capa e botão +; o foco por teclado revela a mesma sobreposição do hover. Verificar celular de 390px, desktop e teclado. Sem autoplay não é necessário botão de pausar rotação.
 
 ## Operações existentes preservadas
 
@@ -61,7 +61,7 @@ POST /user-books para inclusão (status TOREAD, conforme cliente atual), GET /bo
 
 ## Seleção anterior vazia e atualização
 
-STALE pode ter items=[] por seleção originalmente vazia ou filtragem atual. Mostrar data anterior e “A atualização de hoje está pendente. Ainda não há sugestões disponíveis”, com Explorar e Verificar atualização (GET), sem prometer aguardar amanhã. generationStatus distingue PENDING/BUILDING de FAILED; só FAILED oferece POST após cooldown. Mesma regra com cartões STALE. EMPTY de READY de hoje é final do dia e não oferece POST para repor.
+STALE pode ter items=[] por seleção originalmente vazia ou filtragem atual. Mostrar “A atualização de hoje está pendente. Ainda não há sugestões disponíveis”, sem data, com Explorar e Verificar atualização (GET), sem prometer aguardar amanhã. generationStatus distingue PENDING/BUILDING de FAILED; só FAILED oferece POST após cooldown. Mesma regra com cartões STALE. EMPTY de READY de hoje é final do dia e não oferece POST para repor.
 
 generationStatus=IDLE indica trabalho ainda não aceito pela fila; GET pode solicitá-lo dentro do orçamento automático. FAILED permite retry manual; retryAfterSeconds é cooldown restante (null se já elegível). Falha de transporte com seleção pronta repete GET. Após dez polls GENERATING, manter Verificar atualização sem afirmar falha técnica.
 

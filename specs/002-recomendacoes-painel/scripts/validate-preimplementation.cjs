@@ -27,8 +27,8 @@ for (const line of taskText.split(/\r?\n/)) {
   tasks.set(match[2], { text: match[3], checked: match[1] !== ' ', phase,
     story: match[3].match(/\[US(\d)\]/)?.[1] });
 }
-assert.equal(tasks.size, 52);
-for (let i = 1; i <= 52; i++) assert(tasks.has(`T${String(i).padStart(3, '0')}`));
+assert.equal(tasks.size, 55);
+for (let i = 1; i <= tasks.size; i++) assert(tasks.has(`T${String(i).padStart(3, '0')}`));
 function taskIds(text) {
   const result = new Set();
   for (const m of text.matchAll(/T(\d{3})(?:\s*(?:a|–|-)\s*T?(\d{3}))?/g)) {

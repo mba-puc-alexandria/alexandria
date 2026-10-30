@@ -6,7 +6,7 @@
 
 ## Summary
 
-Gerar uma seleção diária persistida de até 30 livros por leitor. O processamento em segundo plano considera todo o catálogo; a leitura do Painel consulta apenas a seleção pronta e a biblioteca atual. O frontend recebe todos os até 30 cartões e repete a navegação localmente. Não há recálculo, paginação infinita nem requisição por volta do carrossel. Não há substituição de livros adicionados antes da geração seguinte.
+Gerar uma seleção diária persistida de até 30 livros por leitor. O processamento em segundo plano considera todo o catálogo; a leitura do Painel consulta apenas a seleção pronta e a biblioteca atual. O frontend recebe todos os até 30 cartões e repete a navegação localmente em grupos responsivos de capas verticais (2/3/4/5 conforme a largura). O título é “Você também pode gostar”; não exibir data, contagem ou motivo. Não há recálculo, paginação infinita nem requisição por volta do carrossel. Não há substituição de livros adicionados antes da geração seguinte.
 
 A seleção usa afinidade determinística por assuntos e autores, idioma complementar e popularidade apenas como desempate. Não depende de IA externa, embeddings, outras bibliotecas privadas ou serviços adicionais.
 
@@ -66,7 +66,7 @@ specs/002-recomendacoes-painel/
 └── checklists/requirements.md
 ```
 
-tasks.md contém 52 tarefas; esta revisão refina descrições sem marcar implementação concluída.
+A implementação inicial concluiu T001–T052. A revisão visual solicitada pelo usuário acrescenta T053–T055, sem alterar o motor ou os contratos de API.
 
 O estado de entrada e as evidências de preparação estão em [implementation-readiness.md](implementation-readiness.md). Os scripts em `scripts/` verificam documentos/contratos e a ferramenta MySQL; não implementam a funcionalidade.
 
@@ -167,7 +167,7 @@ Contratos detalhados: [geração](contracts/daily-generation.md), [Painel](contr
 - API informa generationStatus=IDLE/PENDING/BUILDING/FAILED/READY/NO_PROFILE para orientar retry. STALE aceita zero itens e permite verificar conclusão por GET.
 - Expor Retry-After no CORS efetivo da segurança e validar leitura entre origens no navegador; no-store em GET/POST e erros controlados.
 - Um cartão visível, passo unitário, indicador X de N; ocultos sem foco. Anterior pode rever e item único pode se reapresentar.
-- Razões históricas com data da seleção, NO_PROFILE sem presumir biblioteca vazia e avaliação qualitativa do top-5 complementam usabilidade.
+- Razões históricas e data da seleção permanecem na API; a interface não as exibe após a revisão visual de 2026-10-30. NO_PROFILE não presume biblioteca vazia.
 
 ## Fechamento da rodada crítica 2
 
