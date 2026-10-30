@@ -11,6 +11,7 @@ import com.pucsp.alexandria.adapter.in.rest.dto.UpdateBookRequest;
 import com.pucsp.alexandria.application.book.CreateBookUseCase;
 import com.pucsp.alexandria.application.book.DeleteBookUseCase;
 import com.pucsp.alexandria.application.book.GetBookUseCase;
+import com.pucsp.alexandria.application.book.GetBookEpubUseCase;
 import com.pucsp.alexandria.application.book.ListBooksUseCase;
 import com.pucsp.alexandria.application.book.SearchBookByTitleUseCase;
 import com.pucsp.alexandria.application.book.UpdateBookUseCase;
@@ -20,6 +21,7 @@ import com.pucsp.alexandria.application.book.dto.CreateBookInput;
 import com.pucsp.alexandria.application.book.dto.CreateBookOutput;
 import com.pucsp.alexandria.config.jwt.JwtTokenProvider;
 import com.pucsp.alexandria.domain.book.BookSource;
+import com.pucsp.alexandria.domain.subscription.exception.SubscriptionRequiredException;
 import com.pucsp.alexandria.application.book.dto.SearchBookOutput;
 import com.pucsp.alexandria.application.book.dto.UpdateBookInput;
 import java.util.List;
@@ -34,6 +36,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.web.client.RestTemplate;
 
 @SpringBootTest(properties = {
     "jwt.secret=test-secret-key-for-tests-min-256-bits",
@@ -54,6 +57,12 @@ class BookControllerIntegrationTest {
     private GetBookUseCase getBookUseCase;
 
     @MockitoBean
+    private GetBookEpubUseCase getBookEpubUseCase;
+
+    @MockitoBean
+    private RestTemplate restTemplate;
+
+    @MockitoBean
     private ListBooksUseCase listBooksUseCase;
 
     @MockitoBean
@@ -70,6 +79,26 @@ class BookControllerIntegrationTest {
 
     private final String ADMIN_TOKEN = "Bearer admin-token";
     private final String USER_TOKEN = "Bearer user-token";
+
+    @Test
+    void shouldCheckEpubAccessWithoutDownloadingBytes() throws Exception {
+        when(jwtTokenProvider.validateToken("user-token")).thenReturn(true);
+        when(jwtTokenProvider.getUsernameFromToken("user-token")).thenReturn("user");
+        when(jwtTokenProvider.getUserIdFromToken("user-token")).thenReturn(2L);
+        when(jwtTokenProvider.getRoleFromToken("user-token")).thenReturn("USER");
+        when(getBookEpubUseCase.execute(2L, 7L)).thenReturn("https://example.test/book.epub");
+
+        mockMvc.perform(head("/books/7/epub").header("Authorization", USER_TOKEN))
+                .andExpect(status().isOk())
+                .andExpect(header().string("X-Authenticated-User-Id", "2"));
+        verify(getBookEpubUseCase).execute(2L, 7L);
+        verifyNoInteractions(restTemplate);
+
+        when(getBookEpubUseCase.execute(2L, 8L)).thenThrow(new SubscriptionRequiredException());
+        mockMvc.perform(head("/books/8/epub").header("Authorization", USER_TOKEN))
+                .andExpect(status().isPaymentRequired());
+        verifyNoInteractions(restTemplate);
+    }
 
     @Test
     void shouldCreateBookAsAdmin() throws Exception {

@@ -128,7 +128,9 @@ src/
 │       └── db/migration/                       # Flyway migrations
 │           ├── V0__Create_initial_tables.sql
 │           ├── V001__Add_Gutendex_Fields_And_Remove_Genre.sql
-│           └── V002__Create_Authors_And_BookAuthors.sql
+│           ├── V002__Create_Authors_And_BookAuthors.sql
+│           ├── V3__create_subscriptions_table.sql
+│           └── V4__create_recommendation_batches_and_items.sql
 ├── test/
 │   ├── java/.../                               # Unit + integration tests
 │   └── resources/application.properties        # H2 test config
@@ -229,8 +231,8 @@ docker build -t alexandria-backend .
 | `CORS_ALLOWED_ORIGINS` | `http://localhost:3000` | CORS origins |
 
 ### Profiles
-- **default**: Local MySQL with `spring.jpa.hibernate.ddl-auto=update`
-- **rds**: AWS RDS with `ddl-auto=validate` and Flyway disabled (run via `--spring.profiles.active=rds`)
+- **default**: Local MySQL with Flyway enabled and `spring.jpa.hibernate.ddl-auto=validate`
+- **rds**: AWS RDS with Flyway enabled and `ddl-auto=validate` (run via `--spring.profiles.active=rds`)
 
 ### Testing
 - **Unit tests**: Domain entities, value objects, and use cases (plain JUnit)
@@ -239,5 +241,5 @@ docker build -t alexandria-backend .
 - **Testcontainers** dependency available for MySQL container tests
 
 ### Notes
-- Flyway is **disabled** by default (`spring.flyway.enabled=false`); schema is managed via Hibernate DDL auto-update
+- Flyway is enabled in both application profiles (`spring.flyway.enabled=true`), with `baseline-on-migrate=true` and `baseline-version=2`; Hibernate validates the migrated schema. The H2 test profile disables Flyway and uses `create-drop`; use real MySQL tests for migration/lease/concurrency behavior.
 - The `scripts/` directory contains deployment scripts for EC2 — review before using (they contain hardcoded credentials)

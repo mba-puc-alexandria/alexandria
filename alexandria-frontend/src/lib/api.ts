@@ -1,3 +1,5 @@
+import { emitLibraryChange, libraryAccountId } from './library-events';
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL!;
 const API_URL_LOCAL = API_URL;
 
@@ -92,7 +94,7 @@ export interface BookApiResponse {
   publisherId: number | null;
 }
 
-export function getAuthorDisplay(book: BookApiResponse): string {
+export function getAuthorDisplay(book: { authors: string | { name: string }[] }): string {
   if (typeof book.authors === 'string') return book.authors;
   return book.authors.map((a) => a.name).join(', ');
 }
@@ -145,39 +147,137 @@ export interface UserBookResponse {
 }
 
 export async function addUserBook(bookId: number): Promise<UserBookResponse> {
+  const accountId = libraryAccountId();
   const res = await apiFetch('/user-books', {
     method: 'POST',
     body: JSON.stringify({ bookId, status: 'TOREAD' }),
   });
-  if (res.status === 409) throw new Error('already_added');
-  if (!res.ok) throw new Error('Falha ao adicionar livro');
-  return res.json();
+  if (res.status === 409) {
+    emitLibraryChange({ kind: 'already_added', accountId, bookId });
+    throw new ApiError('already_added', 409);
+  }
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new ApiError('Falha ao adicionar livro', res.status, error.code);
+  }
+  const data: UserBookResponse = await res.json();
+  emitLibraryChange({ kind: 'added', accountId, bookId });
+  return data;
 }
 
-export async function getUserBooks(): Promise<UserBookResponse[]> {
-  const res = await apiFetch('/user-books');
-  if (!res.ok) throw new Error('Falha ao buscar biblioteca');
-  const page = await res.json();
-  return page.content;
+export async function getUserBooks(signal?: AbortSignal): Promise<UserBookResponse[]> {
+  const token = typeof window !== 'undefined' ? localStorage.getItem('auth-token') : null;
+  const accountId = libraryAccountId();
+  const ensureSameSession = () => {
+    if (signal?.aborted || (typeof window !== 'undefined' && (localStorage.getItem('auth-token') !== token || libraryAccountId() !== accountId))) {
+      throw new DOMException('Sessão alterada durante a busca', 'AbortError');
+    }
+  };
+  const books: UserBookResponse[] = [];
+  const appendPage = async (pageNumber: number): Promise<void> => {
+    ensureSameSession();
+    const res = await apiFetch(`/user-books?page=${pageNumber}&size=100&sort=id,asc`, {
+      signal, headers: { Authorization: token ? `Bearer ${token}` : '' },
+    });
+    if (!res.ok) throw new Error('Falha ao buscar biblioteca');
+    const page: { content: UserBookResponse[]; totalPages: number } = await res.json();
+    ensureSameSession();
+    books.push(...page.content);
+    if (pageNumber + 1 < page.totalPages) await appendPage(pageNumber + 1);
+  };
+  await appendPage(0);
+  ensureSameSession();
+  return books;
 }
 
 export async function updateUserBook(
   userBookId: number,
   data: { status?: string; progress?: number; rating?: number }
 ): Promise<UserBookResponse> {
+  const accountId = libraryAccountId();
   const res = await apiFetch(`/user-books/${userBookId}`, {
     method: 'PUT',
     body: JSON.stringify(data),
   });
   if (!res.ok) throw new Error('Falha ao atualizar livro');
-  return res.json();
+  const updated: UserBookResponse = await res.json();
+  emitLibraryChange({ kind: 'updated', accountId, bookId: updated.book.id });
+  return updated;
 }
 
 export async function removeUserBook(userBookId: number): Promise<void> {
+  const accountId = libraryAccountId();
   const res = await apiFetch(`/user-books/${userBookId}`, {
     method: 'DELETE',
   });
   if (!res.ok) throw new Error('Falha ao remover livro da biblioteca');
+  emitLibraryChange({ kind: 'removed', accountId });
+}
+
+export type RecommendationGenerationStatus = 'IDLE' | 'PENDING' | 'BUILDING' | 'FAILED' | 'READY' | 'NO_PROFILE';
+export interface RecommendationSelection {
+  id: number;
+  referenceDate: string;
+  generatedAt: string;
+  algorithmVersion: string;
+  selectedCount: number;
+}
+export interface RecommendationItem {
+  position: number;
+  book: { id: number; title: string; authors: { id: number; name: string }[]; coverUrl: string | null };
+  reason: { type: 'SUBJECT' | 'AUTHOR'; matchedValue: string; text: string };
+}
+export interface RecommendationResponse {
+  state: 'READY' | 'EMPTY' | 'STALE' | 'GENERATING';
+  selection: RecommendationSelection | null;
+  items: RecommendationItem[];
+  emptyReason: 'NO_PROFILE' | 'NO_MATCHES' | 'ALL_ADDED_OR_UNAVAILABLE' | null;
+  updatePending: boolean;
+  retryAfterSeconds: number | null;
+  generationStatus: RecommendationGenerationStatus;
+  message: string | null;
+}
+export interface RecommendationResult {
+  data: RecommendationResponse;
+  status: number;
+  retryAfterSeconds: number | null;
+}
+export interface RecommendationGenerationResult {
+  data: { state: 'ACCEPTED' | 'ALREADY_RUNNING' | 'READY' | 'NO_PROFILE'; referenceDate: string };
+  status: number;
+  retryAfterSeconds: number | null;
+}
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    public readonly status: number,
+    public readonly code?: string,
+    public readonly generationStatus?: RecommendationGenerationStatus,
+    public readonly retryAfterSeconds: number | null = null,
+  ) { super(message); this.name = 'ApiError'; }
+}
+
+function retryAfter(response: Response, fallback?: number | null): number | null {
+  const seconds = Number(response.headers.get('Retry-After'));
+  if (Number.isFinite(seconds) && seconds >= 1) return Math.ceil(seconds);
+  return typeof fallback === 'number' && Number.isFinite(fallback) && fallback >= 1 ? Math.ceil(fallback) : null;
+}
+async function recommendationRequest(path: string, init: RequestInit) {
+  const response = await apiFetch(path, { ...init, cache: 'no-store' });
+  const data = await response.json().catch(() => ({}));
+  const delay = retryAfter(response, data.retryAfterSeconds);
+  if (!response.ok) throw new ApiError(
+    response.status === 401 ? 'Sessão expirada. Entre de novo.' : 'Não foi possível atualizar suas recomendações.',
+    response.status, data.code,
+    data.generationStatus ?? (path === '/recommendations/generation' && response.status === 429 ? 'FAILED' : undefined), delay,
+  );
+  return { data, status: response.status, retryAfterSeconds: delay };
+}
+export function getRecommendations(signal?: AbortSignal): Promise<RecommendationResult> {
+  return recommendationRequest('/recommendations', { signal });
+}
+export function requestRecommendationGeneration(signal?: AbortSignal): Promise<RecommendationGenerationResult> {
+  return recommendationRequest('/recommendations/generation', { method: 'POST', signal });
 }
 
 export interface ProfileResponse {
@@ -321,4 +421,21 @@ export async function apiFetch(path: string, init: RequestInit = {}): Promise<Re
       ...init.headers,
     },
   });
+}
+
+export interface SupportMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
+export async function sendSupportMessage(messages: SupportMessage[]): Promise<string> {
+  const res = await apiFetch('/support/chat', {
+    method: 'POST',
+    body: JSON.stringify({ messages }),
+  });
+  if (!res.ok) {
+    throw new Error(res.status === 401 ? 'Sessão expirada. Entre de novo.' : `Falha ao falar com o assistente (erro ${res.status})`);
+  }
+  const data: { reply: string } = await res.json();
+  return data.reply;
 }

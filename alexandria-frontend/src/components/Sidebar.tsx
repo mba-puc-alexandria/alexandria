@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 import {
   LayoutDashboard,
   BookOpen,
@@ -11,6 +12,8 @@ import {
   BookMarked,
   LogOut,
   Sparkles,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -35,13 +38,34 @@ const bottomLinks = [
 export default function Sidebar() {
   const pathname = usePathname();
   const { logout, user } = useAuth();
+  const [collapsed, setCollapsed] = useState(false);
+
+  useEffect(() => {
+    try {
+      setCollapsed(localStorage.getItem("sidebar-collapsed") === "1");
+    } catch {}
+  }, []);
+
+  function toggleCollapsed() {
+    const next = !collapsed;
+    setCollapsed(next);
+    try {
+      localStorage.setItem("sidebar-collapsed", next ? "1" : "0");
+    } catch {}
+    // O leitor EPUB só refaz o layout no resize da janela.
+    setTimeout(() => window.dispatchEvent(new Event("resize")), 220);
+  }
 
   return (
-    <aside className="flex flex-col w-64 shrink-0 h-full bg-cream px-6 py-6 border-r border-cream-border">
+    <aside
+      className={`flex flex-col shrink-0 h-full bg-cream py-6 border-r border-cream-border overflow-hidden transition-[width] duration-200 ${
+        collapsed ? "w-16 px-2" : "w-64 px-6"
+      }`}
+    >
       <div className="mb-8">
-        <Link href="/explorar" className="flex items-center gap-3">
-          <BookMarked className="text-brown" size={20} />
-          <div>
+        <Link href="/explorar" title="Alexandria" className={`flex items-center gap-3 ${collapsed ? "justify-center" : ""}`}>
+          <BookMarked className="text-brown shrink-0" size={20} />
+          <div className={collapsed ? "hidden" : ""}>
             <p className="font-brand font-bold text-brown text-2xl leading-none">
               Alexandria
             </p>
@@ -59,14 +83,18 @@ export default function Sidebar() {
             <Link
               key={href}
               href={href}
-              className={`flex items-center gap-3 px-4 py-3 rounded text-[15px] transition-colors ${
+              title={label}
+              aria-label={label}
+              className={`flex items-center gap-3 py-3 rounded text-[15px] transition-colors ${
+                collapsed ? "justify-center px-0" : "px-4"
+              } ${
                 active
                   ? "bg-cream-active text-brown font-bold"
                   : "text-slate font-medium hover:bg-cream-active/60"
               }`}
             >
-              <Icon size={18} />
-              {label}
+              <Icon size={18} className="shrink-0" />
+              {!collapsed && label}
             </Link>
           );
         })}
@@ -77,27 +105,50 @@ export default function Sidebar() {
           <Link
             key={href}
             href={href}
-            className="flex items-center gap-3 px-4 py-2 text-slate text-sm font-medium hover:text-brown transition-colors"
+            title={label}
+            aria-label={label}
+            className={`flex items-center gap-3 py-2 text-slate text-sm font-medium hover:text-brown transition-colors ${
+              collapsed ? "justify-center px-0" : "px-4"
+            }`}
           >
-            <Icon size={18} />
-            {label}
+            <Icon size={18} className="shrink-0" />
+            {!collapsed && label}
           </Link>
         ))}
 
         {user && (
           <div className="mt-4 pt-4 border-t border-cream-border">
-            <p className="px-4 text-[11px] text-slate/50 uppercase tracking-widest font-bold mb-2">
-              {user.username}
-            </p>
+            {!collapsed && (
+              <p className="px-4 text-[11px] text-slate/50 uppercase tracking-widest font-bold mb-2">
+                {user.username}
+              </p>
+            )}
             <button type="button"
               onClick={logout}
-              className="flex items-center gap-3 px-4 py-2 w-full text-terra text-sm font-medium hover:bg-terra/10 rounded transition-colors"
+              title="Sair"
+              aria-label="Sair"
+              className={`flex items-center gap-3 py-2 w-full text-terra text-sm font-medium hover:bg-terra/10 rounded transition-colors ${
+                collapsed ? "justify-center px-0" : "px-4"
+              }`}
             >
-              <LogOut size={18} />
-              Sair
+              <LogOut size={18} className="shrink-0" />
+              {!collapsed && "Sair"}
             </button>
           </div>
         )}
+
+        <button type="button"
+          onClick={toggleCollapsed}
+          title={collapsed ? "Expandir menu" : "Recolher menu"}
+          aria-label={collapsed ? "Expandir menu" : "Recolher menu"}
+          aria-expanded={!collapsed}
+          className={`mt-4 flex items-center gap-3 py-2 w-full text-slate text-sm font-medium hover:text-brown rounded transition-colors ${
+            collapsed ? "justify-center px-0" : "px-4"
+          }`}
+        >
+          {collapsed ? <PanelLeftOpen size={18} className="shrink-0" /> : <PanelLeftClose size={18} className="shrink-0" />}
+          {!collapsed && "Recolher menu"}
+        </button>
       </div>
     </aside>
   );

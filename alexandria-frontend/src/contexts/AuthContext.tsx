@@ -7,6 +7,7 @@ import {
   useCallback,
   useEffect,
   useState,
+  useRef,
   useSyncExternalStore,
   ReactNode,
 } from 'react';
@@ -46,7 +47,14 @@ const listeners = new Set<() => void>();
 
 function subscribe(callback: () => void) {
   listeners.add(callback);
-  return () => listeners.delete(callback);
+  const externalChange = (event: StorageEvent) => {
+    if (event.key === AUTH_USER_KEY || event.key === AUTH_TOKEN_KEY || event.key === null) callback();
+  };
+  window.addEventListener('storage', externalChange);
+  return () => {
+    listeners.delete(callback);
+    window.removeEventListener('storage', externalChange);
+  };
 }
 
 function emitChange() {
@@ -54,7 +62,9 @@ function emitChange() {
 }
 
 function getSnapshot(): string | null {
-  return localStorage.getItem(AUTH_USER_KEY);
+  const rawUser = localStorage.getItem(AUTH_USER_KEY);
+  const token = localStorage.getItem(AUTH_TOKEN_KEY);
+  return rawUser || token ? JSON.stringify([rawUser, token]) : null;
 }
 
 function getServerSnapshot(): string | null {
@@ -70,6 +80,14 @@ function readUser(raw: string | null): AuthUser | null {
   }
 }
 
+function subscriptionOwner(user: AuthUser | null, token: string | null): string | null {
+  return user && token ? `${user.userId}:${token}` : null;
+}
+
+function currentSubscriptionOwner(): string | null {
+  return subscriptionOwner(readUser(localStorage.getItem(AUTH_USER_KEY)), localStorage.getItem(AUTH_TOKEN_KEY));
+}
+
 function writeUser(authUser: AuthUser | null) {
   if (authUser) {
     localStorage.setItem(AUTH_USER_KEY, JSON.stringify(authUser));
@@ -81,29 +99,35 @@ function writeUser(authUser: AuthUser | null) {
 
 export function AuthProvider({ children }: Readonly<{ children: ReactNode }>) {
   const raw = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
-  const user = useMemo(() => readUser(raw), [raw]);
-  const [subscription, setSubscription] = useState<Subscription | null>(null);
+  const [rawUser, token] = useMemo(() => raw ? JSON.parse(raw) as [string | null, string | null] : [null, null], [raw]);
+  const user = useMemo(() => readUser(rawUser), [rawUser]);
+  const sessionOwner = subscriptionOwner(user, token);
+  const [subscriptionState, setSubscriptionState] = useState<{ owner: string | null; data: Subscription | null; loading: boolean }>({ owner: null, data: null, loading: true });
+  const subscriptionVersion = useRef(0);
   // Inicia true: no primeiro frame ainda não sabemos se há assinatura, e quem
   // consome isLoading não pode assumir "sem plano" antes da resposta chegar.
-  const [loadingSubscription, setLoadingSubscription] = useState(true);
+  const subscription = subscriptionState.owner === sessionOwner ? subscriptionState.data : null;
+  const loadingSubscription = subscriptionState.owner !== sessionOwner || subscriptionState.loading;
 
   const router = useRouter();
 
   const refreshSubscription = useCallback(async () => {
-    const token = typeof window !== 'undefined' ? localStorage.getItem(AUTH_TOKEN_KEY) : null;
-    if (!token) {
-      setSubscription(null);
-      setLoadingSubscription(false);
+    const owner = currentSubscriptionOwner();
+    const version = ++subscriptionVersion.current;
+    if (!owner) {
+      setSubscriptionState({ owner: null, data: null, loading: false });
       return;
     }
-    setLoadingSubscription(true);
+    setSubscriptionState(previous => ({ owner, data: previous.owner === owner ? previous.data : null, loading: true }));
     try {
       const data = await apiGetSubscription();
-      setSubscription(data);
+      if (subscriptionVersion.current === version && currentSubscriptionOwner() === owner) {
+        setSubscriptionState({ owner, data, loading: false });
+      }
     } catch {
-      setSubscription(null);
-    } finally {
-      setLoadingSubscription(false);
+      if (subscriptionVersion.current === version && currentSubscriptionOwner() === owner) {
+        setSubscriptionState({ owner, data: null, loading: false });
+      }
     }
   }, []);
 
@@ -144,7 +168,8 @@ export function AuthProvider({ children }: Readonly<{ children: ReactNode }>) {
     localStorage.removeItem(AUTH_TOKEN_KEY);
     document.cookie = 'auth-token=; path=/; max-age=0';
     writeUser(null);
-    setSubscription(null);
+    subscriptionVersion.current++;
+    setSubscriptionState({ owner: null, data: null, loading: false });
     router.push('/explorar');
     router.refresh();
   }, [router]);
@@ -159,9 +184,8 @@ export function AuthProvider({ children }: Readonly<{ children: ReactNode }>) {
 
   // Carrega a assinatura quando o usuário já está autenticado (ex.: refresh da página)
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch inicial da assinatura após montagem
     void refreshSubscription();
-  }, [user, refreshSubscription]);
+  }, [sessionOwner, refreshSubscription]);
 
   const value = useMemo(
     () => ({

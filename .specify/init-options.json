@@ -1,0 +1,7 @@
+{
+  "ai": "codex",
+  "ai_skills": true,
+  "integration": "codex",
+  "script": "ps",
+  "speckit_version": "1.2.5"
+}

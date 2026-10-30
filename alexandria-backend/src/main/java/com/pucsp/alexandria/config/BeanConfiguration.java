@@ -1,5 +1,24 @@
 package com.pucsp.alexandria.config;
 
+import com.pucsp.alexandria.adapter.in.job.BoundedRecommendationGenerationQueue;
+import com.pucsp.alexandria.adapter.in.job.RecommendationExecutionResources;
+import com.pucsp.alexandria.adapter.in.job.RecommendationMetrics;
+import com.pucsp.alexandria.adapter.in.job.RecommendationGenerationWorker;
+import com.pucsp.alexandria.application.recommendation.GenerateDailyRecommendationsUseCase;
+import com.pucsp.alexandria.application.recommendation.GetRecommendationsUseCase;
+import com.pucsp.alexandria.application.recommendation.RequestDailyRecommendationGenerationUseCase;
+import com.pucsp.alexandria.domain.recommendation.RecommendationBatchRepository;
+import com.pucsp.alexandria.domain.recommendation.RecommendationReadPort;
+import com.pucsp.alexandria.domain.recommendation.ReadingProfileRepository;
+import com.pucsp.alexandria.domain.recommendation.ReadingProfileBuilder;
+import com.pucsp.alexandria.domain.recommendation.RecommendationSelector;
+import com.pucsp.alexandria.domain.recommendation.RecommendationCatalogSnapshots;
+import com.pucsp.alexandria.domain.recommendation.RecommendationGenerationQueue;
+import com.pucsp.alexandria.domain.recommendation.RecommendationWorkFactory;
+import io.micrometer.core.instrument.MeterRegistry;
+import java.time.Clock;
+import org.springframework.beans.factory.annotation.Qualifier;
+
 import com.pucsp.alexandria.application.auth.AuthenticateUserUseCase;
 import com.pucsp.alexandria.application.auth.GoogleAuthUseCase;
 import com.pucsp.alexandria.application.auth.RegisterUserUseCase;
@@ -23,6 +42,7 @@ import com.pucsp.alexandria.application.subscription.ProcessPaymentWebhookUseCas
 import com.pucsp.alexandria.application.subscription.RecurringBillingUseCase;
 import com.pucsp.alexandria.application.subscription.StartTrialUseCase;
 import com.pucsp.alexandria.application.subscription.UpdatePaymentMethodUseCase;
+import com.pucsp.alexandria.application.support.ChatWithSupportUseCase;
 import com.pucsp.alexandria.application.userbooks.AddUserBooksUseCase;
 import com.pucsp.alexandria.application.userbooks.GetUserBookByBookIdUseCase;
 import com.pucsp.alexandria.application.userbooks.ListUserBooksUseCase;
@@ -32,6 +52,7 @@ import com.pucsp.alexandria.domain.author.AuthorRepository;
 import com.pucsp.alexandria.domain.book.BookRepository;
 import com.pucsp.alexandria.domain.book.external.BookApiClient;
 import com.pucsp.alexandria.domain.subscription.SubscriptionRepository;
+import com.pucsp.alexandria.domain.support.SupportAgent;
 import com.pucsp.alexandria.domain.user.UserRepository;
 import com.pucsp.alexandria.domain.userbook.UserBooksRepository;
 import com.pucsp.alexandria.config.jwt.JwtTokenProvider;
@@ -241,5 +262,70 @@ public class BeanConfiguration {
       RecurringBillingUseCase recurringBillingUseCase) {
     return new UpdatePaymentMethodUseCase(subscriptionRepository, paymentApiClient,
         recurringBillingUseCase);
+  }
+
+  @Bean
+  public ChatWithSupportUseCase chatWithSupportUseCase(SupportAgent supportAgent) {
+    return new ChatWithSupportUseCase(supportAgent);
+  }
+
+  @Bean
+  public BoundedRecommendationGenerationQueue recommendationGenerationQueue(
+      RecommendationExecutionResources resources) {
+    return new BoundedRecommendationGenerationQueue(resources);
+  }
+
+  @Bean
+  public RecommendationMetrics recommendationMetrics(
+      MeterRegistry registry,
+      RecommendationBatchRepository batches,
+      ReadingProfileRepository profiles,
+      ReadingProfileBuilder builder,
+      RecommendationProperties properties,
+      @Qualifier("recommendationClock") Clock clock,
+      RecommendationExecutionResources resources) {
+    return new RecommendationMetrics(registry,batches,profiles,builder,properties,clock,resources);
+  }
+
+  @Bean
+  public GenerateDailyRecommendationsUseCase generateDailyRecommendationsUseCase(
+      RecommendationBatchRepository batches,
+      ReadingProfileRepository profiles,
+      ReadingProfileBuilder builder,
+      RecommendationSelector selector) {
+    return new GenerateDailyRecommendationsUseCase(batches,profiles,builder,selector);
+  }
+
+  @Bean
+  public RecommendationGenerationWorker recommendationGenerationWorker(
+      RecommendationBatchRepository batches,
+      GenerateDailyRecommendationsUseCase generate,
+      RecommendationExecutionResources resources,
+      RecommendationProperties properties,
+      @Qualifier("recommendationClock") Clock clock,
+      RecommendationMetrics metrics) {
+    return new RecommendationGenerationWorker(batches,generate,resources,properties,clock,metrics);
+  }
+
+  @Bean
+  public RequestDailyRecommendationGenerationUseCase requestDailyRecommendationGenerationUseCase(
+      RecommendationBatchRepository batches,
+      RecommendationReadPort reads,
+      ReadingProfileRepository profiles,
+      ReadingProfileBuilder builder,
+      RecommendationCatalogSnapshots snapshots,
+      RecommendationGenerationQueue queue,
+      RecommendationWorkFactory workFactory,
+      @Qualifier("recommendationClock") Clock clock,
+      RecommendationProperties properties) {
+    return new RequestDailyRecommendationGenerationUseCase(
+        batches,reads,profiles,builder,snapshots,queue,workFactory,clock,properties.getZone());
+  }
+
+  @Bean
+  public GetRecommendationsUseCase getRecommendationsUseCase(
+      RecommendationReadPort reads,
+      RequestDailyRecommendationGenerationUseCase request) {
+    return new GetRecommendationsUseCase(reads,request);
   }
 }

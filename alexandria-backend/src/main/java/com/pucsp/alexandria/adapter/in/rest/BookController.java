@@ -28,6 +28,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.client.RestTemplate;
@@ -92,8 +93,16 @@ public class BookController {
     HttpHeaders headers = new HttpHeaders();
     headers.setContentType(MediaType.parseMediaType("application/epub+zip"));
     headers.setContentDispositionFormData("attachment", "book-" + id + ".epub");
+    headers.set("X-Authenticated-User-Id", user.id().toString());
 
     return new ResponseEntity<>(bytes, headers, HttpStatus.OK);
+  }
+
+  @RequestMapping(value = "/{id}/epub", method = RequestMethod.HEAD)
+  public ResponseEntity<Void> checkEpubAccess(@PathVariable Long id, Authentication authentication) {
+    AuthenticatedUser user = (AuthenticatedUser) authentication.getPrincipal();
+    getBookEpubUseCase.execute(user.id(), id);
+    return ResponseEntity.ok().header("X-Authenticated-User-Id", user.id().toString()).build();
   }
 
   @GetMapping

@@ -23,7 +23,7 @@ public class GlobalExceptionHandler {
   public ResponseEntity<ErrorResponse> handleBookNotFound(BookNotFoundException ex) {
     return ResponseEntity
         .status(HttpStatus.NOT_FOUND)
-        .body(new ErrorResponse(ex.getMessage(), HttpStatus.NOT_FOUND.value()));
+        .body(new ErrorResponse(ex.getMessage(), HttpStatus.NOT_FOUND.value(), "BOOK_NOT_FOUND"));
   }
 
   @ExceptionHandler(UserBooksNotFoundException.class)

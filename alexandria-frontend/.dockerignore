@@ -1,7 +1,7 @@
 node_modules
 .next
-.env*.local
-.env.local
+.env*
+!.env.example
 .git
 .gitignore
 README.md
@@ -11,3 +11,5 @@ e2e
 playwright.config.ts
 playwright-report
 test-results
+coverage
+*.log
