@@ -908,6 +908,24 @@ podem ser reutilizados. Resumo do que existe hoje (use como referência, não pr
 ### Observação
 
 O **payment-api** é um microsserviço separado (repositório Gohan Food). Neste repositório só
-existem o cliente HTTP (`adapter/out/payment`) e o endpoint de callback. A migração do schema de
-`subscriptions` ainda é gerada pelo Hibernate (`ddl-auto=update`), pois o Flyway continua desabilitado
-no Alexandria.
+existem o cliente HTTP (`adapter/out/payment`) e o endpoint de callback. `subscriptions` é criada
+pela migração V3; os perfis padrão e `rds` habilitam Flyway e usam `ddl-auto=validate`. Testes H2
+usam configuração própria sem Flyway; não extrapolar sua aprovação para migrações MySQL.
+
+## Referência real: recomendação diária com processamento assíncrono
+
+A feature 002 demonstra um domínio derivado que não precisa de CRUD genérico nem serviço externo. Consulte os componentes efetivos em `domain/recommendation`, `application/recommendation`, `adapter/in/rest/recommendation`, `adapter/in/job/Recommendation*` e `adapter/out/persistence/*Recommendation*`; o mapa completo está em `ARCHITECTURE.md`.
+
+Padrões que podem ser reutilizados:
+
+1. **Portas puras para concorrência e recursos temporários.** `RecommendationBatchRepository` descreve claim, heartbeat, publicação, normalização e dormência sem depender de Spring. `RecommendationCatalogSnapshots` expõe Session/Task/Handle com close idempotente: o proprietário e as tarefas da fila conservam o recurso entre ondas, sem dependência application→adapter.
+2. **Transações curtas e propriedade por token.** `RecommendationBatchRepositoryImpl` usa JDBC para CAS e publicação atômica; o cálculo puro ocorre fora da transação. Não resolver concorrência com um lock Java, que não coordena réplicas. Não permitir que um token expirado renove, publique ou limpe trabalho novo.
+3. **JDBC e JPA complementares.** Entidades/repositórios JPA descrevem schema e suportam a aplicação existente, enquanto queries de projeção/CAS usam `JdbcTemplate` com mapper próprio. Resultados públicos são DTOs compactos, não entidades. A V4 cria as tabelas; não habilitar ddl-auto=update para evitar escrever uma migration.
+4. **Executor e cancelamento fazem parte do contrato.** `RecommendationExecutionResources` separa ranking, descoberta, manutenção e heartbeat. A fila coalesce por leitor/data e conserva origem AUTO/MANUAL; rejeição/cancelamento fecha recursos ainda que o Runnable nunca seja executado. Agendadores apenas submetem trabalho e retornam. Work queue limitada não autoriza descarte silencioso: persistência PENDING e recovery cobrem tentativas adiadas.
+5. **Consistência de leitura explícita.** Leitura de catálogo em lotes usa uma transação read-only REPEATABLE_READ com autores em lote, sem coleção paginada/N+1. Sessões têm referenceDate; não reutilizar projeção de ontem para uma geração nova, nem invalidar consumidores em andamento.
+6. **Identidade e evidência privadas.** A REST recebe AuthenticatedUser do JWT e mapeia somente campos públicos. `RecommendationsResponse` omite dono, fingerprint e sourceBookId. Handler dedicado sanitiza 503/no-store; CORS expõe somente o header necessário. A geração não altera biblioteca ou regras de assinatura.
+7. **Tempo controlável e observabilidade limitada.** `recommendationClock` controla referência diária nos testes; o DB UTC arbitra leases. Métricas não recebem IDs privados. WARN agrega data/contagem/idade e filtra dormência/dias antigos; testes usam tempo controlado, sem esperar horas reais.
+
+Ao acrescentar comportamento semelhante, incluir cenários de rollback, perda de lease, fila cheia, cancelamento antes de executar, recuperação após reinício e virada de data. Exercitar CAS/migrations no banco real. Usar ordenação de referência independente para provar algoritmos top-K; um teste que replica a heap não é evidência independente.
+
+O estado das tarefas de implementação e aceites da feature 002 permanece em `specs/002-recomendacoes-painel/tasks.md`; estes exemplos documentam o código existente e não declaram desempenho ou usabilidade aprovados.

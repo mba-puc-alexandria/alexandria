@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { getCachedEpub, saveEpubToCache, markBookAsAccessed } from "@/lib/epub-cache";
+import { libraryAccountId } from "@/lib/library-events";
 
 interface UseEpubResult {
   epubData: ArrayBuffer | null;
@@ -7,64 +8,85 @@ interface UseEpubResult {
   error: Error | null;
 }
 
-export function useEpub(bookId: string): UseEpubResult {
-  const [epubData, setEpubData] = useState<ArrayBuffer | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
+interface EpubState extends UseEpubResult {
+  ownerId: number | null;
+  bookId: string;
+}
+
+async function fetchAuthorizedEpub(bookId: string, ownerId: number, hasCachedCopy: boolean, signal: AbortSignal): Promise<Response | null> {
+  let response: Response;
+  try {
+    response = await fetch(`/api/epub?bookId=${encodeURIComponent(bookId)}`, {
+      method: hasCachedCopy ? "HEAD" : "GET", cache: "no-store", signal,
+    });
+  } catch (error) {
+    // A transport failure can happen while navigator.onLine still reports true.
+    if (hasCachedCopy && error instanceof TypeError && !signal.aborted && libraryAccountId() === ownerId) return null;
+    throw error;
+  }
+  if (response.status === 401 || response.status === 402 || response.status === 403) {
+    throw new Error("subscription_required");
+  }
+  if (!response.ok) throw new Error(`Falha ao baixar EPUB: ${response.status}`);
+  if (response.headers.get("X-Authenticated-User-Id") !== String(ownerId)) {
+    throw new Error("A sessão mudou durante a leitura. Recarregue o livro.");
+  }
+  return response;
+}
+
+export function useEpub(bookId: string, ownerId: number | null): UseEpubResult {
+  const [state, setState] = useState<EpubState>({ ownerId: null, bookId, epubData: null, loading: true, error: null });
+  const cacheKey = ownerId === null ? null : `${ownerId}:${bookId}`;
 
   useEffect(() => {
     let cancelled = false;
+    const controller = new AbortController();
+    setState({ ownerId, bookId, epubData: null, loading: true, error: null });
 
     async function load() {
       try {
-        const cached = await getCachedEpub(bookId);
-        if (cancelled) return;
-
-        if (cached) {
-          setEpubData(cached);
-          markBookAsAccessed(bookId);
-          setLoading(false);
-          return;
-        }
-
-        const res = await fetch(`/api/epub?bookId=${encodeURIComponent(bookId)}`);
-        if (res.status === 402) {
+        if (ownerId === null || cacheKey === null || libraryAccountId() !== ownerId) {
           throw new Error("subscription_required");
         }
-        if (!res.ok) {
-          throw new Error(`Falha ao baixar EPUB: ${res.status}`);
+        const cached = await getCachedEpub(cacheKey);
+        if (cancelled || libraryAccountId() !== ownerId) return;
+        // Offline reads reuse only this account's cache. Online reads recheck access.
+        const res = cached && !navigator.onLine ? null : await fetchAuthorizedEpub(bookId, ownerId, Boolean(cached), controller.signal);
+        if (cancelled || libraryAccountId() !== ownerId) return;
+        if (cached) {
+          setState({ ownerId, bookId, epubData: cached, loading: false, error: null });
+          void markBookAsAccessed(cacheKey);
+          return;
         }
-
+        if (!res) throw new Error("Arquivo EPUB indisponível");
         const data = await res.arrayBuffer();
-        if (cancelled) return;
-
-        setEpubData(data);
-        saveEpubToCache(bookId, data);
+        if (cancelled || libraryAccountId() !== ownerId) return;
+        setState({ ownerId, bookId, epubData: data, loading: false, error: null });
+        void saveEpubToCache(cacheKey, data);
       } catch (err) {
-        if (!cancelled) setError(err instanceof Error ? err : new Error(String(err)));
-      } finally {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) setState({ ownerId, bookId, epubData: null, loading: false, error: err instanceof Error ? err : new Error(String(err)) });
       }
     }
 
-    load();
+    void load();
+    return () => { cancelled = true; controller.abort(); };
+  }, [bookId, ownerId, cacheKey]);
 
-    return () => { cancelled = true; };
-  }, [bookId]);
-
+  const owned = (ownerId === null || libraryAccountId() === ownerId) && state.ownerId === ownerId && state.bookId === bookId;
+  const epubData = owned ? state.epubData : null;
   useEffect(() => {
-    if (!epubData) return;
+    if (!epubData || cacheKey === null) return;
 
     const heartbeatMs = 2 * 60 * 1000;
     const interval = setInterval(() => {
-      markBookAsAccessed(bookId);
+      void markBookAsAccessed(cacheKey);
     }, heartbeatMs);
 
     return () => {
       clearInterval(interval);
-      markBookAsAccessed(bookId);
+      void markBookAsAccessed(cacheKey);
     };
-  }, [bookId, epubData]);
+  }, [cacheKey, epubData]);
 
-  return { epubData, loading, error };
+  return { epubData, loading: !owned || state.loading, error: owned ? state.error : null };
 }

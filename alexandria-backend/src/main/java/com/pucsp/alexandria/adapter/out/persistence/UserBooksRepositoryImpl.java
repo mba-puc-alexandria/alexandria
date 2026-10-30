@@ -12,6 +12,8 @@ import com.pucsp.alexandria.domain.user.UserId;
 import com.pucsp.alexandria.domain.userbook.UserBooks;
 import com.pucsp.alexandria.domain.userbook.UserBooksRepository;
 import com.pucsp.alexandria.domain.userbook.UserBooksStatus;
+import com.pucsp.alexandria.domain.userbook.exception.DuplicateUserBooksException;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Repository;
@@ -47,8 +49,26 @@ public class UserBooksRepositoryImpl implements UserBooksRepository {
       entity.setId(userBooks.getId());
     }
 
-    UserBooksEntity saved = jpaRepository.save(entity);
-    return mapper.toDomain(saved);
+    try {
+      UserBooksEntity saved = jpaRepository.save(entity);
+      return mapper.toDomain(saved);
+    } catch (DataIntegrityViolationException failure) {
+      // Spring Data's own transaction has rolled back before this catch. Do not
+      // classify FK/CHECK failures, or a conflicting row for a different pair.
+      if (userBooks.getId() == null && duplicateKey(failure)
+          && jpaRepository.existsByUserIdAndBookId(userBooks.getUserId().getValue(), userBooks.getBookId().getValue())) {
+        throw new DuplicateUserBooksException("Book already in user's library");
+      }
+      throw failure;
+    }
+  }
+
+  private static boolean duplicateKey(Throwable failure) {
+    for (Throwable cause = failure; cause != null; cause = cause.getCause()) {
+      if (cause instanceof java.sql.SQLException sql
+          && (sql.getErrorCode() == 1062 || "23505".equals(sql.getSQLState()))) return true;
+    }
+    return false;
   }
 
   @Override

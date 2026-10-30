@@ -4,6 +4,9 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { BookOpen, Clock, Library } from "lucide-react";
 import { getUserBooks, getAuthorDisplay, type UserBookResponse } from "@/lib/api";
+import { RecommendationSection } from "@/components/recommendations/RecommendationSection";
+import { useAuth } from "@/contexts/AuthContext";
+import { subscribeLibraryChanges } from "@/lib/library-events";
 
 const AVG_BOOK_MINUTES = 280; // ~70k palavras / 250 WPM
 
@@ -16,15 +19,35 @@ function formatMinutes(minutes: number): string {
 }
 
 export default function DashboardPage() {
-  const [allBooks, setAllBooks] = useState<UserBookResponse[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { user } = useAuth();
+  const userId = user?.userId ?? null;
+  const [storedBooks, setStoredBooks] = useState<UserBookResponse[]>([]);
+  const [booksOwner, setBooksOwner] = useState<number | null>(null);
+  const [fetchLoading, setFetchLoading] = useState(true);
+  const allBooks = booksOwner === userId ? storedBooks : [];
+  const loading = userId !== null && (booksOwner !== userId || fetchLoading);
 
   useEffect(() => {
-    getUserBooks()
-      .then(setAllBooks)
+    let controller: AbortController | null = null;
+    setStoredBooks([]);
+    setBooksOwner(userId);
+    setFetchLoading(userId !== null);
+    if (userId === null) return;
+    const refresh = () => {
+      controller?.abort();
+      const request = new AbortController();
+      controller = request;
+      getUserBooks(request.signal)
+      .then(books => { if (!request.signal.aborted) setStoredBooks(books); })
       .catch(() => {})
-      .finally(() => setLoading(false));
-  }, []);
+      .finally(() => { if (!request.signal.aborted) setFetchLoading(false); });
+    };
+    refresh();
+    const unsubscribe = subscribeLibraryChanges(change => {
+      if (change.accountId === userId) refresh();
+    });
+    return () => { unsubscribe(); controller?.abort(); };
+  }, [userId]);
 
   const readingBooks = allBooks.filter((b) => b.status === "reading" && (b.progress ?? 0) < 100);
 
@@ -174,6 +197,8 @@ export default function DashboardPage() {
           {renderReadingBooks()}
         </div>
       </section>
+
+      <RecommendationSection />
 
     </div>
   );

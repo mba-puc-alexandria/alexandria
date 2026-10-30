@@ -2,6 +2,18 @@ const CACHE_VERSION = "v2";
 const STATIC_CACHE = `static-${CACHE_VERSION}`;
 const BOOKS_CACHE = `books-api-${CACHE_VERSION}`;
 
+function isPrivateRecommendation(request) {
+  return /^\/recommendations(?:\/|$)/.test(new URL(request.url).pathname);
+}
+
+async function removeLegacyRecommendations() {
+  for (const name of await caches.keys()) {
+    const cache = await caches.open(name);
+    const requests = await cache.keys();
+    await Promise.all(requests.filter(isPrivateRecommendation).map((request) => cache.delete(request)));
+  }
+}
+
 self.addEventListener("install", (event) => {
   event.waitUntil(self.skipWaiting());
 });
@@ -11,6 +23,7 @@ self.addEventListener("activate", (event) => {
     caches
       .keys()
       .then((keys) => Promise.all(keys.filter((key) => key !== STATIC_CACHE && key !== BOOKS_CACHE).map((key) => caches.delete(key))))
+      .then(removeLegacyRecommendations)
       .then(() => clients.claim()),
   );
 });
@@ -18,6 +31,13 @@ self.addEventListener("activate", (event) => {
 self.addEventListener("fetch", (event) => {
   const { request } = event;
   const url = new URL(request.url);
+
+  // Personal recommendations must bypass every asset/cache/fallback branch.
+  // Returning without respondWith leaves the original request network-only,
+  // including offline failures; no previous account's response can be served.
+  if (isPrivateRecommendation(request)) {
+    return;
+  }
 
   // EPUB → network-only (cache já gerenciado pelo epub-cache.ts)
   if (url.pathname.startsWith("/api/epub")) {

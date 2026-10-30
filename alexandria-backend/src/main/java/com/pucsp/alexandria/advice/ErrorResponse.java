@@ -15,10 +15,17 @@ public class ErrorResponse {
   @Schema(description = "Data/hora do erro.", example = "2026-09-05T10:00:00", format = "date-time")
   private final LocalDateTime timestamp;
 
+  private final String code;
+
   public ErrorResponse(String message, int status) {
+    this(message, status, null);
+  }
+
+  public ErrorResponse(String message, int status, String code) {
     this.message = message;
     this.status = status;
     this.timestamp = LocalDateTime.now();
+    this.code = code;
   }
 
   public String getMessage() {
@@ -32,4 +39,7 @@ public class ErrorResponse {
   public LocalDateTime getTimestamp() {
     return timestamp;
   }
+
+  @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)
+  public String getCode() { return code; }
 }

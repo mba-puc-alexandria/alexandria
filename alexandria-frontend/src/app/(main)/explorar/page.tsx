@@ -1,9 +1,9 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import Link from "next/link";
-import { Search, Plus, Check, Loader2, BookMarked } from "lucide-react";
-import { getBooks, searchBooks, addUserBook, getAuthorDisplay, type BookApiResponse } from "@/lib/api";
+import { Search, BookMarked } from "lucide-react";
+import { BookCover } from "@/components/BookCover";
+import { getBooks, searchBooks, addUserBook, type BookApiResponse } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAuthModal } from "@/contexts/AuthModalContext";
 
@@ -225,45 +225,5 @@ function CoverCard({ book }: Readonly<{ book: BookApiResponse }>) {
     }
   }
 
-  function icon() {
-    if (state === "loading") return <Loader2 size={14} className="animate-spin" />;
-    if (state === "added") return <Check size={14} />;
-    return <Plus size={14} />;
-  }
-
-  return (
-    <Link
-      href={`/explorar/${book.id}`}
-      className="relative aspect-[2/3] rounded overflow-hidden group shadow-sm bg-cream-book"
-    >
-      {book.coverUrl ? (
-        <img
-          src={book.coverUrl}
-          alt={book.title}
-          className="absolute inset-0 w-full h-full object-cover"
-        />
-      ) : (
-        <div className="absolute inset-0 flex items-end p-2">
-          <span className="text-brown-soft/40 text-[9px] leading-tight line-clamp-3">{book.title}</span>
-        </div>
-      )}
-
-      {/* Hover overlay */}
-      <div className="absolute inset-0 bg-brown/60 backdrop-blur-[2px] opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-end gap-2 p-2 pointer-events-none group-hover:pointer-events-auto">
-        <p className="text-cream text-[10px] font-bold text-center leading-tight line-clamp-2 w-full">
-          {book.title}
-        </p>
-        <p className="text-cream/70 text-[9px] text-center leading-tight line-clamp-1 w-full">
-          {getAuthorDisplay(book)}
-        </p>
-        <button
-          type="button"
-          onClick={handleAdd}
-          className="w-7 h-7 bg-cream text-brown rounded-full flex items-center justify-center hover:scale-110 transition-transform mt-1"
-        >
-          {icon()}
-        </button>
-      </div>
-    </Link>
-  );
+  return <BookCover book={book} state={state} onAdd={handleAdd} />;
 }

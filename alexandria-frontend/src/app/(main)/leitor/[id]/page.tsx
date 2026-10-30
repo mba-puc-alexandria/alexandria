@@ -7,6 +7,8 @@ import Link from "next/link";
 import { ArrowLeft, Maximize2, Minimize2 } from "lucide-react";
 import type { Location, Rendition } from "epubjs";
 import { getBookById, getUserBooks, updateUserBook, getAuthorDisplay, type BookApiResponse } from "@/lib/api";
+import { useAuth } from "@/contexts/AuthContext";
+import { libraryAccountId } from "@/lib/library-events";
 import { useEpub } from "@/hooks/useEpub";
 import PaywallModal from "@/components/PaywallModal";
 
@@ -35,16 +37,20 @@ export default function LeitorPage({
 }>) {
   const { id } = use(params);
   const router = useRouter();
+  const { user } = useAuth();
+  const userId = user?.userId ?? null;
   const [book, setBook] = useState<BookApiResponse | null>(null);
   const [location, setLocation] = useState<string | number>(() => {
-    if (typeof window === "undefined") return 0;
-    return localStorage.getItem(`epub-location-${id}`) ?? 0;
+    if (typeof window === "undefined" || userId === null) return 0;
+    return localStorage.getItem(`epub-location-${userId}-${id}`) ?? 0;
   });
   const [progress, setProgress] = useState<number>(0);
   const [minutesLeft, setMinutesLeft] = useState<number | null>(null);
   const [pagesLeft, setPagesLeft] = useState<number | null>(null);
   const [displayMode, setDisplayMode] = useState<DisplayMode>("percent");
   const [hasUserBook, setHasUserBook] = useState(false);
+  const [readingOwner, setReadingOwner] = useState<number | null>(null);
+  const [renditionError, setRenditionError] = useState<{ ownerId: number; bookId: string; error: Error } | null>(null);
   const [fullscreen, setFullscreen] = useState(false);
 
   const userBookIdRef = useRef<number | null>(null);
@@ -54,8 +60,9 @@ export default function LeitorPage({
   const totalLocationsRef = useRef<number>(0);
   const sessionStartTimeRef = useRef<number | null>(null);
   const sessionStartProgressRef = useRef<number | null>(null);
+  const readerGenerationRef = useRef(0);
 
-  const { epubData, loading: epubLoading, error: epubError } = useEpub(id);
+  const { epubData, loading: epubLoading, error: epubError } = useEpub(id, userId);
 
   // Sai da tela cheia quando o usuário aperta Esc (o navegador sai sozinho da Fullscreen API).
   useEffect(() => {
@@ -83,11 +90,24 @@ export default function LeitorPage({
   }
 
   useEffect(() => {
+    const request = new AbortController();
+    readerGenerationRef.current += 1;
+    userBookIdRef.current = null;
+    lastSavedProgressRef.current = 0;
+    currentProgressRef.current = 0;
+    setHasUserBook(false);
+    setReadingOwner(null);
+    setProgress(0);
+    setMinutesLeft(null);
+    setPagesLeft(null);
+    setRenditionError(null);
+    setLocation(userId === null ? 0 : localStorage.getItem(`epub-location-${userId}-${id}`) ?? 0);
     async function init() {
       const [b, userBooks] = await Promise.all([
         getBookById(Number(id)),
-        getUserBooks().catch(() => []),
+        userId === null ? Promise.resolve([]) : getUserBooks(request.signal).catch(() => []),
       ]);
+      if (request.signal.aborted || libraryAccountId() !== userId) return;
 
       setBook(b);
 
@@ -95,13 +115,14 @@ export default function LeitorPage({
       const userBook = userBooks.find((ub) => ub.book.id === Number(id));
       if (userBook) {
         userBookIdRef.current = userBook.id;
+        setReadingOwner(userId);
         setHasUserBook(true);
         const savedProgress = userBook.progress ?? 0;
         lastSavedProgressRef.current = savedProgress;
         currentProgressRef.current = savedProgress;
         setProgress(savedProgress);
 
-        if (userBook.status === "toread") {
+        if (userBook.status === "toread" && libraryAccountId() === userId) {
           updateUserBook(userBook.id, { status: "reading", progress: 0 }).catch(() => {});
         }
       }
@@ -110,44 +131,51 @@ export default function LeitorPage({
     init().catch(console.error);
 
     return () => {
+      readerGenerationRef.current += 1;
+      request.abort();
       if (saveTimerRef.current) {
         clearTimeout(saveTimerRef.current);
         saveTimerRef.current = null;
       }
-      if (userBookIdRef.current && currentProgressRef.current !== lastSavedProgressRef.current) {
+      if (userBookIdRef.current && libraryAccountId() === userId && currentProgressRef.current !== lastSavedProgressRef.current) {
         updateUserBook(userBookIdRef.current, {
           status: "reading",
           progress: currentProgressRef.current,
         }).catch(() => {});
       }
     };
-  }, [id]);
+  }, [id, userId]);
 
   const handleLocationChange = useCallback(
     (loc: string) => {
+      if (userId === null || libraryAccountId() !== userId) return;
       setLocation(loc);
-      localStorage.setItem(`epub-location-${id}`, loc);
-      localStorage.setItem(`epub-progress-${id}`, String(currentProgressRef.current));
+      localStorage.setItem(`epub-location-${userId}-${id}`, loc);
+      localStorage.setItem(`epub-progress-${userId}-${id}`, String(currentProgressRef.current));
     },
-    [id]
+    [id, userId]
   );
 
   const persistProgress = useCallback((percent: number) => {
+    if (userId === null || libraryAccountId() !== userId || !userBookIdRef.current) return;
     lastSavedProgressRef.current = percent;
-    localStorage.setItem(`epub-progress-${id}`, String(percent));
-    updateUserBook(userBookIdRef.current!, {
+    localStorage.setItem(`epub-progress-${userId}-${id}`, String(percent));
+    updateUserBook(userBookIdRef.current, {
       status: "reading",
       progress: percent,
     }).catch(() => {});
-  }, [id]);
+  }, [id, userId]);
 
   const handleRendition = useCallback((rendition: Rendition) => {
-
-    rendition.book.ready.then(() => {
-      rendition.book.locations.generate(1600).then(() => {
+    const generation = readerGenerationRef.current;
+    rendition.book.ready
+      .then(() => rendition.book.locations.generate(1600))
+      .then(() => {
+        if (userId === null || libraryAccountId() !== userId || readerGenerationRef.current !== generation) return;
         totalLocationsRef.current = rendition.book.locations.length();
 
         rendition.on("relocated", (loc: Location) => {
+          if (userId === null || libraryAccountId() !== userId || readerGenerationRef.current !== generation) return;
           const percent = Math.round(
             rendition.book.locations.percentageFromCfi(loc.start.cfi) * 100
           );
@@ -178,16 +206,19 @@ export default function LeitorPage({
 
           setProgress(percent);
           currentProgressRef.current = percent;
-          localStorage.setItem(`epub-progress-${id}`, String(percent));
+          localStorage.setItem(`epub-progress-${userId}-${id}`, String(percent));
 
           if (!userBookIdRef.current || percent === lastSavedProgressRef.current) return;
 
           if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
           saveTimerRef.current = setTimeout(() => persistProgress(percent), 2000);
         });
+      })
+      .catch((error: unknown) => {
+        if (userId === null || libraryAccountId() !== userId || readerGenerationRef.current !== generation) return;
+        setRenditionError({ ownerId: userId, bookId: id, error: error instanceof Error ? error : new Error(String(error)) });
       });
-    });
-  }, [id, persistProgress]);
+  }, [id, userId, persistProgress]);
 
   function cycleDisplayMode() {
     setDisplayMode((prev) => {
@@ -198,7 +229,7 @@ export default function LeitorPage({
   }
 
   function renderReadingInfo() {
-    if (!hasUserBook) return null;
+    if (!hasUserBook || readingOwner !== userId) return null;
 
     if (displayMode === "minutes" && minutesLeft !== null) {
       return (
@@ -240,14 +271,15 @@ export default function LeitorPage({
     );
   }
 
-  if (epubError) {
-    if (epubError.message === "subscription_required") {
+  const readerError = epubError ?? (renditionError?.ownerId === userId && renditionError.bookId === id ? renditionError.error : null);
+  if (readerError) {
+    if (readerError.message === "subscription_required") {
       return <PaywallModal open onClose={() => router.push(`/explorar/${id}`)} />;
     }
     return (
       <div className="flex flex-col items-center justify-center h-full gap-4">
         <p className="text-brown font-serif text-xl">Erro ao carregar o livro.</p>
-        <p className="text-brown-soft text-sm">{epubError.message}</p>
+        <p className="text-brown-soft text-sm">{readerError.message}</p>
         <Link href={`/explorar/${id}`} className="text-terra text-sm font-bold underline">
           Voltar para o livro
         </Link>
@@ -297,7 +329,7 @@ export default function LeitorPage({
         </button>
       </div>
 
-      {hasUserBook && (
+      {hasUserBook && readingOwner === userId && (
         <div className="h-0.5 bg-cream-border shrink-0">
           <div
             className="h-full bg-terra transition-all duration-500"
