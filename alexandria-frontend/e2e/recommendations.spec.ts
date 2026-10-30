@@ -32,7 +32,7 @@ test('apresenta capas e vários cartões sem data, quantidade ou motivo visívei
   await expect(first.getByRole('link')).toHaveCount(1);
   await expect(first.getByRole('button')).toHaveCount(1);
   await expect(first.getByRole('link')).toHaveAttribute('href', /\/explorar\/\d+$/);
-  const add = first.getByRole('button', { name: 'Adicionar à biblioteca', exact: true });
+  const add = first.getByRole('button', { name: /^Adicionar à biblioteca:/ });
   const id = Number(await first.getAttribute('data-book-id'));
   const item = data.items.find((item: { book: { id: number } }) => item.book.id === id);
   const title = first.getByRole('heading', { level: 3, name: item.book.title, exact: true });
@@ -114,7 +114,7 @@ test('controles e ações funcionam por teclado e toque sem hover', async ({ pag
   await expect(section(page).locator('article')).toHaveCount(2);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   const first = section(page).locator('article').first();
-  const add = first.getByRole('button', { name: 'Adicionar à biblioteca', exact: true });
+  const add = first.getByRole('button', { name: /^Adicionar à biblioteca:/ });
   await expect.poll(() => effectiveOpacity(add)).toBe(1);
   await expect(first.getByTestId('book-cover-overlay')).toHaveCSS('opacity', '0');
   const cardBounds = await first.boundingBox();

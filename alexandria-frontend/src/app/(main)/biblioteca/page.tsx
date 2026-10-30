@@ -4,6 +4,8 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Search, Star, BookOpen, X } from "lucide-react";
 import { getUserBooks, removeUserBook, getAuthorDisplay, type UserBookResponse } from "@/lib/api";
+import { useAuth } from "@/contexts/AuthContext";
+import { libraryAccountId } from "@/lib/library-events";
 
 const filters = ["Todos", "Lendo", "Concluído", "Para Ler"];
 const SKELETON_KEYS = ["sk-a", "sk-b", "sk-c", "sk-d", "sk-e", "sk-f", "sk-g", "sk-h"];
@@ -97,30 +99,43 @@ function BookCover({ ub, onRemove }: Readonly<{ ub: UserBookResponse; onRemove: 
 }
 
 export default function BibliotecaPage() {
+  const { user } = useAuth();
+  const userId = user?.userId ?? null;
   const [books, setBooks] = useState<UserBookResponse[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [booksOwner, setBooksOwner] = useState<number | null>(null);
+  const [fetchLoading, setFetchLoading] = useState(true);
+  const visibleBooks = booksOwner === userId ? books : [];
+  const loading = userId !== null && (booksOwner !== userId || fetchLoading);
   const [activeFilter, setActiveFilter] = useState(0);
   const [query, setQuery] = useState("");
 
   useEffect(() => {
-    getUserBooks()
-      .then(setBooks)
-      .catch(console.error)
-      .finally(() => setLoading(false));
-  }, []);
+    const controller = new AbortController();
+    setBooks([]);
+    setBooksOwner(userId);
+    setFetchLoading(userId !== null);
+    if (userId !== null) {
+      getUserBooks(controller.signal)
+        .then(result => { if (!controller.signal.aborted) setBooks(result); })
+        .catch(error => { if (!controller.signal.aborted) console.error(error); })
+        .finally(() => { if (!controller.signal.aborted) setFetchLoading(false); });
+    }
+    return () => controller.abort();
+  }, [userId]);
 
   async function handleRemove(ub: UserBookResponse) {
     if (!window.confirm(`Remover "${ub.book.title}" da sua biblioteca?`)) return;
+    if (userId === null || libraryAccountId() !== userId) return;
     try {
       await removeUserBook(ub.id);
-      setBooks((prev) => prev.filter((b) => b.id !== ub.id));
+      if (libraryAccountId() === userId) setBooks((prev) => prev.filter((b) => b.id !== ub.id));
     } catch (err) {
       console.error(err);
       window.alert("Não foi possível remover o livro. Tente novamente.");
     }
   }
 
-  const filtered = books.filter((ub) => {
+  const filtered = visibleBooks.filter((ub) => {
     const matchesQuery =
       query.trim() === "" ||
       ub.book.title.toLowerCase().includes(query.toLowerCase()) ||
@@ -176,7 +191,7 @@ export default function BibliotecaPage() {
       <div className="flex flex-col gap-6">
         <div className="flex items-baseline gap-3">
           <h1 className="font-brand font-bold text-brown text-4xl tracking-tight">Sua Biblioteca</h1>
-          {!loading && <span className="text-slate/50 text-sm">{books.length} livros</span>}
+          {!loading && <span className="text-slate/50 text-sm">{visibleBooks.length} livros</span>}
         </div>
         <div className="relative">
           <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate/60" />

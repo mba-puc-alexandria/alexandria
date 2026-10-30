@@ -28,7 +28,7 @@ describe('cartão e inclusão confirmada', () => {
     expect(screen.container.querySelectorAll('a')).toHaveLength(1);
     expect(screen.container.querySelector('a')).toHaveAttribute('href', '/explorar/42');
     expect(screen.container.querySelector('a')).toHaveAttribute('aria-label', 'Ver livro: Livro sugerido');
-    expect(screen.container.querySelector('button')).toHaveAttribute('aria-label', 'Adicionar à biblioteca');
+    expect(screen.container.querySelector('button')).toHaveAttribute('aria-label', 'Adicionar à biblioteca: Livro sugerido');
     expect(cover.contains(screen.container.querySelector('button'))).toBe(true);
   });
   it('aguarda confirmação e impede cliques duplicados', async () => {

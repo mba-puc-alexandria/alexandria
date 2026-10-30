@@ -121,3 +121,19 @@ Capturas finais revistas pelo orquestrador com capas reais: [desktop](validation
 O smoke de leitura em localhost:3000 verificou larguras 1440, 1280, 1024, 768, 390 e 320px sem overflow horizontal; uma volta completa dos 29 itens elegíveis no snapshot da demo, em seis grupos e sem novos GETs; cursor pointer e teclado. Zero alterações na biblioteca por esse smoke; interações do usuário foram preservadas. [Dados do smoke](validation/ui-refresh-demo.json). A captura touch aguardou opacity=1 do + e opacity=0 do fundo sem desabilitar animações na captura, evitando artefato do Playwright sobre transições.
 
 O frontend E2E usa distDir separado em .next/e2e, por variável passada apenas ao processo de teste; a demo em 3000/8080 permanece disponível. Artefatos gerados de cobertura/configuração foram restaurados. Os ensaios pesados de backend/capacidade e o p95 acima pertencem à implementação inicial e não foram repetidos para esta alteração de apresentação. Não houve novo commit, push ou deploy nesta revisão.
+
+## Revisão independente do PR 99 — 2026-10-30
+
+Uma revisão adicional de arquitetura, segurança, concorrência, acessibilidade e legibilidade encontrou e fechou os seguintes pontos: atualização dos contadores após inclusão na mesma conta; paginação completa da biblioteca; cancelamento e isolamento por conta na Biblioteca e no Leitor; nome acessível específico por livro; respeito a movimento reduzido; e autorização do cache EPUB por conta. O leitor verifica o direito de acesso via HEAD sem baixar o arquivo, confere o ID autenticado retornado pelo backend e preserva leitura offline somente do cache da mesma conta. Respostas HTTP de negação ou erro não usam o cache. O proxy EPUB e o cliente usam `no-store`. O revisor encerrou com zero apontamentos HIGH/MEDIUM de código.
+
+| Verificação após a revisão | Resultado |
+| --- | --- |
+| Backend `JAVA_TOOL_OPTIONS=-Dapi.version=1.44; .\mvnw.cmd -B verify` | BUILD SUCCESS; 366 testes, zero falhas/erros, um ensaio de capacidade opt-in ignorado |
+| Frontend `npm test` | 93 testes em 22 arquivos aprovados |
+| TypeScript e lint | TypeScript aprovado; lint com zero erros e cinco avisos de imagens já presentes |
+| Navegador `npm run test:e2e` | 19/19 aprovados com MySQL e backend reais |
+| `git diff --check` | Sem erros |
+
+No Windows local, a execução inicial do Maven sem `-Dapi.version=1.44` não encontrou o Docker para quatro testes Testcontainers. A versão usada pelo fixture E2E resolveu a detecção e permitiu a suíte completa acima. A primeira tentativa E2E encontrou um bloqueio transitório de rename do arquivo de controle; o fixture agora repete o rename por até 500 ms, e a execução completa seguinte passou.
+
+**Ordem de implantação:** publicar o backend antes do frontend. O novo frontend exige o cabeçalho `X-Authenticated-User-Id` nas respostas GET/HEAD de EPUB para vincular os bytes à conta autenticada. O CI já inicia backend antes de frontend; um rollout em produção precisa seguir a mesma ordem. Bytes do cache EPUB legado continuam no IndexedDB, mas o novo hook não usa as chaves antigas por livro.

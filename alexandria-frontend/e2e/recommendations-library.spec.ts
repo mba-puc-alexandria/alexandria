@@ -8,7 +8,7 @@ test('inclui os30 selecionados entre40 candidatos e chega a EMPTY sem reposiçã
   for (let remaining = 30; remaining > 0; remaining--) {
     const article = section(page).locator('article').first();
     const id = Number(await article.getAttribute('data-book-id'));
-    const add = article.getByRole('button', { name: 'Adicionar à biblioteca', exact: true });
+    const add = article.getByRole('button', { name: /^Adicionar à biblioteca:/ });
     await add.focus();
     await page.keyboard.press('Enter');
     await expect.poll(async () => (await selection(request, fixture)).data.items.length).toBe(remaining - 1);
@@ -35,7 +35,7 @@ test('409 de inclusão concorrente retira cartão sem anunciar criação', async
   expect(direct.status()).toBe(201);
   const duplicate = page.waitForResponse(response => response.request().method() === 'POST' && new URL(response.url()).pathname === '/user-books');
   await article.hover();
-  await article.getByRole('button', { name: 'Adicionar à biblioteca', exact: true }).click();
+  await article.getByRole('button', { name: /^Adicionar à biblioteca:/ }).click();
   expect((await duplicate).status()).toBe(409);
   await expect(section(page)).toContainText('Este livro já está na sua biblioteca.');
   await expect(section(page)).not.toContainText('Livro adicionado à biblioteca.');
@@ -69,7 +69,7 @@ test('GET anterior atrasado não restaura livro após confirmação', async ({ p
   await page.evaluate(() => window.dispatchEvent(new Event('focus')));
   await expect.poll(() => captured).toBe(true);
   await article.hover();
-  await article.getByRole('button', { name: 'Adicionar à biblioteca', exact: true }).click();
+  await article.getByRole('button', { name: /^Adicionar à biblioteca:/ }).click();
   await expect(section(page).locator(`article[data-book-id="${id}"]`)).toHaveCount(0);
   release();
   await expect.poll(() => delivered).toBe(true);
@@ -85,7 +85,7 @@ test('remoção explícita da biblioteca reexibe selecionado após foco, sem nov
   const article = section(page).locator('article').first();
   const id = Number(await article.getAttribute('data-book-id'));
   await article.hover();
-  await article.getByRole('button', { name: 'Adicionar à biblioteca', exact: true }).click();
+  await article.getByRole('button', { name: /^Adicionar à biblioteca:/ }).click();
   await expect(section(page).locator(`article[data-book-id="${id}"]`)).toHaveCount(0);
   const libraryResponse = await request.get(`${fixture.baseUrl}/user-books?size=100`, { headers: authHeaders(fixture.users.a) });
   expect(libraryResponse.status()).toBe(200);
@@ -111,7 +111,7 @@ test('5xx e404 genérico simulados não confirmam inclusão nem remoção', asyn
       await route.fulfill({ status, contentType: 'application/json', body: JSON.stringify({ message: 'Erro não classificado' }), headers: { 'Access-Control-Allow-Origin': process.env.E2E_BASE_URL || 'http://localhost:3100', 'Access-Control-Allow-Credentials': 'true' } });
     });
     await article.hover();
-    await article.getByRole('button', { name: 'Adicionar à biblioteca', exact: true }).click();
+    await article.getByRole('button', { name: /^Adicionar à biblioteca:/ }).click();
     await expect(section(page).getByRole('alert')).toContainText('Não foi possível adicionar');
     await expect(section(page).locator(`article[data-book-id="${id}"]`)).toHaveCount(1);
     await expect(section(page)).not.toContainText('Livro adicionado à biblioteca.');
@@ -143,7 +143,7 @@ test('BOOK_NOT_FOUND real recebido após navegar retira o livro do grupo desmont
   });
   try {
     await article.hover();
-    await article.getByRole('button', { name: 'Adicionar à biblioteca', exact: true }).click();
+    await article.getByRole('button', { name: /^Adicionar à biblioteca:/ }).click();
     await expect.poll(() => captured).toBe(true);
     await section(page).getByRole('button', { name: 'Próxima recomendação', exact: true }).click();
     await expect(section(page).locator(`article[data-book-id="${id}"]`)).toHaveCount(0);
@@ -163,7 +163,7 @@ test('livro removido após exibição sai por BOOK_NOT_FOUND sem reposição', a
     const article = section(page).locator('article').first();
     const id = await article.getAttribute('data-book-id');
     await article.hover();
-    await article.getByRole('button', { name: 'Adicionar à biblioteca', exact: true }).click();
+    await article.getByRole('button', { name: /^Adicionar à biblioteca:/ }).click();
     await expect(section(page).locator(`article[data-book-id="${id}"]`)).toHaveCount(0);
   }
   const article = section(page).locator('article').first();
@@ -171,7 +171,7 @@ test('livro removido após exibição sai por BOOK_NOT_FOUND sem reposição', a
   await fixtureCommand({ action: 'delete', bookId: lastId });
   const unavailable = page.waitForResponse(response => response.request().method() === 'POST' && new URL(response.url()).pathname === '/user-books');
   await article.hover();
-  await article.getByRole('button', { name: 'Adicionar à biblioteca', exact: true }).click();
+  await article.getByRole('button', { name: /^Adicionar à biblioteca:/ }).click();
   const unavailableResponse = await unavailable;
   expect(unavailableResponse.status()).toBe(404);
   expect(await unavailableResponse.json()).toMatchObject({ code: 'BOOK_NOT_FOUND' });

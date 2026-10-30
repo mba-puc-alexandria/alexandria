@@ -324,8 +324,16 @@ public final class RecommendationE2EServer {
   private void write(String filename, Object value) throws Exception {
     Path temporary = directory.resolve(filename + ".tmp");
     json.writeValue(temporary.toFile(), value);
-    Files.move(temporary, directory.resolve(filename), StandardCopyOption.REPLACE_EXISTING,
-        StandardCopyOption.ATOMIC_MOVE);
+    for (int attempt = 0; ; attempt++) {
+      try {
+        Files.move(temporary, directory.resolve(filename), StandardCopyOption.REPLACE_EXISTING,
+            StandardCopyOption.ATOMIC_MOVE);
+        return;
+      } catch (java.nio.file.AccessDeniedException exception) {
+        if (attempt == 9) throw exception;
+        Thread.sleep(50);
+      }
+    }
   }
 
   static final class MutableClock extends Clock {

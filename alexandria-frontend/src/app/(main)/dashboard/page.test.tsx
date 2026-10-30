@@ -1,5 +1,5 @@
 import { act } from 'react';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from '@/test-utils/render';
 import type { UserBookResponse } from '@/lib/api';
 import DashboardPage from './page';
@@ -9,8 +9,25 @@ vi.mock('@/contexts/AuthContext', () => ({ useAuth: () => ({ user: mocks.user })
 vi.mock('@/components/recommendations/RecommendationSection', () => ({ RecommendationSection: () => <section>Recomendações</section> }));
 vi.mock('@/lib/api', async original => ({ ...await original<typeof import('@/lib/api')>(), getUserBooks: mocks.books }));
 const book = (title: string): UserBookResponse => ({ id: 1, status: 'reading', progress: 20, rating: null, book: { id: 1, title, authors: [], coverUrl: null, downloadUrl: null, languages: null, subjects: null, source: 'GUTENDEX', gutendexId: null, downloadCount: null, publisherId: null } });
+beforeEach(() => mocks.books.mockReset());
 
 describe('Painel e separação entre contas', () => {
+  it('atualiza os contadores após inclusão confirmada na mesma conta', async () => {
+    mocks.user = { userId: 1, username: 'conta-1' };
+    const added = { ...book('Nova leitura'), id: 2, status: 'toread' as const, book: { ...book('Nova leitura').book, id: 2 } };
+    mocks.books.mockResolvedValueOnce([book('Leitura inicial')]).mockResolvedValueOnce([book('Leitura inicial'), added]);
+    const screen = await render(<DashboardPage />);
+    expect(screen.container).toHaveTextContent('1adicionados');
+    await act(async () => {
+      window.dispatchEvent(new CustomEvent('alexandria:library-changed', {
+        detail: { kind: 'added', accountId: 1, bookId: 2 },
+      }));
+    });
+    expect(screen.container).toHaveTextContent('2adicionados');
+    expect(screen.container).toHaveTextContent('1para ler');
+    await screen.unmount();
+  });
+
   it('aborta biblioteca anterior, ignora resposta atrasada e limpa no logout', async () => {
     let finish!: (books: UserBookResponse[]) => void;
     mocks.user = { userId: 1, username: 'conta-1' };

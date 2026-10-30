@@ -63,8 +63,8 @@ export function RecommendationCarousel({ items, heading, ...card }: Readonly<Pro
     <div className="mb-4 flex items-center justify-between gap-3">
       {heading}
       {items.length > 0 && <div className="ml-auto flex shrink-0 items-center gap-1.5">
-        <button type="button" aria-label="Recomendação anterior" title="Anterior" onClick={() => move(-1)} className="flex size-9 cursor-pointer items-center justify-center rounded-full border border-cream-border text-brown transition-colors hover:bg-cream-dark focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-terra"><ChevronLeft aria-hidden="true" size={19} /></button>
-        <button type="button" aria-label="Próxima recomendação" title="Próximo" onClick={() => move(1)} className="flex size-9 cursor-pointer items-center justify-center rounded-full border border-cream-border text-brown transition-colors hover:bg-cream-dark focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-terra"><ChevronRight aria-hidden="true" size={19} /></button>
+        <button type="button" aria-label="Recomendação anterior" title="Anterior" onClick={() => move(-1)} className="flex size-9 cursor-pointer items-center justify-center rounded-full border border-cream-border text-brown motion-safe:transition-colors hover:bg-cream-dark focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-terra"><ChevronLeft aria-hidden="true" size={19} /></button>
+        <button type="button" aria-label="Próxima recomendação" title="Próximo" onClick={() => move(1)} className="flex size-9 cursor-pointer items-center justify-center rounded-full border border-cream-border text-brown motion-safe:transition-colors hover:bg-cream-dark focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-terra"><ChevronRight aria-hidden="true" size={19} /></button>
       </div>}
     </div>
     <div className="grid grid-cols-2 gap-x-3 gap-y-5 sm:grid-cols-3 sm:gap-x-4 lg:grid-cols-4 xl:grid-cols-5">

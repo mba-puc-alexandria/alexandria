@@ -166,10 +166,30 @@ export async function addUserBook(bookId: number): Promise<UserBookResponse> {
 }
 
 export async function getUserBooks(signal?: AbortSignal): Promise<UserBookResponse[]> {
-  const res = await apiFetch('/user-books', { signal });
-  if (!res.ok) throw new Error('Falha ao buscar biblioteca');
-  const page = await res.json();
-  return page.content;
+  const token = typeof window !== 'undefined' ? localStorage.getItem('auth-token') : null;
+  const accountId = libraryAccountId();
+  const ensureSameSession = () => {
+    if (signal?.aborted || (typeof window !== 'undefined' && (localStorage.getItem('auth-token') !== token || libraryAccountId() !== accountId))) {
+      throw new DOMException('Sessão alterada durante a busca', 'AbortError');
+    }
+  };
+  const books: UserBookResponse[] = [];
+  let pageNumber = 0;
+  let totalPages: number;
+  do {
+    ensureSameSession();
+    const res = await apiFetch(`/user-books?page=${pageNumber}&size=100&sort=id,asc`, {
+      signal, headers: { Authorization: token ? `Bearer ${token}` : '' },
+    });
+    if (!res.ok) throw new Error('Falha ao buscar biblioteca');
+    const page: { content: UserBookResponse[]; totalPages: number } = await res.json();
+    ensureSameSession();
+    books.push(...page.content);
+    totalPages = page.totalPages;
+    pageNumber += 1;
+  } while (pageNumber < totalPages);
+  ensureSameSession();
+  return books;
 }
 
 export async function updateUserBook(

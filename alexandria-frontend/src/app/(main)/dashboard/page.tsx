@@ -6,6 +6,7 @@ import { BookOpen, Clock, Library } from "lucide-react";
 import { getUserBooks, getAuthorDisplay, type UserBookResponse } from "@/lib/api";
 import { RecommendationSection } from "@/components/recommendations/RecommendationSection";
 import { useAuth } from "@/contexts/AuthContext";
+import { subscribeLibraryChanges } from "@/lib/library-events";
 
 const AVG_BOOK_MINUTES = 280; // ~70k palavras / 250 WPM
 
@@ -27,16 +28,25 @@ export default function DashboardPage() {
   const loading = userId !== null && (booksOwner !== userId || fetchLoading);
 
   useEffect(() => {
-    const controller = new AbortController();
+    let controller: AbortController | null = null;
     setStoredBooks([]);
     setBooksOwner(userId);
     setFetchLoading(userId !== null);
-    if (userId === null) return () => controller.abort();
-    getUserBooks(controller.signal)
-      .then(books => { if (!controller.signal.aborted) setStoredBooks(books); })
+    if (userId === null) return;
+    const refresh = () => {
+      controller?.abort();
+      const request = new AbortController();
+      controller = request;
+      getUserBooks(request.signal)
+      .then(books => { if (!request.signal.aborted) setStoredBooks(books); })
       .catch(() => {})
-      .finally(() => { if (!controller.signal.aborted) setFetchLoading(false); });
-    return () => controller.abort();
+      .finally(() => { if (!request.signal.aborted) setFetchLoading(false); });
+    };
+    refresh();
+    const unsubscribe = subscribeLibraryChanges(change => {
+      if (change.accountId === userId) refresh();
+    });
+    return () => { unsubscribe(); controller?.abort(); };
   }, [userId]);
 
   const readingBooks = allBooks.filter((b) => b.status === "reading" && (b.progress ?? 0) < 100);
