@@ -180,6 +180,7 @@ class RecommendationPersistenceIntegrationTest {
 
   @Test void fullCatalogAndLibraryCrossAllPagesAndKeepOneConsistentSnapshot() throws Exception {
     for(int id=4;id<=605;id++) jdbc.update("INSERT INTO books(id,title,source,download_url,subjects,languages) VALUES (?,?,'GUTENDEX','test:x','Ficção','pt')",id,"Livro "+id);
+    jdbc.update("INSERT INTO book_authors(book_id,author_id) VALUES (605,1)");
     for(int id=1;id<=605;id++) jdbc.update("INSERT INTO user_books(user_id,book_id,status,rating) VALUES (1,?,'done',?)",id,id==605?0:5);
     try(var executor=new ClosingExecutor(Executors.newSingleThreadExecutor())) {
       jdbc.afterFirstCatalogPage=()->{
@@ -192,10 +193,12 @@ class RecommendationPersistenceIntegrationTest {
       assertEquals(605,all.size());
       assertEquals("Livro 605",all.get(604).title());
       assertEquals("Autora",all.get(0).authors().get(1L));
+      assertEquals("Autora",all.get(604).authors().get(1L));
       assertEquals("Alterado",jdbc.queryForObject("SELECT title FROM books WHERE id=605",String.class));
     }
     var library=profiles.load(1);
     assertEquals(605,library.size());assertEquals(0,library.get(604).rating());
+    assertEquals("Alterada",library.get(604).authors().get(1L));
     assertTrue(profiles.load(2).isEmpty());assertEquals(List.of(2L),profiles.userIdsAfter(1,500));
   }
 
