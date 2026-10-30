@@ -49,7 +49,10 @@ export function useRecommendations(userId: number | null, onUnauthorized?: () =>
     const publish = (patch: Partial<State>) => {
       if (!disposed) setState(previous => ({ ...(previous.owner === userId ? previous : empty(userId)), ...patch }));
     };
-    const cancelPoll = () => { if (pollTimer) clearTimeout(pollTimer); pollTimer = undefined; };
+    const cancelPoll = () => {
+      if (pollTimer) clearTimeout(pollTimer);
+      pollTimer = undefined;
+    };
     const active = (requestVersion: number) => !disposed && version === requestVersion;
     const fail = (error: unknown) => {
       currentFailure = error instanceof ApiError
@@ -124,8 +127,12 @@ export function useRecommendations(userId: number | null, onUnauthorized?: () =>
         currentData = { ...currentData, items,
           ...(currentData.state === 'READY' && !items.length ? { state: 'EMPTY' as const, emptyReason: 'ALL_ADDED_OR_UNAVAILABLE' as const } : {}) };
       }
-      publish({ data: currentData, notice: reason === 'unavailable' ? 'Este livro não está mais disponível.'
-        : reason === 'already_added' ? 'Este livro já está na sua biblioteca.' : 'Livro adicionado à biblioteca.' });
+      const notices: Record<Removal, string> = {
+        unavailable: 'Este livro não está mais disponível.',
+        already_added: 'Este livro já está na sua biblioteca.',
+        added: 'Livro adicionado à biblioteca.',
+      };
+      publish({ data: currentData, notice: notices[reason] });
       void load();
     }
     actions.current = { owner: userId, refresh: load, retry, remove };

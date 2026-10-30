@@ -20,22 +20,22 @@ function formatMinutes(minutes: number): string {
 export default function DashboardPage() {
   const { user } = useAuth();
   const userId = user?.userId ?? null;
-  const [storedBooks, setAllBooks] = useState<UserBookResponse[]>([]);
+  const [storedBooks, setStoredBooks] = useState<UserBookResponse[]>([]);
   const [booksOwner, setBooksOwner] = useState<number | null>(null);
-  const [fetchLoading, setLoading] = useState(true);
+  const [fetchLoading, setFetchLoading] = useState(true);
   const allBooks = booksOwner === userId ? storedBooks : [];
   const loading = userId !== null && (booksOwner !== userId || fetchLoading);
 
   useEffect(() => {
     const controller = new AbortController();
-    setAllBooks([]);
+    setStoredBooks([]);
     setBooksOwner(userId);
-    setLoading(userId !== null);
+    setFetchLoading(userId !== null);
     if (userId === null) return () => controller.abort();
     getUserBooks(controller.signal)
-      .then(books => { if (!controller.signal.aborted) setAllBooks(books); })
+      .then(books => { if (!controller.signal.aborted) setStoredBooks(books); })
       .catch(() => {})
-      .finally(() => { if (!controller.signal.aborted) setLoading(false); });
+      .finally(() => { if (!controller.signal.aborted) setFetchLoading(false); });
     return () => controller.abort();
   }, [userId]);
 

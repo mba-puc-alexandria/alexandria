@@ -66,17 +66,18 @@ public class RecommendationBatchRepositoryImpl implements RecommendationBatchRep
     var observed = find(userId, date);
     observed.ifPresent(this::normalizeExpired);
     String token = UUID.randomUUID().toString();
-    String eligibility = origin == GenerationOrigin.AUTO
-        ? "automatic_attempt_count<3 AND (status='PENDING' OR (status='FAILED' AND next_attempt_at<=UTC_TIMESTAMP(6)))"
-        : "(status='PENDING' OR (status='FAILED' AND TIMESTAMPADD(SECOND,60,failed_at)<=UTC_TIMESTAMP(6)))";
+    int automatic = origin == GenerationOrigin.AUTO ? 1 : 0;
     int updated = jdbc.update("""
         UPDATE recommendation_batches SET status='BUILDING',lease_token=?,
           lease_until=TIMESTAMPADD(MICROSECOND,?,UTC_TIMESTAMP(6)),attempt_count=attempt_count+1,
           automatic_attempt_count=automatic_attempt_count+?,failed_at=NULL,next_attempt_at=NULL,
           failure_code=NULL,operational_pending_since=COALESCE(operational_pending_since,UTC_TIMESTAMP(6)),
           updated_at=UTC_TIMESTAMP(6)
-        WHERE user_id=? AND reference_date=? AND
-        """ + eligibility, token, micros, origin == GenerationOrigin.AUTO ? 1 : 0, userId, date);
+        WHERE user_id=? AND reference_date=? AND (
+          (?=1 AND automatic_attempt_count<3 AND (status='PENDING' OR (status='FAILED' AND next_attempt_at<=UTC_TIMESTAMP(6))))
+          OR (?=0 AND (status='PENDING' OR (status='FAILED' AND TIMESTAMPADD(SECOND,60,failed_at)<=UTC_TIMESTAMP(6))))
+        )
+        """, token, micros, automatic, userId, date, automatic, automatic);
     return updated == 1 ? find(userId, date) : Optional.empty();
   }
 

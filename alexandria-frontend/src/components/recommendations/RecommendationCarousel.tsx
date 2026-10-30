@@ -11,12 +11,15 @@ function subscribeViewport(notify: () => void) {
   return () => window.removeEventListener('resize', notify);
 }
 function columns() {
-  return window.innerWidth >= 1280 ? 5 : window.innerWidth >= 1024 ? 4 : window.innerWidth >= 640 ? 3 : 2;
+  if (window.innerWidth >= 1280) return 5;
+  if (window.innerWidth >= 1024) return 4;
+  if (window.innerWidth >= 640) return 3;
+  return 2;
 }
-export function RecommendationCarousel({ items, heading, ...card }: Props) {
+export function RecommendationCarousel({ items, heading, ...card }: Readonly<Props>) {
   const perPage = useSyncExternalStore(subscribeViewport, columns, () => 2);
   const [activePage, setActivePage] = useState(0);
-  const container = useRef<HTMLDivElement>(null);
+  const container = useRef<HTMLFieldSetElement>(null);
   const pointerStart = useRef<{ x: number; y: number } | null>(null);
   const suppressSwipeClick = useRef(false);
   const focusedBook = useRef<number | null>(null);
@@ -34,7 +37,7 @@ export function RecommendationCarousel({ items, heading, ...card }: Props) {
     }
   }, [ids]);
   const move = (step: number) => { if (items.length) setActivePage(previous => (Math.min(previous, pages - 1) + step + pages) % pages); };
-  return <div ref={container} tabIndex={-1} role="group" aria-roledescription="carrossel" aria-label="Sugestões de leitura"
+  return <fieldset ref={container} tabIndex={-1} aria-roledescription="carrossel" aria-label="Sugestões de leitura" className="min-w-0 border-0 p-0"
     onFocusCapture={event => {
       const article = (event.target as HTMLElement).closest<HTMLElement>('article[data-book-id]');
       focusedBook.current = article ? Number(article.dataset.bookId) : null;
@@ -70,5 +73,5 @@ export function RecommendationCarousel({ items, heading, ...card }: Props) {
     {items.length > 0 && <div role="status" aria-live="polite" aria-atomic="true" className="sr-only">
       {index + 1} de {items.length}
     </div>}
-  </div>;
+  </fieldset>;
 }

@@ -9,12 +9,24 @@ export interface RecommendationCardProps {
   onRemoved: (bookId: number, reason: 'added' | 'already_added' | 'unavailable') => void;
   onErrorRevalidate: () => void;
 }
-export function RecommendationCard({ item, onRemoved, onErrorRevalidate }: RecommendationCardProps) {
+export function RecommendationCard({ item, onRemoved, onErrorRevalidate }: Readonly<RecommendationCardProps>) {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const busy = useRef(false);
   const alive = useRef(true);
   useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
+  function handleFailure(error_: unknown) {
+    if ((error_ instanceof ApiError && error_.status === 409) || (error_ instanceof Error && error_.message === 'already_added')) {
+      onRemoved(item.book.id, 'already_added');
+      return;
+    }
+    if (error_ instanceof ApiError && error_.status === 404 && error_.code === 'BOOK_NOT_FOUND') {
+      onRemoved(item.book.id, 'unavailable');
+      return;
+    }
+    if (alive.current) setError('Não foi possível adicionar o livro. Tente novamente.');
+    if (error_ instanceof ApiError && error_.status === 404) onErrorRevalidate();
+  }
   async function add() {
     if (busy.current) return;
     busy.current = true;
@@ -25,15 +37,8 @@ export function RecommendationCard({ item, onRemoved, onErrorRevalidate }: Recom
       // Owner-bound callbacks must survive a carousel group change; only local
       // state updates depend on this card remaining mounted.
       onRemoved(item.book.id, 'added');
-    } catch (failure) {
-      if ((failure instanceof ApiError && failure.status === 409) || (failure instanceof Error && failure.message === 'already_added')) {
-        onRemoved(item.book.id, 'already_added');
-      } else if (failure instanceof ApiError && failure.status === 404 && failure.code === 'BOOK_NOT_FOUND') {
-        onRemoved(item.book.id, 'unavailable');
-      } else {
-        if (alive.current) setError('Não foi possível adicionar o livro. Tente novamente.');
-        if (failure instanceof ApiError && failure.status === 404) onErrorRevalidate();
-      }
+    } catch (error_) {
+      handleFailure(error_);
     } finally {
       busy.current = false;
       if (alive.current) setPending(false);
