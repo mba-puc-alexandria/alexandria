@@ -174,9 +174,7 @@ export async function getUserBooks(signal?: AbortSignal): Promise<UserBookRespon
     }
   };
   const books: UserBookResponse[] = [];
-  let pageNumber = 0;
-  let totalPages: number;
-  do {
+  const appendPage = async (pageNumber: number): Promise<void> => {
     ensureSameSession();
     const res = await apiFetch(`/user-books?page=${pageNumber}&size=100&sort=id,asc`, {
       signal, headers: { Authorization: token ? `Bearer ${token}` : '' },
@@ -185,9 +183,9 @@ export async function getUserBooks(signal?: AbortSignal): Promise<UserBookRespon
     const page: { content: UserBookResponse[]; totalPages: number } = await res.json();
     ensureSameSession();
     books.push(...page.content);
-    totalPages = page.totalPages;
-    pageNumber += 1;
-  } while (pageNumber < totalPages);
+    if (pageNumber + 1 < page.totalPages) await appendPage(pageNumber + 1);
+  };
+  await appendPage(0);
   ensureSameSession();
   return books;
 }

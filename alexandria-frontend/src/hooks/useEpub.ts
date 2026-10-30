@@ -13,6 +13,27 @@ interface EpubState extends UseEpubResult {
   bookId: string;
 }
 
+async function fetchAuthorizedEpub(bookId: string, ownerId: number, hasCachedCopy: boolean, signal: AbortSignal): Promise<Response | null> {
+  let response: Response;
+  try {
+    response = await fetch(`/api/epub?bookId=${encodeURIComponent(bookId)}`, {
+      method: hasCachedCopy ? "HEAD" : "GET", cache: "no-store", signal,
+    });
+  } catch (error) {
+    // A transport failure can happen while navigator.onLine still reports true.
+    if (hasCachedCopy && error instanceof TypeError && !signal.aborted && libraryAccountId() === ownerId) return null;
+    throw error;
+  }
+  if (response.status === 401 || response.status === 402 || response.status === 403) {
+    throw new Error("subscription_required");
+  }
+  if (!response.ok) throw new Error(`Falha ao baixar EPUB: ${response.status}`);
+  if (response.headers.get("X-Authenticated-User-Id") !== String(ownerId)) {
+    throw new Error("A sessão mudou durante a leitura. Recarregue o livro.");
+  }
+  return response;
+}
+
 export function useEpub(bookId: string, ownerId: number | null): UseEpubResult {
   const [state, setState] = useState<EpubState>({ ownerId: null, bookId, epubData: null, loading: true, error: null });
   const cacheKey = ownerId === null ? null : `${ownerId}:${bookId}`;
@@ -29,41 +50,15 @@ export function useEpub(bookId: string, ownerId: number | null): UseEpubResult {
         }
         const cached = await getCachedEpub(cacheKey);
         if (cancelled || libraryAccountId() !== ownerId) return;
-
-        if (cached && !navigator.onLine) {
-          setState({ ownerId, bookId, epubData: cached, loading: false, error: null });
-          void markBookAsAccessed(cacheKey);
-          return;
-        }
-
-        const url = `/api/epub?bookId=${encodeURIComponent(bookId)}`;
-        // Cached bytes are never shown until the server rechecks this account's access.
-        let res: Response;
-        try {
-          res = await fetch(url, { method: cached ? "HEAD" : "GET", cache: "no-store", signal: controller.signal });
-        } catch (error) {
-          // A transport failure can happen while navigator.onLine still reports true.
-          if (cached && error instanceof TypeError && !cancelled && !controller.signal.aborted && libraryAccountId() === ownerId) {
-            setState({ ownerId, bookId, epubData: cached, loading: false, error: null });
-            void markBookAsAccessed(cacheKey);
-            return;
-          }
-          throw error;
-        }
-        if (res.status === 402 || res.status === 403 || res.status === 401) {
-          throw new Error("subscription_required");
-        }
-        if (!res.ok) throw new Error(`Falha ao baixar EPUB: ${res.status}`);
-        if (res.headers.get("X-Authenticated-User-Id") !== String(ownerId)) {
-          throw new Error("A sessão mudou durante a leitura. Recarregue o livro.");
-        }
+        // Offline reads reuse only this account's cache. Online reads recheck access.
+        const res = cached && !navigator.onLine ? null : await fetchAuthorizedEpub(bookId, ownerId, Boolean(cached), controller.signal);
         if (cancelled || libraryAccountId() !== ownerId) return;
         if (cached) {
           setState({ ownerId, bookId, epubData: cached, loading: false, error: null });
           void markBookAsAccessed(cacheKey);
           return;
         }
-
+        if (!res) throw new Error("Arquivo EPUB indisponível");
         const data = await res.arrayBuffer();
         if (cancelled || libraryAccountId() !== ownerId) return;
         setState({ ownerId, bookId, epubData: data, loading: false, error: null });

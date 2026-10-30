@@ -50,6 +50,7 @@ export default function LeitorPage({
   const [displayMode, setDisplayMode] = useState<DisplayMode>("percent");
   const [hasUserBook, setHasUserBook] = useState(false);
   const [readingOwner, setReadingOwner] = useState<number | null>(null);
+  const [renditionError, setRenditionError] = useState<{ ownerId: number; bookId: string; error: Error } | null>(null);
   const [fullscreen, setFullscreen] = useState(false);
 
   const userBookIdRef = useRef<number | null>(null);
@@ -59,6 +60,7 @@ export default function LeitorPage({
   const totalLocationsRef = useRef<number>(0);
   const sessionStartTimeRef = useRef<number | null>(null);
   const sessionStartProgressRef = useRef<number | null>(null);
+  const readerGenerationRef = useRef(0);
 
   const { epubData, loading: epubLoading, error: epubError } = useEpub(id, userId);
 
@@ -89,6 +91,7 @@ export default function LeitorPage({
 
   useEffect(() => {
     const request = new AbortController();
+    readerGenerationRef.current += 1;
     userBookIdRef.current = null;
     lastSavedProgressRef.current = 0;
     currentProgressRef.current = 0;
@@ -97,6 +100,7 @@ export default function LeitorPage({
     setProgress(0);
     setMinutesLeft(null);
     setPagesLeft(null);
+    setRenditionError(null);
     setLocation(userId === null ? 0 : localStorage.getItem(`epub-location-${userId}-${id}`) ?? 0);
     async function init() {
       const [b, userBooks] = await Promise.all([
@@ -127,6 +131,7 @@ export default function LeitorPage({
     init().catch(console.error);
 
     return () => {
+      readerGenerationRef.current += 1;
       request.abort();
       if (saveTimerRef.current) {
         clearTimeout(saveTimerRef.current);
@@ -162,13 +167,15 @@ export default function LeitorPage({
   }, [id, userId]);
 
   const handleRendition = useCallback((rendition: Rendition) => {
-
-    rendition.book.ready.then(() => {
-      rendition.book.locations.generate(1600).then(() => {
+    const generation = readerGenerationRef.current;
+    rendition.book.ready
+      .then(() => rendition.book.locations.generate(1600))
+      .then(() => {
+        if (userId === null || libraryAccountId() !== userId || readerGenerationRef.current !== generation) return;
         totalLocationsRef.current = rendition.book.locations.length();
 
         rendition.on("relocated", (loc: Location) => {
-          if (userId === null || libraryAccountId() !== userId) return;
+          if (userId === null || libraryAccountId() !== userId || readerGenerationRef.current !== generation) return;
           const percent = Math.round(
             rendition.book.locations.percentageFromCfi(loc.start.cfi) * 100
           );
@@ -206,8 +213,11 @@ export default function LeitorPage({
           if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
           saveTimerRef.current = setTimeout(() => persistProgress(percent), 2000);
         });
+      })
+      .catch((error: unknown) => {
+        if (userId === null || libraryAccountId() !== userId || readerGenerationRef.current !== generation) return;
+        setRenditionError({ ownerId: userId, bookId: id, error: error instanceof Error ? error : new Error(String(error)) });
       });
-    });
   }, [id, userId, persistProgress]);
 
   function cycleDisplayMode() {
@@ -261,14 +271,15 @@ export default function LeitorPage({
     );
   }
 
-  if (epubError) {
-    if (epubError.message === "subscription_required") {
+  const readerError = epubError ?? (renditionError?.ownerId === userId && renditionError.bookId === id ? renditionError.error : null);
+  if (readerError) {
+    if (readerError.message === "subscription_required") {
       return <PaywallModal open onClose={() => router.push(`/explorar/${id}`)} />;
     }
     return (
       <div className="flex flex-col items-center justify-center h-full gap-4">
         <p className="text-brown font-serif text-xl">Erro ao carregar o livro.</p>
-        <p className="text-brown-soft text-sm">{epubError.message}</p>
+        <p className="text-brown-soft text-sm">{readerError.message}</p>
         <Link href={`/explorar/${id}`} className="text-terra text-sm font-bold underline">
           Voltar para o livro
         </Link>

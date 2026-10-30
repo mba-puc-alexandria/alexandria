@@ -129,7 +129,7 @@ Uma revisão adicional de arquitetura, segurança, concorrência, acessibilidade
 | Verificação após a revisão | Resultado |
 | --- | --- |
 | Backend `JAVA_TOOL_OPTIONS=-Dapi.version=1.44; .\mvnw.cmd -B verify` | BUILD SUCCESS; 366 testes, zero falhas/erros, um ensaio de capacidade opt-in ignorado |
-| Frontend `npm test` | 93 testes em 22 arquivos aprovados |
+| Frontend `npm test` | 95 testes em 22 arquivos aprovados após correções do Sonar |
 | TypeScript e lint | TypeScript aprovado; lint com zero erros e cinco avisos de imagens já presentes |
 | Navegador `npm run test:e2e` | 19/19 aprovados com MySQL e backend reais |
 | `git diff --check` | Sem erros |
@@ -137,3 +137,5 @@ Uma revisão adicional de arquitetura, segurança, concorrência, acessibilidade
 No Windows local, a execução inicial do Maven sem `-Dapi.version=1.44` não encontrou o Docker para quatro testes Testcontainers. A versão usada pelo fixture E2E resolveu a detecção e permitiu a suíte completa acima. A primeira tentativa E2E encontrou um bloqueio transitório de rename do arquivo de controle; o fixture agora repete o rename por até 500 ms, e a execução completa seguinte passou.
 
 **Ordem de implantação:** publicar o backend antes do frontend. O novo frontend exige o cabeçalho `X-Authenticated-User-Id` nas respostas GET/HEAD de EPUB para vincular os bytes à conta autenticada. O CI já inicia backend antes de frontend; um rollout em produção precisa seguir a mesma ordem. Bytes do cache EPUB legado continuam no IndexedDB, mas o novo hook não usa as chaves antigas por livro.
+
+Na primeira execução do Sonar do PR após a revisão, o Quality Gate do frontend apontou duas rejeições de promises sem tratamento na preparação do leitor. A cadeia `ready` → `generate` passou a tratar e apresentar as falhas; testes reproduzem ambas as rejeições. A paginação sequencial foi mantida com chamada recursiva entre páginas para preservar as verificações de sessão, e a validação de acesso EPUB foi extraída para uma função menor. O resultado do Quality Gate após estas correções deve ser conferido no novo commit.
