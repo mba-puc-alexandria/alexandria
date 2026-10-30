@@ -2,7 +2,6 @@ package com.pucsp.alexandria.adapter.in.job;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
-import static org.mockito.ArgumentMatchers.*;
 import com.pucsp.alexandria.application.recommendation.RequestDailyRecommendationGenerationUseCase;
 import com.pucsp.alexandria.config.RecommendationProperties;
 import com.pucsp.alexandria.domain.recommendation.*;

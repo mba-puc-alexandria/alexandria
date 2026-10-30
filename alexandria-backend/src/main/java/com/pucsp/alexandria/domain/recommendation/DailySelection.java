@@ -10,7 +10,8 @@ public record DailySelection(long id, long userId, LocalDate referenceDate, Inst
     Objects.requireNonNull(referenceDate); Objects.requireNonNull(generatedAt); Objects.requireNonNull(algorithmVersion);
     items = List.copyOf(items);
     if (selectedCount < 0 || selectedCount > 30 || items.size() > selectedCount) throw new IllegalArgumentException("Invalid selection size");
-    var ids = new HashSet<Long>(); var positions = new HashSet<Integer>();
+    var ids = new HashSet<Long>();
+    var positions = new HashSet<Integer>();
     for (var item : items) if (!ids.add(item.book().id()) || !positions.add(item.position())) throw new IllegalArgumentException("Duplicate selection item");
   }
   public record Item(int position, Book book, RecommendationCandidate.Reason reason) {

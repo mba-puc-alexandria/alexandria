@@ -3,7 +3,6 @@ package com.pucsp.alexandria.adapter.out.persistence;
 import com.pucsp.alexandria.adapter.out.persistence.mapper.RecommendationBatchMapper;
 import com.pucsp.alexandria.domain.recommendation.*;
 import java.time.LocalDate;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;

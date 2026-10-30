@@ -25,7 +25,7 @@ class RecommendationScorerTest {
       int weightB=Integer.parseInt(b.canonicalSubjects().iterator().next().substring(1));
       int c=Integer.compare(weightB,weightA);
       if(c==0)c=Integer.compare(b.downloadCount(),a.downloadCount());
-      return c!=0?c:Long.compare(a.bookId(),b.bookId());
+      return c==0?Long.compare(a.bookId(),b.bookId()):c;
     }).limit(30).map(CatalogBookFeatures::bookId).toList();
     assertEquals(expected,selector.select(books,profile).stream().map(RecommendationCandidate::bookId).toList());
     assertTrue(expected.stream().anyMatch(id->id>900));

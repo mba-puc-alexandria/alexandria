@@ -1,7 +1,6 @@
 package com.pucsp.alexandria.adapter.in.rest;
 
 import static org.mockito.Mockito.*;
-import static org.mockito.ArgumentMatchers.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 import com.pucsp.alexandria.application.recommendation.*;

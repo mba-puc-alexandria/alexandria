@@ -9,8 +9,10 @@ import com.pucsp.alexandria.domain.recommendation.ReadingProfile.Evidence;
 
 public final class ReadingProfileBuilder {
   public ReadingProfile build(List<ReadingSignal> signals) {
-    var excluded=new HashSet<Long>(); var subjects=new TreeMap<String,Evidence>();
-    var authors=new TreeMap<Long,Evidence>(); var languages=new TreeMap<String,Evidence>();
+    var excluded=new HashSet<Long>();
+    var subjects=new TreeMap<String,Evidence>();
+    var authors=new TreeMap<Long,Evidence>();
+    var languages=new TreeMap<String,Evidence>();
     MessageDigest digest;
     try { digest=MessageDigest.getInstance("SHA-256"); }
     catch(NoSuchAlgorithmException e){throw new IllegalStateException(e);}

@@ -30,9 +30,9 @@ public final class RecommendationScorer {
     var authorWeights=authors.stream().map(e->e.getValue().weight()).toList();
     int language=book.languageCodes().stream().map(profile.languages()::get).filter(Objects::nonNull)
         .mapToInt(Evidence::weight).max().orElse(0);
-    Evidence evidence=!subjects.isEmpty()?subjects.get(0).getValue():authors.get(0).getValue();
-    String type=!subjects.isEmpty()?"SUBJECT":"AUTHOR";
-    String value=!subjects.isEmpty()?subjects.get(0).getKey():evidence.matchedValue();
+    Evidence evidence=subjects.isEmpty()?authors.get(0).getValue():subjects.get(0).getValue();
+    String type=subjects.isEmpty()?"AUTHOR":"SUBJECT";
+    String value=subjects.isEmpty()?evidence.matchedValue():subjects.get(0).getKey();
     String text="Na data desta seleção, sua biblioteca incluía “"+evidence.sourceBookTitle()+
         "”, com "+(type.equals("SUBJECT")?"o assunto ":"autoria de ")+value+".";
     return Optional.of(new RecommendationCandidate(book.bookId(),

@@ -11,6 +11,7 @@ public class RecommendationItemEntity {
   @Column(name="source_book_id") private Long sourceBookId;
   @Column(name="source_book_title",nullable=false,length=500) private String sourceBookTitle;
   @Column(name="evidence_weight",nullable=false) private short evidenceWeight;
+  // JPA requires a no-argument constructor to instantiate entities.
   public RecommendationItemEntity() {}
   public RecommendationItemId getId(){ return id; }
   public Long getBookId(){ return bookId; }

@@ -17,7 +17,8 @@ class RecommendationModelTest {
     authors.clear();
     assertEquals(1, book.authors().size());
     assertEquals(0, book.downloadCount());
-    assertThrows(UnsupportedOperationException.class, () -> book.authors().put(2L,"Outro"));
+    var immutableAuthors = book.authors();
+    assertThrows(UnsupportedOperationException.class, () -> immutableAuthors.put(2L,"Outro"));
   }
   @Test void publishedSelectionIsImmutableButAllowsFilteredPositionGaps() {
     var reason = RecommendationFixtures.candidate(2,1).reason();
@@ -28,16 +29,20 @@ class RecommendationModelTest {
     assertEquals(1, selection.items().size());
     assertEquals(5, selection.selectedCount());
     assertEquals(3, selection.items().get(0).position());
-    assertThrows(UnsupportedOperationException.class, () -> selection.items().clear());
+    var immutableItems = selection.items();
+    assertThrows(UnsupportedOperationException.class, () -> immutableItems.clear());
   }
   @Test void invalidPositionsDuplicatesAndNonpositiveEvidenceAreRejected() {
     var candidate = RecommendationFixtures.candidate(2,1);
     var book = new DailySelection.Book(2,"Livro",List.of(),null);
-    assertThrows(IllegalArgumentException.class, () -> new DailySelection.Item(31,book,candidate.reason()));
+    var reason = candidate.reason();
+    assertThrows(IllegalArgumentException.class, () -> new DailySelection.Item(31,book,reason));
     var item = new DailySelection.Item(1,book,candidate.reason());
-    assertThrows(IllegalArgumentException.class, () -> new DailySelection(1,1,LocalDate.now(),Instant.EPOCH,"v",2,List.of(item,item)));
+    var date = LocalDate.now();
+    var duplicateItems = List.of(item,item);
+    assertThrows(IllegalArgumentException.class, () -> new DailySelection(1,1,date,Instant.EPOCH,"v",2,duplicateItems));
     assertThrows(IllegalArgumentException.class, () -> new ReadingProfile.Evidence(0,1,"Livro","ficção"));
-    assertThrows(IllegalArgumentException.class, () -> new RecommendationCandidate(2,
-        new RecommendationCandidate.Score(0,0,0,0,4,999),candidate.reason()));
+    var score = new RecommendationCandidate.Score(0,0,0,0,4,999);
+    assertThrows(IllegalArgumentException.class, () -> new RecommendationCandidate(2,score,reason));
   }
 }
