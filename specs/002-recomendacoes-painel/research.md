@@ -45,7 +45,7 @@ Para um candidato, calcular:
 
 Elegível somente se não pertence à biblioteca, tem acesso digital disponível e `Smax > 0` ou `Amax > 0`. Ordenar por `(Smax DESC, Smean DESC, Amax DESC, Amean DESC, Lmax DESC, P DESC, bookId ASC)`. Não há precisão de ponto flutuante nem sorteio. O peso forte vence o intermediário em comparações com demais características iguais. Assunto precede autor; idioma/popularidade nunca criam elegibilidade. Sem penalização global por nota baixa.
 
-Justificativa: usar assunto com maior peso quando houver, caso contrário autor com maior peso; guardar a evidência positiva e os textos necessários à explicação no dia da geração. Não exibir identificadores de outros leitores. As médias reduzem a vantagem de muitos tags e a ordem é reproduzível; qualidade semântica depende da cobertura dos assuntos. Sinal de afinidade é uma aproximação testável de estilo, não garantia de satisfação.
+Justificativa: usar assunto com maior peso quando houver, caso contrário autor com maior peso. Entre assuntos de mesmo peso, escolher a menor chave normalizada pela ordem natural de String.compareTo; entre autores de mesmo peso, o menor authorId. A evidência da característica continua escolhendo o menor bookId. Guardar a evidência positiva e os textos necessários à explicação no dia da geração; a ordem de iteração de Set/Map ou da consulta não pode mudar o motivo. Não exibir identificadores de outros leitores. As médias reduzem a vantagem de muitos tags e a ordem é reproduzível; qualidade semântica depende da cobertura dos assuntos. Sinal de afinidade é uma aproximação testável de estilo, não garantia de satisfação.
 
 **Alternativas**: similaridade por texto livre, LLM ou embeddings podem ser avaliados depois; exigem infraestrutura e avaliação adicionais. Filtragem colaborativa usa dados de outros usuários e não é necessária ao escopo.
 
@@ -53,7 +53,7 @@ Justificativa: usar assunto com maior peso quando houver, caso contrário autor 
 
 ## 4. Considerar toda a base sem custo por movimento do carrossel
 
-**Decisão**: construir uma projeção compacta completa por execução, ler catálogo por chave ID em lotes de 500 e compartilhar o resultado entre trabalhadores. Fazer a leitura completa em transação read-only consistente do MySQL; buscar autores por IDs em lote, sem coleção paginada e sem N+1. Encerrar a transação antes dos cálculos por usuário.
+**Decisão**: construir uma projeção compacta completa por execução, ler catálogo por chave ID em lotes de 500 e compartilhar o resultado entre trabalhadores. Fazer todos os lotes e a leitura de autores na mesma transação read-only com isolamento REPEATABLE_READ explícito no MySQL; não depender do isolamento default do ambiente. Buscar autores por IDs em lote, sem coleção paginada e sem N+1. Encerrar a transação antes dos cálculos por usuário.
 
 Para cada leitor, consultar a biblioteca completa por projeção própria (book/status/rating/features). Não reutilizar `ListUserBooksUseCase`, que monta uma página e faz consultas por livro. Avaliar todos os registros elegíveis e manter somente os melhores 30 numa heap. Comparar o resultado com ordenação integral em testes.
 
@@ -106,3 +106,17 @@ Todas as decisões necessárias ao desenho estão resolvidas. Dimensionamento é
 ## 9. Revisão após análise
 
 Decisões de consistência aprovadas pelo usuário: precedência descrita acima, WARN operacional agregado para atraso de geração (default 60min e no máximo uma vez por hora por instância/data), e medição de SC-006 no navegador com cinco aquecimentos e pelo menos 100 amostras válidas por perfil. Notificação externa não é necessária ao MVP. Ver plan.md e quickstart.md para protocolo e limites.
+
+## Refinamento da revisão crítica 1
+
+Contratos refinados definem data no PENDING (substitui “no claim”), origem AUTO/MANUAL, orçamento separado, ausência de perfil no worker e handles de snapshot. Painel: um cartão por vez, motivos históricos, STALE vazio e verificação GET. Matching exato/pesos continuam defaults de engenharia. A proposta original de sessão qualitativa em T051 foi dispensada pelo usuário durante a implementação; feedback de relevância, idiomas e concentração por autor fica para iterações futuras, sem alegar satisfação comprovada.
+
+## Revisão independente adicional
+
+O provider mantém proprietário da execução e registros de tarefas, evitando reconstruir catálogo entre ondas de workers; sua construção continua preguiçosa. Recuperação normaliza BUILDING vencido para FAILED independentemente do orçamento, usando failed_at para cooldown manual. A inclusão atual em AddUserBooksUseCase lança BookNotFoundException (404 pelo GlobalExceptionHandler); api.ts hoje a converte em erro genérico. Planeja-se código opcional BOOK_NOT_FOUND e preservação de detalhes no cliente para distinguir indisponibilidade confirmada de erro transitório, sem interpretar qualquer 404 como livro removido.
+
+## Preparação final para implementar — 2026-10-30
+
+- Sessões do catálogo são identificadas por referenceDate: origens concorrentes do mesmo dia compartilham a sessão ativa; o novo dia nunca adere ao catálogo de ontem. Workers já iniciados conservam handles de ontem até concluir. A sobreposição temporária entre datas entra na medição de pico de memória; não existe cache permanente entre dias.
+- O scheduler apenas dispara trabalho e retorna. Descoberta com espera por capacidade usa um executor de controle separado dos dois workers; heartbeat usa scheduler dedicado, sem executar ranking/descoberta nele. Isso evita que fila cheia ou cron demorado impeçam a renovação do lease. T011/T030/T032 tornam essa decisão verificável.
+- Preflight local: Testcontainers 1.19.0 falhou na autodetecção com Docker 29.6.2; a opção de JVM api.version=1.44 permitiu criar MySQL 8.0.32 isolado e executar/validar V0, V001, V002 e V3. É uma compatibilidade comprovada neste ambiente, não garantia universal; usar o probe e os comandos do quickstart. Não foi alterada a versão das dependências nem a configuração global do Docker.

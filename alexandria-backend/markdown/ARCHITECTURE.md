@@ -11,7 +11,7 @@
 | Maven | - | Gerenciamento de dependências |
 | MySQL 8 | - | Banco de dados relacional |
 | Spring Data JPA + Hibernate | - | ORM e acesso a dados |
-| Flyway | - | Migrações de banco (habilitado no perfil `rds` post-MVP) |
+| Flyway | - | Migrações de banco habilitadas nos perfis padrão e `rds`; Hibernate valida o schema |
 | RestTemplate | - | HTTP Client (Gutendex API + Google TokenInfo + payment-api) |
 | Spring Scheduling | - | Job `@Scheduled` de expiração de assinaturas |
 | Jackson | - | Serialização JSON |
@@ -280,8 +280,8 @@ com.pucsp.alexandria
 │   └── ErrorResponse.java
 │
 └── resources/
-    ├── application.properties              # Config padrão (MySQL local/Flyway desligado)
-    ├── application-rds.properties          # Config RDS (Flyway desligado, ddl-auto=validate)
+    ├── application.properties              # MySQL local, Flyway habilitado, ddl-auto=validate
+    ├── application-rds.properties          # RDS, Flyway habilitado, ddl-auto=validate
     └── db/migration/
                 ├── V0__Create_initial_tables.sql       # Criação das tabelas iniciais
         ├── V001__Add_Gutendex_Fields_And_Remove_Genre.sql
@@ -758,15 +758,17 @@ O fluxo do Google OAuth:
 
 ## 📜 Migrações Flyway
 
-**Nota:** Flyway está **desabilitado** em ambos os perfis (`spring.flyway.enabled=false`). O schema é gerenciado pelo Hibernate via `ddl-auto`. **Após o MVP**, o Flyway será ativado no perfil RDS para gerenciamento versionado do schema em produção.
+Flyway está habilitado nos perfis padrão e `rds` (`spring.flyway.enabled=true`), ambos com `spring.jpa.hibernate.ddl-auto=validate`. A aplicação executa as migrations antes da validação JPA; Hibernate não cria nem altera o schema nesses perfis. O perfil de testes H2 usa `create-drop` e desabilita Flyway; ele não substitui os testes MySQL de migração/concorrência.
 
 | Migração | Descrição |
 |----------|-----------|
 | `V0__Create_initial_tables.sql` | Cria as tabelas iniciais (`books`, `users`, `user_books`) com a estrutura anterior às migrations V001 e V002 |
 | `V001__Add_Gutendex_Fields_And_Remove_Genre.sql` | Adiciona colunas Gutendex (`gutendex_id`, `download_url`, `cover_url`, `languages`, `subjects`, `download_count`), remove coluna `genre`, modifica `publisher_id` para nullable |
 | `V002__Create_Authors_And_BookAuthors.sql` | Cria tabelas `authors` e `book_authors`, migra dados da coluna `author` (antiga) para a nova estrutura, remove coluna `author` |
+| `V3__create_subscriptions_table.sql` | Cria assinatura e complementa schema legado de usuários para a autenticação atual |
+| `V4__create_recommendation_batches_and_items.sql` | Cria batches e itens de recomendações, unicidade por leitor/data, constraints, índices e FKs de retenção |
 
-> **Importante:** Ambos os perfis mantêm `spring.flyway.enabled=false`. O Hibernate gerencia o schema: `ddl-auto=update` no perfil padrão e `ddl-auto=validate` no perfil RDS para validar a consistência.
+`baseline-on-migrate=true` e `baseline-version=2` continuam na configuração existente para schema legado. Isso não dispensa conferir o histórico de cada ambiente. Os testes da feature 002 exercitam banco vazio e upgrade V3→V4 com dados semeados; não executar migração destrutiva para contornar divergência de schema.
 
 ---
 
@@ -857,9 +859,9 @@ Isso mantém a camada de aplicação **pura** (sem anotações Spring) e facilit
 | Banco | `jdbc:mysql://localhost:3306/alexandriadb` |
 | Usuário | `root` (ou `DB_USER` env) |
 | Senha | `root` (ou `DB_PASSWORD` env) |
-| JPA DDL | `update` |
-| Flyway | `false` |
-| JWT Secret | `dev-secret-key-not-for-production-min-256bits` |
+| JPA DDL | `validate` |
+| Flyway | `true` |
+| JWT Secret | Via variável de ambiente `JWT_SECRET` |
 | Google Client ID | Configurado |
 
 ### Profile `rds` (produção — usado no Dockerfile)
@@ -869,7 +871,7 @@ Isso mantém a camada de aplicação **pura** (sem anotações Spring) e facilit
 |-------------|-------|
 | Banco | MySQL (variáveis de ambiente) |
 | JPA DDL | `validate` |
-| Flyway | `false` |
+| Flyway | `true` |
 | JWT Secret | Via variável de ambiente `JWT_SECRET` |
 | Monitoramento | Actuator endpoints (health, info) |
 | CORS | Configurável via `CORS_ALLOWED_ORIGINS` |
@@ -1005,7 +1007,7 @@ Para garantir que apenas administradores possam criar, editar ou deletar livros 
 Para manter a camada de aplicação **pura** (POJO), sem dependência de frameworks. Os Use Cases são registrados como `@Bean` em `BeanConfiguration`, facilitando testes unitários.
 
 ### Por que usar `ddl-auto=validate` no perfil RDS?
-Com `ddl-auto=validate`, o Hibernate verifica se as entidades JPA correspondem ao schema do banco na inicialização. Se houver diferença, a aplicação não sobe — evitando dessincronia entre código e banco. Em desenvolvimento local (`application.properties`), o `ddl-auto=update` continua sendo usado para agilizar o desenvolvimento.
+Com `ddl-auto=validate`, o Hibernate verifica se as entidades JPA correspondem ao schema do banco na inicialização. Se houver diferença, a aplicação não sobe. Os perfis padrão e RDS usam essa configuração; mudanças estruturais são migrations Flyway.
 
 ### Por que o GoogleAuthUseCase usa RestTemplate direto em vez de biblioteca Google?
 Para manter a dependência externa mínima. O `GoogleAuthUseCase` valida o token manualmente contra a API `tokeninfo` do Google, verificando apenas `aud` (clientId) e `email`. É uma abordagem mais leve que usar a biblioteca oficial, adequada ao escopo do MVP.
@@ -1027,3 +1029,44 @@ Com a aplicação rodando, acesse:
 - **Swagger UI:** `http://localhost:8080/swagger-ui.html`
 - **OpenAPI JSON:** `http://localhost:8080/api-docs`
 - **Health Check:** `http://localhost:8080/actuator/health`
+
+## Recomendações diárias no Painel — feature 002
+
+O módulo `recommendation` já tem implementação no checkout. A seleção determinística considera o catálogo digital completo e publica até 30 itens por leitor/data. O carrossel frontend reutiliza os itens localmente; navegar ou recarregar não reconstrói uma READY. Critérios de capacidade/usabilidade e status de conclusão ficam em `specs/002-recomendacoes-painel/tasks.md` e nos resultados de validação; a presença destes componentes não comprova esses aceites.
+
+| Camada | Componentes implementados |
+| --- | --- |
+| Domínio puro | `domain/recommendation/CatalogBookFeatures`, `ReadingSignal`, `ReadingProfile`, `RecommendationBatch`, `RecommendationCandidate`, `DailySelection` e enums; `RecommendationFeatureNormalizer`, `ReadingProfileBuilder`, `RecommendationScorer`, `RecommendationSelector` |
+| Portas | `CatalogFeatureRepository`, `ReadingProfileRepository`, `RecommendationBatchRepository`, `RecommendationReadPort`, `RecommendationCatalogSnapshots`, `RecommendationGenerationQueue`, `RecommendationWorkFactory` |
+| Aplicação pura | `application/recommendation/GenerateDailyRecommendationsUseCase`, `RequestDailyRecommendationGenerationUseCase`, `GetRecommendationsUseCase`, `dto/RecommendationsResponse` |
+| Entrada REST | `adapter/in/rest/recommendation/RecommendationController` e `RecommendationExceptionHandler`; GET `/recommendations`, POST `/recommendations/generation` |
+| Entrada assíncrona | `adapter/in/job/RecommendationGenerationWorker`, `BoundedRecommendationGenerationQueue`, `RecommendationExecutionResources`, `DailyRecommendationDispatcher`, `RecommendationRecoveryJob`, `RecommendationRetentionJob`, `RecommendationMetrics`, `RecommendationMetricsJob` |
+| Saída persistência | `CatalogFeatureRepositoryImpl`, `ReadingProfileRepositoryImpl`, `RecommendationBatchRepositoryImpl`, `RecommendationReadAdapter`, `RecommendationCatalogSnapshotProvider`, `RecommendationProjectionQueries`; consultas e CAS usam `JdbcTemplate`/transações curtas |
+| Mapeamento JPA | `entity/RecommendationBatchEntity`, `RecommendationItemEntity`, `RecommendationItemId`; repositórios JPA correspondentes e `mapper/RecommendationBatchMapper`. O domínio e REST não recebem entidades JPA |
+| Configuração | `RecommendationProperties`, `RecommendationConfiguration` e beans dos casos de uso em `BeanConfiguration` |
+
+A pontuação usa assuntos, autores, idioma complementar e downloads apenas como desempate. Somente assunto/autor com evidência positiva dá elegibilidade. Pesos: done4–5=4, reading=3, toread=2, done3=1, done0–2=0. Ordem de assuntos/IDs resolve empates de forma estável. Notas baixas e metadados ausentes não inventam preferências. Nenhuma chamada Gutendex/EPUB ou IA é feita durante o ranking.
+
+`recommendation_batches` é único por `(user_id, reference_date)` e registra PENDING antes da fila. O worker adquire o lease ao iniciar; heartbeat e publicação conferem token/lease pelo UTC do banco. Três claims AUTO por data constituem o orçamento; MANUAL usa o POST explícito e cooldown de 60 segundos. Expiração é normalizada por CAS independente do orçamento. Sem sinais no worker, a tentativa volta a PENDING dormente e devolve o consumo AUTO; `operational_pending_since` reinicia uma vez ao reativar. READY, inclusive vazia, é imutável no dia.
+
+O catálogo é lido em lotes ID-keyset de 500 e autores em lote, na mesma transação read-only REPEATABLE_READ. O provider single-flight mantém uma sessão por processo/referenceDate com proprietário, tarefas registradas antes da submissão e handles; a sessão não se desfaz entre ondas da fila. Outra data recebe nova projeção sem invalidar consumidores antigos. A leitura do Painel filtra a biblioteca e a disponibilidade atuais, sem reposição intradiária. Retenção conserva duas últimas READY por leitor e limpa tentativas antigas inativas após sete dias, preservando leases ativos e última seleção válida.
+
+Os executores têm responsabilidades distintas: workers de ranking (dois, fila100), controle de descoberta (um, fila1), manutenção/observação (um, fila1) e scheduler de heartbeat (um). Gatilhos agendados submetem e retornam; backpressure da descoberta não ocupa heartbeat nem observação de atraso. Jobs e submissions são coalescidos; trabalho cancelado ainda na fila fecha seu registro de snapshot. Shutdown encerra os pools e cancela renovações.
+
+| Propriedade | Default implementado |
+| --- | --- |
+| `recommendations.zone` | America/Sao_Paulo |
+| `recommendations.cron` | `0 0 0 * * *` |
+| `recommendations.jobs-enabled` | `true`, configurável por `RECOMMENDATIONS_JOBS_ENABLED`; teste pode desligar jobs sem desligar geração sob demanda |
+| `recommendations.recovery-delay-ms` | 300000 |
+| `recommendations.metrics-delay-ms` | 300000 |
+| `recommendations.retention-delay-ms` | 3600000 |
+| `recommendations.lease` / `heartbeat` | 5m / 60s, heartbeat deve caber em milissegundos positivos e ser menor que lease |
+| `recommendations.workers` / `queue-capacity` / `page-size` | 2 / 100 / 100 |
+| `recommendations.overdue-threshold` | 60m |
+
+O bean `recommendationClock` é injetável para testes de virada sem alterar relógio do host. Leases usam o relógio do banco, não esse Clock. Métricas Micrometer usam estados/origem/versão, sem userId/título/assuntos. O WARN agregado contém somente data, contagem de leitores pendentes e idade mais antiga, no máximo uma vez por hora/instância/data. PENDING dormente e datas antigas não contam.
+
+As rotas recebem a identidade do principal JWT e não aceitam userId para escolher biblioteca. A resposta pública omite sourceBookId, userId e fingerprints; motivos são históricos e a UI informa referenceDate. Respostas controladas usam no-store; 503 sanitizado diferencia FAILED/IDLE e mantém retryAfterSeconds obrigatório, possivelmente null. CORS expõe Retry-After. BOOK_NOT_FOUND é código opcional específico do erro existente de livro ausente; outros 404 não confirmam indisponibilidade. A assinatura continua sendo verificada pelo fluxo de leitura existente.
+
+Testes específicos: `ReadingProfileTest`, `RecommendationScorerTest`, `RecommendationPersistenceIntegrationTest` (MySQL real/Flyway), `RecommendationCatalogSnapshotProviderTest`, `DailyRecommendationGenerationTest`, `RecommendationExecutionResourcesTest`, `RecommendationGenerationWorkerTest`, `DailyRecommendationDispatcherTest`, `RecommendationMetricsTest` e `RecommendationControllerIntegrationTest`. Os testes reais da biblioteca são descritos em T038. No ambiente Docker/Testcontainers validado, usar `./mvnw.cmd '-Dapi.version=1.44' test`; não substituir argLine, para preservar JaCoCo. H2 não prova concorrência ou migrations MySQL.

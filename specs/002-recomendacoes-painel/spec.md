@@ -1,10 +1,10 @@
 # Feature Specification: Recomendações de livros no Painel
 
-**Feature Branch**: `feature/002-recomendacoes-painel` (criada a partir da develop a pedido do usuário).
+**Feature Branch**: `feature/002-recomendacoes-painel-wip` (criada a partir da develop a pedido do usuário).
 
 **Created**: 2026-10-30
 
-**Status**: Draft
+**Status**: Implementada e validada no ambiente local de referência em 2026-10-30. As 52 tarefas estão concluídas; SC-007 foi dispensado pelo usuário. Evidências e limites em [validation-results.md](validation-results.md); escopo executado em [tasks.md](tasks.md). Preparação histórica em [implementation-readiness.md](implementation-readiness.md).
 
 **Input**: Recomendar livros de acordo com o perfil de leitura do usuário, considerando os livros presentes em sua biblioteca nos estados concluído, lendo e a ler. Exibir o motor de recomendações no Painel. Esclarecimento do usuário: recomendar somente livros novos do catálogo, e não priorizar livros da lista a ler.
 
@@ -17,6 +17,8 @@
 - Q: Quando o leitor já tiver visto todos os livros compatíveis disponíveis, o que o carrossel deve fazer? → A: Reiniciar o carrossel, repetindo os livros já apresentados; se o leitor adicionar um livro à biblioteca, esse livro deve sair das sugestões, inclusive nas próximas voltas.
 
 - Atualização de escopo durante o planejamento: o usuário definiu uma única seleção diária de até 30 livros por leitor, considerando toda a base. O carrossel repete essa seleção ao chegar ao fim. Esta decisão substitui a navegação sem limite total e a proposta intermediária de duas atualizações por dia. Livros adicionados à biblioteca continuam saindo imediatamente; a seleção dos substitutos fica para a atualização seguinte.
+
+- Decisão durante a implementação em 2026-10-30: o usuário dispensou o teste de usabilidade com cinco participantes e preferiu iterar depois. Esse aceite humano e a sessão qualitativa com participantes deixam de bloquear a entrega. Permanecem os requisitos de acessibilidade, clareza das justificativas, teclado e celular, com validação automatizada. Esta decisão substitui referências anteriores a T051/SC-007 como gate humano obrigatório.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -107,7 +109,7 @@ Como leitor, quero navegar continuamente por uma seleção diária de até 30 li
 - **FR-004**: O sistema DEVE recomendar somente livros digitais disponíveis no catálogo que não pertençam à biblioteca do leitor em nenhum dos três estados. “Novos” significa novos para a biblioteca do leitor, sem restrição à data de publicação ou de inclusão no catálogo.
 - **FR-005**: O sistema DEVE priorizar afinidade por assuntos, seguida de autores; idiomas observados podem complementar essa preferência e a popularidade por downloads pode desempatar candidatos de afinidade equivalente. Um candidato personalizado DEVE compartilhar ao menos um assunto ou autor associado a um sinal positivo.
 - **FR-006**: O sistema DEVE considerar o catálogo inteiro para construir uma seleção diária de até 30 livros compatíveis por leitor. A posição no catálogo e a popularidade NÃO DEVEM restringir o universo avaliado; a seleção DEVE respeitar a ordem de afinidade e NÃO DEVE ser completada com livros sem afinidade. Recarregar o Painel ou avançar no carrossel NÃO DEVE reconstruir a seleção.
-- **FR-007**: Cada recomendação DEVE apresentar título, autor, capa ou substituto visual e uma justificativa verificável. A justificativa DEVE corresponder a dados reais da biblioteca do leitor; nenhuma sugestão geral sem afinidade comprovável DEVE ser incluída.
+- **FR-007**: Cada recomendação DEVE apresentar título, autor, capa ou substituto visual e uma justificativa verificável nos dados reais da biblioteca do leitor na data da geração. A apresentação DEVE indicar essa data, sem afirmar gosto ou avaliação atuais; nenhuma sugestão geral sem afinidade comprovável DEVE ser incluída.
 - **FR-008**: O leitor DEVE poder consultar os detalhes de cada livro recomendado.
 - **FR-009**: O leitor DEVE poder adicionar um livro recomendado à biblioteca como “a ler”, receber confirmação apenas após sucesso e deixar de vê-lo nas recomendações imediatamente após essa confirmação, sem exigir recarregar a página. A exclusão DEVE abranger todos os cartões e as próximas voltas do carrossel, independentemente do status posterior do livro na biblioteca. Tentativas repetidas NÃO DEVEM gerar duplicidade.
 - **FR-010**: A seleção DEVE ser gerada uma vez por dia por leitor; mudanças de avaliação, status e catálogo influenciam a próxima seleção diária. A exclusão dos livros atualmente na biblioteca DEVE valer em toda consulta, sem aguardar a próxima geração. Adicionar um livro NÃO DEVE gerar um substituto fora da atualização diária. Visualizar recomendações NÃO DEVE modificar o perfil ou os estados dos livros.
@@ -117,7 +119,7 @@ Como leitor, quero navegar continuamente por uma seleção diária de até 30 li
 - **FR-014**: O sistema DEVE usar somente os dados do leitor autenticado para formar seu perfil pessoal e suas justificativas, sem revelar ou usar bibliotecas privadas de outros leitores nessa personalização.
 - **FR-015**: A seção DEVE permitir leitura e acionamento dos cartões por teclado e em telas de celular e computador, com identificação textual das ações e sem depender exclusivamente da capa ou de cores.
 
-- **FR-016**: Após apresentar todos os livros ainda elegíveis da seleção diária, o carrossel DEVE reiniciar automaticamente a mesma seleção. Dentro de uma volta NÃO DEVE repetir livros; entre voltas PODE repeti-los. Livros adicionados à biblioteca DEVEM permanecer excluídos de todas as ocorrências. Se não restar livro elegível na seleção, DEVE apresentar estado vazio até a próxima geração, sem buscar substitutos durante a navegação.
+- **FR-016**: Após apresentar todos os livros elegíveis por avanços consecutivos em “Próximo”, o carrossel DEVE reiniciar a mesma seleção. Esses avanços NÃO DEVEM repetir antes de completar a volta; “Anterior” PODE reapresentar um livro. Com um item, avançar o reapresenta. Livros atualmente na biblioteca DEVEM permanecer excluídos. Sem itens na seleção de hoje, apresentar estado vazio até a próxima geração, sem substitutos. Seleção anterior vazia com atualização de hoje pendente DEVE informar a pendência e permitir verificar a atualização.
 
 - **FR-017**: Uma geração em andamento ou com falha NÃO DEVE substituir a última seleção completa. Sem READY de hoje e havendo sinais positivos no perfil atual, a seleção anterior pode ser usada com aviso de atualização pendente e exclusões atuais, conforme a precedência de FR-011. O sistema DEVE impedir publicação duplicada para o mesmo leitor no mesmo período diário e permitir recuperação de uma tentativa interrompida.
 
@@ -140,10 +142,10 @@ Como leitor, quero navegar continuamente por uma seleção diária de até 30 li
 - **SC-004**: Em 100% dos cenários sem histórico utilizável ou sem candidatos compatíveis, o estado vazio é apresentado sem bloquear o Painel nem inserir sugestões gerais.
 - **SC-005**: Em 100% das inclusões confirmadas, o livro consta como a ler e desaparece imediatamente de todas as ocorrências exibidas, permanece ausente nas voltas seguintes e não gera duplicidade na biblioteca.
 - **SC-006**: Com seleção diária pronta, o p95 de exibição dos cartões ou do estado vazio final no navegador DEVE ser <=2s. Medir do início da navegação completa para o Painel até sua exibição após oportunidade de pintura, com cinco acessos de aquecimento e pelo menos 100 amostras válidas por perfil de execução; calcular p95 por nearest-rank sem excluir amostras lentas. Registrar falhas/timeouts separadamente, resolver antes de aprovar o ensaio e registrar navegador, máquina, viewport, rede, cache e leitores simultâneos. Tempo de geração diária é medido separadamente; o protocolo detalhado fica em quickstart.md.
-- **SC-007**: Em teste de usabilidade com pelo menos cinco participantes, ao menos quatro conseguem avançar para novas recomendações, abrir detalhes e adicionar uma sugestão sem orientação; ao menos quatro identificam corretamente o motivo de uma sugestão personalizada.
+- **SC-007**: Critério de aceite humano dispensado explicitamente pelo usuário em 2026-10-30 durante a implementação. Não realizar nem alegar aprovação de teste com cinco participantes. Acessibilidade e fluxos de navegação/inclusão continuam cobertos por FR-007, FR-009, FR-015 e seus testes; eventuais avaliações com leitores ficam para iterações futuras.
 - **SC-008**: Em 100% dos cenários de separação entre contas e de falha da seção, nenhum dado privado de outro leitor é exposto e as demais funcionalidades do Painel permanecem utilizáveis.
 
-- **SC-009**: Em 100% dos cenários com seleção diária não vazia, o carrossel repete somente após esgotar a volta e não provoca reconstruções extras no dia. Ao adicionar o último livro elegível, passa ao estado vazio sem reposição imediata.
+- **SC-009**: Em 100% dos cenários com seleção diária não vazia, avanços consecutivos em “Próximo” repetem somente após esgotar a volta; voltar deliberadamente e reapresentar um único item são permitidos, sem reconstruções extras no dia. Ao adicionar o último livro elegível, passa ao estado vazio sem reposição imediata.
 
 ## Assumptions
 
@@ -151,7 +153,7 @@ Como leitor, quero navegar continuamente por uma seleção diária de até 30 li
 - A primeira versão utiliza interesses inferidos da biblioteca. Coleta de gêneros preferidos, idiomas declarados ou objetivos de leitura por novo formulário fica fora do escopo.
 - A escala de avaliação existente é de 0 a 5. Nota 0 é válida. As faixas e a ordem de influência descritas são defaults de produto propostos nesta especificação, ainda sujeitos à validação de qualidade com leitores.
 - Concluir um livro não equivale a aprová-lo. Avaliações baixas não implicam bloquear para sempre seu autor ou assunto; apenas não reforçam interesses positivos nesta versão.
-- O limite total é de 30 livros por seleção diária. A quantidade visível por vez e a posição abaixo de Lendo Agora serão detalhadas no planejamento. Uma primeira geração para um leitor sem seleção no período conta como sua geração do dia; falhas podem ser repetidas sem publicar mais de uma seleção bem-sucedida no período.
+- O limite total é de 30 livros por seleção diária. O default do planejamento é um cartão visível por vez em celular e desktop, abaixo de Lendo Agora, sujeito à validação com leitores. Uma primeira geração para um leitor sem seleção no período conta como sua geração do dia; falhas podem ser repetidas sem publicar mais de uma seleção bem-sucedida no período.
 - O catálogo existente contém somente livros digitais, sem livros cadastrados localmente, e é a única fonte de candidatos; a funcionalidade depende de sua disponibilidade e de seus metadados. Importar novos catálogos, enriquecer metadados e unificar edições duplicadas estão fora do escopo.
 - A identidade do livro existente no catálogo define a exclusão. Reconhecer automaticamente edições ou traduções distintas como a mesma obra fica fora do escopo.
 - As operações existentes de autenticação, consulta de detalhes e inclusão na biblioteca serão reutilizadas. A funcionalidade não altera regras de acesso à leitura nem benefícios de assinatura.
@@ -161,3 +163,8 @@ Como leitor, quero navegar continuamente por uma seleção diária de até 30 li
 
 
 - Para o planejamento, adota-se geração diária às 00h no fuso America/Sao_Paulo como horário configurável, sem novo pedido de confirmação. Mudanças no perfil após a geração podem levar até a geração seguinte para alterar a seleção; novos leitores podem iniciar a primeira geração do dia ao abrir o Painel.
+
+## Refinamentos da revisão crítica — 2026-10-30
+
+- Ausência de perfil não pressupõe biblioteca vazia: explicar que ainda não foram identificados interesses suficientes e oferecer Explorar, sem incentivar avaliações artificiais.
+- A avaliação qualitativa do top-5 com participantes foi proposta no refinamento inicial. Durante a implementação, o usuário dispensou essa sessão junto ao gate de usabilidade; futuras iterações podem coletar utilidade/interesse, rejeições, idiomas e repetição de autores, sem afirmar satisfação já comprovada.

@@ -79,4 +79,33 @@ class UserBooksRepositoryImplTest {
         assertTrue(result.isPresent());
         assertEquals(1L, result.get().getId());
     }
+
+    @Test
+    void translatesOnlyDuplicateKeyForConfirmedUserBookPair() {
+        var userBook = UserBooks.create(UserId.from(1L), BookId.from(2L), UserBooksStatus.TOREAD);
+        var entity = new UserBooksEntity();
+        when(mapper.toPersistence(eq(userBook), any(), any())).thenReturn(entity);
+        var duplicate = new org.springframework.dao.DataIntegrityViolationException("duplicate", new java.sql.SQLException("duplicate", "23000", 1062));
+        when(jpaRepository.save(entity)).thenThrow(duplicate);
+        when(jpaRepository.existsByUserIdAndBookId(1L, 2L)).thenReturn(true);
+        assertThrows(com.pucsp.alexandria.domain.userbook.exception.DuplicateUserBooksException.class,
+            () -> userBooksRepository.save(userBook));
+    }
+
+    @Test
+    void foreignKeyAndUnrelatedUniqueViolationsAreNotReportedAsDuplicate() {
+        var userBook = UserBooks.create(UserId.from(1L), BookId.from(2L), UserBooksStatus.TOREAD);
+        var entity = new UserBooksEntity();
+        when(mapper.toPersistence(eq(userBook), any(), any())).thenReturn(entity);
+        var foreignKey = new org.springframework.dao.DataIntegrityViolationException("fk", new java.sql.SQLException("fk", "23000", 1452));
+        when(jpaRepository.save(entity)).thenThrow(foreignKey);
+        assertSame(foreignKey, assertThrows(org.springframework.dao.DataIntegrityViolationException.class,
+            () -> userBooksRepository.save(userBook)));
+        verify(jpaRepository, never()).existsByUserIdAndBookId(anyLong(), anyLong());
+        var unrelated = new org.springframework.dao.DataIntegrityViolationException("other unique", new java.sql.SQLException("other", "23000", 1062));
+        doThrow(unrelated).when(jpaRepository).save(entity);
+        when(jpaRepository.existsByUserIdAndBookId(1L, 2L)).thenReturn(false);
+        assertSame(unrelated, assertThrows(org.springframework.dao.DataIntegrityViolationException.class,
+            () -> userBooksRepository.save(userBook)));
+    }
 }

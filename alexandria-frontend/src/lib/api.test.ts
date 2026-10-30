@@ -6,12 +6,13 @@ const book = (authors: BookApiResponse["authors"]): BookApiResponse => ({
   title: "Livro de teste",
   authors,
   coverUrl: null,
-  isbn: null,
-  publicationYear: 2024,
-  genre: "Ficção",
-  synopsis: "Sinopse de teste",
-  averageRating: 0,
-  ratingsCount: 0,
+  downloadUrl: null,
+  languages: null,
+  subjects: null,
+  source: 'GUTENDEX',
+  gutendexId: null,
+  downloadCount: null,
+  publisherId: null,
 });
 
 describe("getAuthorDisplay", () => {
@@ -23,8 +24,8 @@ describe("getAuthorDisplay", () => {
     expect(
       getAuthorDisplay(
         book([
-          { id: 1, name: "Lygia Fagundes Telles" },
-          { id: 2, name: "Clarice Lispector" },
+          { id: 1, name: "Lygia Fagundes Telles", birthYear: null, deathYear: null },
+          { id: 2, name: "Clarice Lispector", birthYear: null, deathYear: null },
         ]),
       ),
     ).toBe("Lygia Fagundes Telles, Clarice Lispector");

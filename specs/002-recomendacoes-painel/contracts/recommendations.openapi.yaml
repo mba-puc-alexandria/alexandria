@@ -2,7 +2,18 @@ openapi: 3.0.3
 info:
   title: Alexandria - Recomendações diárias
   version: 1.0.0
-  description: Contrato proposto; seleção de até 30 livros, uma publicação por leitor/dia.
+  description: |
+    Contrato proposto; seleção de até 30 livros, uma publicação por leitor/dia.
+    Cache-Control no-store em todas as respostas controladas GET/POST, inclusive erros.
+    CORS deve expor Retry-After à origem frontend permitida.
+    generationStatus descreve hoje; STALE pode ter items vazio e seleção anterior.
+    READY/EMPTY de hoje usam READY; EMPTY/NO_PROFILE usa NO_PROFILE;
+    GENERATING usa PENDING/BUILDING; STALE usa IDLE/PENDING/BUILDING/FAILED.
+    Em FAILED, retryAfterSeconds é cooldown restante (null se elegível);
+    em geração ativa é intervalo de polling (default 3s), em READY/NO_PROFILE é null.
+    STALE usa emptyReason null; selectedCount original distingue anterior vazia de filtrada.
+    Sem anterior, indisponibilidade usa 503 com FAILED (falha) ou IDLE (fila indisponível).
+    GET e cron são AUTO; somente POST explícito é MANUAL, sem furar READY.
 servers:
   - url: http://localhost:8080
 security:
@@ -41,7 +52,8 @@ paths:
                     emptyReason: NO_PROFILE
                     updatePending: false
                     retryAfterSeconds: null
-                    message: Adicione livros à biblioteca para formar seu perfil de leitura.
+                    generationStatus: NO_PROFILE
+                    message: Ainda não encontramos interesses suficientes para recomendar. Explore o catálogo e adicione livros que quer ler.
         '202':
           description: Primeira seleção do dia em geração e sem seleção anterior.
           headers:
@@ -58,11 +70,13 @@ paths:
         '503':
           description: Geração indisponível/falhou sem seleção anterior; não significa biblioteca vazia.
           headers:
+            Cache-Control:
+              schema: { type: string, enum: [no-store] }
             Retry-After:
               schema: { type: integer, minimum: 1 }
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/ErrorResponse' }
+              schema: { $ref: '#/components/schemas/RecommendationUnavailableResponse' }
   /recommendations/generation:
     post:
       operationId: requestDailyRecommendationGeneration
@@ -78,12 +92,17 @@ paths:
       responses:
         '200':
           description: Seleção do dia já está pronta, ou não há perfil positivo para gerar.
+          headers:
+            Cache-Control:
+              schema: { type: string, enum: [no-store] }
           content:
             application/json:
               schema: { $ref: '#/components/schemas/GenerationResponse' }
         '202':
           description: Geração aceita ou já em andamento.
           headers:
+            Cache-Control:
+              schema: { type: string, enum: [no-store] }
             Retry-After:
               schema: { type: integer, minimum: 1, example: 3 }
           content:
@@ -94,6 +113,8 @@ paths:
         '429':
           description: Retry manual antes do backoff permitido.
           headers:
+            Cache-Control:
+              schema: { type: string, enum: [no-store] }
             Retry-After:
               schema: { type: integer, minimum: 1 }
           content:
@@ -101,9 +122,14 @@ paths:
               schema: { $ref: '#/components/schemas/ErrorResponse' }
         '503':
           description: Fila indisponível; permitir retry sem perder última seleção.
+          headers:
+            Cache-Control:
+              schema: { type: string, enum: [no-store] }
+            Retry-After:
+              schema: { type: integer, minimum: 1 }
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/ErrorResponse' }
+              schema: { $ref: '#/components/schemas/RecommendationUnavailableResponse' }
 components:
   securitySchemes:
     bearerAuth:
@@ -114,8 +140,10 @@ components:
     RecommendationResponse:
       type: object
       additionalProperties: false
-      required: [state, selection, items, emptyReason, updatePending, retryAfterSeconds, message]
+      required: [state, selection, items, emptyReason, updatePending, retryAfterSeconds, message, generationStatus]
       properties:
+        generationStatus:
+          $ref: '#/components/schemas/GenerationStatus'
         state:
           type: string
           enum: [READY, EMPTY, STALE, GENERATING]
@@ -189,9 +217,21 @@ components:
       properties:
         state: { type: string, enum: [ACCEPTED, ALREADY_RUNNING, READY, NO_PROFILE] }
         referenceDate: { type: string, format: date }
+    GenerationStatus:
+      type: string
+      enum: [IDLE, PENDING, BUILDING, FAILED, READY, NO_PROFILE]
+    RecommendationUnavailableResponse:
+      allOf:
+        - $ref: '#/components/schemas/ErrorResponse'
+        - type: object
+          required: [generationStatus, retryAfterSeconds]
+          properties:
+            generationStatus: { type: string, enum: [FAILED, IDLE] }
+            retryAfterSeconds: { type: integer, minimum: 1, nullable: true }
     ErrorResponse:
       type: object
       required: [message, status, timestamp]
+      description: Nas rotas de recomendações, 503 inclui generationStatus (FAILED ou IDLE) e retryAfterSeconds; outros erros existentes preservam o contrato.
       properties:
         message: { type: string }
         status: { type: integer }

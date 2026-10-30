@@ -96,5 +96,19 @@ class UserBooksControllerIntegrationTest {
                         .content(objectMapper.writeValueAsString(new AddUserBooksRequest(1L, null))))
                 .andExpect(status().isCreated());
     }
+
+    @Test
+    void missingBookInAddHasSpecificCodeWithoutChangingGenericNotFoundContract() throws Exception {
+        when(jwtTokenProvider.validateToken("valid-token")).thenReturn(true);
+        when(jwtTokenProvider.getUsernameFromToken("valid-token")).thenReturn("john_doe");
+        when(jwtTokenProvider.getUserIdFromToken("valid-token")).thenReturn(1L);
+        when(jwtTokenProvider.getRoleFromToken("valid-token")).thenReturn("USER");
+        when(addUserBooksUseCase.execute(anyLong(), any())).thenThrow(
+            new com.pucsp.alexandria.domain.book.exception.BookNotFoundException("Book not found"));
+        mockMvc.perform(post("/user-books").header("Authorization", "Bearer valid-token")
+            .contentType(MediaType.APPLICATION_JSON).content("{\"bookId\":99,\"status\":\"TOREAD\"}"))
+            .andExpect(status().isNotFound()).andExpect(jsonPath("$.code").value("BOOK_NOT_FOUND"))
+            .andExpect(jsonPath("$.message").value("Book not found"));
+    }
 }
 

@@ -121,3 +121,6 @@ alexandria-frontend/.gitignore
 
 /hadolint-2.15.1/
 /alexandria-frontend/node_modules/
+
+# Local application processes, demo data and private runtime settings
+/.local/

@@ -1,6 +1,6 @@
 # Implementation Plan: Recomendações diárias no Painel
 
-**Branch**: `feature/002-recomendacoes-painel` | **Date**: 2026-10-30 | **Spec**: [spec.md](spec.md)
+**Branch**: `feature/002-recomendacoes-painel-wip` | **Date**: 2026-10-30 | **Spec**: [spec.md](spec.md)
 
 **Input**: `specs/002-recomendacoes-painel/spec.md`, com as decisões mais recentes do usuário: considerar todo o catálogo digital, selecionar até 30 livros por leitor uma vez por dia, repetir a seleção em ciclos e excluir imediatamente os livros adicionados à biblioteca.
 
@@ -16,7 +16,7 @@ A seleção usa afinidade determinística por assuntos e autores, idioma complem
 
 **Primary Dependencies**: Spring Boot 3.4.4, Spring Data JPA, Spring Security/JWT, Spring Scheduling já habilitado; Next/React, Tailwind 4, lucide-react. Nenhuma nova dependência de carrossel ou cache necessária.
 
-**Storage**: MySQL 8. Duas novas tabelas de seleção e itens, criadas por Flyway V4. O estado pronto é durável após reinício. O catálogo compacto em memória é temporário, compartilhado entre os trabalhadores de uma execução e descartado após concluir os trabalhos; não armazena EPUBs nem entidades JPA.
+**Storage**: MySQL 8. Duas novas tabelas de seleção e itens, criadas por Flyway V4. O estado pronto é durável após reinício. O catálogo compacto em memória é temporário, compartilhado entre os trabalhadores de uma execução da mesma referenceDate e descartado após concluir os trabalhos; não armazena EPUBs nem entidades JPA. Uma sessão de ontem não fornece catálogo para a seleção de hoje.
 
 **Testing**: JUnit/Spring Boot/H2 para regras; MySQL Testcontainers para leases, unicidade, publicação e migração. Vitest 3.2.7/jsdom para frontend. Playwright 1.60.0 instalado como dependência, mas sem configuração/suíte atual: criar validação E2E na implementação.
 
@@ -66,7 +66,9 @@ specs/002-recomendacoes-painel/
 └── checklists/requirements.md
 ```
 
-`tasks.md` será produzido por `speckit-tasks`; não faz parte desta execução.
+tasks.md contém 52 tarefas; esta revisão refina descrições sem marcar implementação concluída.
+
+O estado de entrada e as evidências de preparação estão em [implementation-readiness.md](implementation-readiness.md). Os scripts em `scripts/` verificam documentos/contratos e a ferramenta MySQL; não implementam a funcionalidade.
 
 ### Source Code (repository root)
 
@@ -107,8 +109,8 @@ Concluída em [research.md](research.md): fatos do checkout, algoritmo, frequên
 ### Fluxo diário
 
 1. Dispatcher diário e recuperação de reinício percorrem leitores por ID, sem carregar todos em memória. Leitores sem sinais positivos podem receber estado vazio sem criar trabalho de ranking.
-2. Antes de processamento, claim curto de `(user_id, reference_date)` com lease e token aleatório. `READY` não é reconstruído no mesmo dia. Concorrência perde o claim sem duplicar publicação.
-3. Uma varredura consistente do catálogo, em lotes por `id > lastId` de 500 registros, forma projeção compacta completa para a execução. Autores são lidos em lote; não paginar fetch join de coleção. Reusar uma única projeção entre trabalhadores do mesmo processo.
+2. Data capturada ao criar PENDING antes da fila e mantida imutável. Antes de processamento, claim curto de `(user_id, reference_date)` com lease e token aleatório. `READY` não é reconstruído no mesmo dia. Concorrência perde o claim sem duplicar publicação.
+3. Uma varredura consistente do catálogo, em lotes por `id > lastId` de 500 registros, forma projeção compacta completa para a execução. Todos os lotes/autores usam a mesma transação read-only com REPEATABLE_READ explícito. Autores são lidos em lote; não paginar fetch join de coleção. Reusar uma única projeção entre trabalhadores do mesmo processo/data, preservando handles antigos na virada sem cedê-los à nova data.
 4. Ler todos os vínculos do leitor, inclusive todas as páginas. Construir mapa de sinais e conjunto de exclusão; calcular a afinidade para cada livro digital disponível da projeção. Heap de 30 reduz memória da seleção, sem limitar o universo avaliado.
 5. Publicar os até 30 itens em transação curta, verificando lease/token e tornando o cabeçalho `READY` atomicamente. Revalidar exclusões no momento da consulta; uma inclusão durante o cálculo não pode expor o livro na resposta.
 6. Manter seleção atual e a última anterior pronta por leitor; eliminar histórico excedente em lotes somente após sucesso. Tentativas falhas e interrompidas têm retenção de 7 dias, sem apagar lease ativo ou a última seleção pronta.
@@ -123,11 +125,12 @@ Frontend guarda apenas esses 30 itens e um índice circular. Controles de avanç
 
 - Executor separado, default 2 trabalhadores e fila de 100 tarefas; dispatcher pagina e respeita capacidade, sem descartar trabalho quando a fila enche. Reconciliador busca faltantes e leases expirados a cada 5 minutos, com backoff de falhas e limite de 3 tentativas automáticas por data. Nova tentativa manual retoma a mesma seleção pendente/falha, nunca reconstrói `READY`.
 - Lease inicial de 5 minutos, renovado a cada 60 segundos somente com BUILDING, token coincidente e lease ainda válido pelo UTC do banco; relógio de lease usa timestamp UTC do banco. Publicação exige token ainda válido. Reinício não deixa o dia sem geração.
+- Heartbeat usa scheduler dedicado. Os gatilhos cron/startup/recovery apenas submetem e retornam; descoberta e espera por capacidade usam executor de controle separado do pool de ranking (um controlador, gatilhos coalescidos por data, sem fila ilimitada). Não aguardar capacidade dentro do scheduler nem de um worker do mesmo pool. Validar heartbeat positivo e menor que lease; cancelá-lo em finally e encerrar todos os executores no shutdown. T030 testa renovação com workers/fila ocupados e encerramento sem thread órfã.
 - Snapshot de catálogo inicializa apenas quando há trabalho; falha de leitura não produz seleção parcial. Tamanho/tempo/heap são medidos. Evitar montar cópia completa por usuário.
 - Sem dependência de cache Redis ou cursor assinado: seleção curta persistida elimina essa complexidade.
 - Cada instância pode executar o dispatcher; unicidade/lease no MySQL coordenam o trabalho. Uma projeção por instância/executação é aceitável, mas precisa ser contabilizada ao escalar réplicas.
 - Métricas: duração e quantidade de gerações, leitores pendentes/falhos, retries, idade da última seleção, livros analisados/selecionados, tempo de GET e tamanho da projeção. Usar Actuator/Micrometer existentes; sem userId como rótulo de métrica e sem biblioteca, avaliações, JWT ou lista de recomendações em logs.
-- Aviso operacional do MVP: Verificar a cada 5 minutos se há gerações PENDING/BUILDING/FAILED sem READY cuja pendência dura mais que a janela configurável, default 60 minutos. A idade começa em created_at do header do dia, registrado na primeira solicitação/constatação de trabalho; não usar simplesmente a meia-noite para leitores recém-chegados. Emitir WARN agregado com referenceDate, quantidade de leitores pendentes e idade da pendência mais antiga, sem IDs pessoais, títulos, assuntos, avaliações ou tokens. Limitar a uma emissão por hora por instância/data de referência, sem suprimir a primeira ocorrência elegível; com a fila normalizada, não emitir aviso. Reinício pode reiniciar o limitador local. Notificações externas ficam fora do MVP.
+- Aviso operacional do MVP: Verificar a cada 5 minutos se há gerações PENDING/BUILDING/FAILED sem READY cuja pendência dura mais que a janela configurável, default 60 minutos. A idade começa em operational_pending_since do header do dia, inicialmente igual a created_at e reiniciado ao reativar após dormência; não usar simplesmente a meia-noite para leitores recém-chegados. Emitir WARN agregado com referenceDate, quantidade de leitores pendentes e idade da pendência mais antiga, sem IDs pessoais, títulos, assuntos, avaliações ou tokens. Limitar a uma emissão por hora por instância/data de referência, sem suprimir a primeira ocorrência elegível; com a fila normalizada, não emitir aviso. Reinício pode reiniciar o limitador local. Notificações externas ficam fora do MVP.
 - Protocolo de SC-006: Medir no navegador em build de produção, com seleção pronta, cinco acessos de aquecimento e pelo menos 100 navegações válidas ao Painel no mesmo perfil de execução. Início: navigation.startTime da navegação completa para /dashboard; fim: marca no navegador após os cartões ou o estado vazio final estarem visíveis e duas requestAnimationFrame consecutivas permitirem sua pintura. Não encerrar ao receber o GET, ao mostrar skeleton, GENERATING ou somente o título da seção. Registrar amostras individuais em milissegundos; calcular p95 pelo método nearest-rank (posição ceil(0.95*N) na lista ordenada), sem remover amostras lentas. Falhas de rede/401/5xx ou timeout não são amostras válidas, mas devem ser reportadas separadamente e impedem considerar o ensaio aprovado até resolução/reexecução; não as esconder do denominador operacional. Registrar navegador/versão, máquina, viewport, rede, cache, aquecimento e leitores simultâneos; não misturar perfis diferentes no mesmo p95. Tempo de geração diária é medido separadamente.
 
 ### Sequência de implementação para decomposição posterior
@@ -146,8 +149,30 @@ Modelo/pontuação e fixtures → Flyway e adapters/leases → geração diária
 | FR-009, 016 | exclusão atual, remoção de respostas antigas, ciclos locais |
 | FR-011 | estados vazios sem fallback popular |
 | SC-001 a 005, 008, 009 | regras, contrato, concorrência e fluxo de biblioteca |
-| SC-006, 007 | ensaio de desempenho e usabilidade de quickstart.md |
+| SC-006 | ensaio de desempenho de quickstart.md |
+| SC-007 | gate humano dispensado pelo usuário durante a implementação; registrar decisão em T051 sem alegar teste realizado |
 
 ## Complexity Tracking
 
 Não há violação de constituição declarada. A persistência e o lease acrescentam complexidade necessária: uma seleção diária não deve ser recalculada por recarga/reinício nem publicada parcialmente. Uma lista somente na memória ou um cron sem coordenação não atende a esses requisitos. Os novos dados são derivados; não alteram tabelas nem regras de leitura/biblioteca existentes.
+
+## Refinamento consolidado após rodada crítica 1
+
+Contratos detalhados: [geração](contracts/daily-generation.md), [Painel](contracts/dashboard.md), [modelo](data-model.md).
+
+- Data imutável no PENDING; não iniciar claims antigos após meia-noite. Worker iniciado pode publicar na data original; recuperação processa hoje.
+- AUTO (GET/cron/recovery) respeita três claims por dia; MANUAL só por POST explícito após cooldown. automatic_attempt_count separa orçamento de attempt_count diagnóstico.
+- Revalidar perfil no worker antes do catálogo. Sem sinais, liberar PENDING dormente sem READY/falha nem consumo AUTO; novos sinais reativam.
+- Snapshot imutável por sessão compartilhada no processo e referenceDate com handles; single-flight e liberação só após término do proprietário, tarefas registradas e handles. O proprietário mantém sessão entre ondas; workers tardios aderem somente à sessão da mesma data. Nova data abre sessão própria sem invalidar os consumidores anteriores; medir pico de memória da sobreposição.
+- API informa generationStatus=IDLE/PENDING/BUILDING/FAILED/READY/NO_PROFILE para orientar retry. STALE aceita zero itens e permite verificar conclusão por GET.
+- Expor Retry-After no CORS efetivo da segurança e validar leitura entre origens no navegador; no-store em GET/POST e erros controlados.
+- Um cartão visível, passo unitário, indicador X de N; ocultos sem foco. Anterior pode rever e item único pode se reapresentar.
+- Razões históricas com data da seleção, NO_PROFILE sem presumir biblioteca vazia e avaliação qualitativa do top-5 complementam usabilidade.
+
+## Fechamento da rodada crítica 2
+
+A API declara generationStatus em properties e schema dedicado RecommendationUnavailableResponse exige generationStatus/retryAfterSeconds no 503. Retenção inclui BUILDING antigo expirado; WARN conta somente pendências de hoje com perfil positivo, excluindo PENDING dormente e dias anteriores. T016/T034/T035 validam esses casos. A aprovação desta revisão é documental; implementação, desempenho e utilidade real ainda exigem as validações previstas.
+
+## Revisão independente com agentes sem histórico
+
+Lease expirado é normalizado atomicamente para FAILED mesmo após esgotar tentativas AUTO, tornando possível retry MANUAL após cooldown baseado em failed_at. Não responder ALREADY_RUNNING para lease vencido. A sessão de catálogo possui proprietário por execução que mantém referência durante fila/intervalos entre ondas; construção continua preguiçosa e liberação aguarda fim de todas as tarefas/handles. Indisponibilidade definitiva de livro durante inclusão retira cartão sem reposição, distinguida por erro BOOK_NOT_FOUND ou revalidação autoritativa. Contratos de geração/Painel e tarefas detalham os testes.
