@@ -379,3 +379,5 @@ jobs:
           curl --fail --silent --show-error --location --max-time 20             --retry 5 --retry-delay 3 https://k8s.bibliotecaalexandria.com.br/ >/dev/null
           curl --fail --silent --show-error --location --max-time 20             --retry 5 --retry-delay 3 https://api.k8s.bibliotecaalexandria.com.br/actuator/health |
             jq -e '.status == "UP"' >/dev/null
+          curl --fail --silent --show-error --location --max-time 20             --retry 5 --retry-delay 3 'https://api.k8s.bibliotecaalexandria.com.br/books?page=0&size=1' |
+            jq -e '.totalElements > 0' >/dev/null
