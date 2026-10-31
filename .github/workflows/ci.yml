@@ -4,6 +4,9 @@ on:
   push:
     branches: [main]
   pull_request:
+
+permissions:
+  contents: read
  
 env:
   JWT_SECRET: ${{ secrets.JWT_SECRET || 'dev-secret-key-not-for-production-min-256bits' }}
@@ -60,6 +63,8 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: GohanFood/payment-api
+          # Mesmo commit publicado pelo workflow de deploy; não seguir o HEAD mutável.
+          ref: 6b3b725354d070ce605613f1f487b356ddb16b40
           path: payment-api
  
       - name: Build das imagens

@@ -1,0 +1,345 @@
+name: Alexandria Deploy (k3s)
+
+on:
+  workflow_run:
+    workflows: [Alexandria CI]
+    types: [completed]
+    branches: [main]
+
+permissions: {}
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      eligible: ${{ steps.check.outputs.eligible }}
+      sha: ${{ steps.check.outputs.sha }}
+    steps:
+      # workflow_run can be triggered by untrusted PR CI. Do not checkout code,
+      # download artifacts, or expose a write token before this API gate passes.
+      - name: Require successful CI for a merged PR on main
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          echo 'eligible=false' >> "$GITHUB_OUTPUT"
+          if ! jq -e '
+            .workflow_run.conclusion == "success" and
+            .workflow_run.event == "push" and
+            .workflow_run.head_branch == "main" and
+            .workflow_run.head_repository.id == .repository.id
+          ' "$GITHUB_EVENT_PATH" >/dev/null; then
+            echo 'CI did not come from a successful push to this repository main.'
+            exit 0
+          fi
+
+          sha="$(jq -r '.workflow_run.head_sha' "$GITHUB_EVENT_PATH")"
+          repo_id="$(jq -r '.repository.id' "$GITHUB_EVENT_PATH")"
+          [[ "$sha" =~ ^[0-9a-f]{40}$ ]]
+
+          current="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq '.object.sha')"
+          if [[ "$current" != "$sha" ]]; then
+            echo 'A newer commit is already on main; skip the stale run.'
+            exit 0
+          fi
+
+          if ! gh api --paginate "repos/$GITHUB_REPOSITORY/commits/$sha/pulls?per_page=100" |
+            jq -se --arg sha "$sha" --argjson repo_id "$repo_id" '
+              add | any(.[];
+                .merged_at != null and
+                .base.ref == "main" and
+                .base.repo.id == $repo_id and
+                .merge_commit_sha == $sha
+              )
+            ' >/dev/null; then
+            echo 'This main commit is not the merge commit of a merged PR.'
+            exit 0
+          fi
+
+          echo 'eligible=true' >> "$GITHUB_OUTPUT"
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: gate
+    if: needs.gate.outputs.eligible == 'true'
+    runs-on: ubuntu-latest
+    concurrency:
+      group: k3s-alexandria-build-${{ needs.gate.outputs.sha }}
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      backend_digest: ${{ steps.publish.outputs.backend_digest }}
+      frontend_digest: ${{ steps.publish.outputs.frontend_digest }}
+      payment_digest: ${{ steps.publish.outputs.payment_digest }}
+    env:
+      DEPLOY_SHA: ${{ needs.gate.outputs.sha }}
+      NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY: ${{ vars.NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY }}
+    steps:
+      - name: Checkout merged Alexandria commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.DEPLOY_SHA }}
+          persist-credentials: false
+
+      - name: Checkout pinned payment-api commit
+        uses: actions/checkout@v4
+        with:
+          repository: GohanFood/payment-api
+          ref: 6b3b725354d070ce605613f1f487b356ddb16b40
+          path: payment-api
+          persist-credentials: false
+
+      - name: Build three images from the tested sources
+        run: |
+          set -euo pipefail
+          owner="${GITHUB_REPOSITORY_OWNER,,}"
+          source="https://github.com/$GITHUB_REPOSITORY"
+          tag="sha-$DEPLOY_SHA"
+          docker build --label "org.opencontainers.image.source=$source" \
+            --label "org.opencontainers.image.revision=$DEPLOY_SHA" \
+            -t "ghcr.io/$owner/alexandria-backend:$tag" ./alexandria-backend
+          docker build --label "org.opencontainers.image.source=$source" \
+            --label "org.opencontainers.image.revision=$DEPLOY_SHA" \
+            --build-arg NEXT_PUBLIC_API_URL=https://api.k8s.bibliotecaalexandria.com.br \
+            --build-arg "NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY=$NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY" \
+            -t "ghcr.io/$owner/alexandria-frontend:$tag" ./alexandria-frontend
+          docker build --label "org.opencontainers.image.source=$source" \
+            --label "org.opencontainers.image.revision=$DEPLOY_SHA" \
+            -t "ghcr.io/$owner/payment-api:$tag" ./payment-api
+
+      - name: Publish SHA-tagged images to GHCR
+        id: publish
+        env:
+          GHCR_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          owner="${GITHUB_REPOSITORY_OWNER,,}"
+          tag="sha-$DEPLOY_SHA"
+          export DOCKER_CONFIG="$(mktemp -d)"
+          trap 'docker logout ghcr.io >/dev/null 2>&1 || true; rm -rf "$DOCKER_CONFIG"' EXIT
+          printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          for name in alexandria-backend alexandria-frontend payment-api; do
+            image="ghcr.io/$owner/$name:$tag"
+            if docker manifest inspect "$image" >/dev/null 2>&1; then
+              # Reruns reuse an existing SHA tag; never publish over it.
+              docker pull "$image"
+              revision="$(docker image inspect --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}' "$image")"
+              [[ "$revision" == "$DEPLOY_SHA" ]]
+            else
+              docker push "$image"
+              docker pull "$image"
+            fi
+            ref="$(docker image inspect --format '{{ index .RepoDigests 0 }}' "$image")"
+            digest="${ref##*@}"
+            [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]
+            [[ "$ref" == "ghcr.io/$owner/$name@$digest" ]]
+            case "$name" in
+              alexandria-backend) key=backend_digest ;;
+              alexandria-frontend) key=frontend_digest ;;
+              payment-api) key=payment_digest ;;
+            esac
+            echo "$key=$digest" >> "$GITHUB_OUTPUT"
+          done
+
+  deploy:
+    needs: [gate, build]
+    if: needs.gate.outputs.eligible == 'true' && needs.build.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    concurrency:
+      group: k3s-alexandria-production
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      DEPLOY_SHA: ${{ needs.gate.outputs.sha }}
+      BACKEND_DIGEST: ${{ needs.build.outputs.backend_digest }}
+      FRONTEND_DIGEST: ${{ needs.build.outputs.frontend_digest }}
+      PAYMENT_DIGEST: ${{ needs.build.outputs.payment_digest }}
+      AWS_REGION: us-east-2
+      INSTANCE_ID: i-0252efc501c62ddbc
+    steps:
+      - name: Recheck main after build and queue
+        id: latest
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          current="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq '.object.sha')"
+          if [[ "$current" == "$DEPLOY_SHA" ]]; then
+            echo 'deploy=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'A newer merge reached main; skip this stale deployment.'
+            echo 'deploy=false' >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Require publicly readable GHCR digests
+        if: steps.latest.outputs.deploy == 'true'
+        run: |
+          set -euo pipefail
+          owner="${GITHUB_REPOSITORY_OWNER,,}"
+          [[ "$owner" =~ ^[a-z0-9][a-z0-9-]*$ ]]
+          for name in alexandria-backend alexandria-frontend payment-api; do
+            case "$name" in
+              alexandria-backend) digest="$BACKEND_DIGEST" ;;
+              alexandria-frontend) digest="$FRONTEND_DIGEST" ;;
+              payment-api) digest="$PAYMENT_DIGEST" ;;
+            esac
+            [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]
+            docker manifest inspect "ghcr.io/$owner/$name@$digest" >/dev/null
+          done
+
+      - name: Assume narrow AWS deploy role via OIDC
+        if: steps.latest.outputs.deploy == 'true'
+        uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          role-session-name: alexandria-${{ github.run_id }}
+          aws-region: us-east-2
+
+      - name: Deploy through SSM and wait for result
+        if: steps.latest.outputs.deploy == 'true'
+        run: |
+          set -euo pipefail
+          owner="${GITHUB_REPOSITORY_OWNER,,}"
+          [[ "$DEPLOY_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$owner" =~ ^[a-z0-9][a-z0-9-]*$ ]]
+          for digest in "$BACKEND_DIGEST" "$FRONTEND_DIGEST" "$PAYMENT_DIGEST"; do
+            [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]
+          done
+
+          # Only validated SHA/digest/owner values enter the SSM command. No registry
+          # token or AWS credential is sent to the instance.
+          {
+            printf 'DEPLOY_SHA=%q\n' "$DEPLOY_SHA"
+            printf 'OWNER=%q\n' "$owner"
+            printf 'BACKEND_DIGEST=%q\n' "$BACKEND_DIGEST"
+            printf 'FRONTEND_DIGEST=%q\n' "$FRONTEND_DIGEST"
+            printf 'PAYMENT_DIGEST=%q\n' "$PAYMENT_DIGEST"
+            cat <<'REMOTE_SCRIPT'
+          set -euo pipefail
+          k() { k3s kubectl "$@"; }
+          command -v k3s
+          command -v docker
+          command -v jq
+          docker info >/dev/null
+          nodes="$(k get nodes -o json)"
+          jq -e '.items | (length == 1 and .[0].status.nodeInfo.architecture == "amd64")' <<< "$nodes" >/dev/null
+          k get namespace alexandria >/dev/null
+          k -n alexandria get secret core-secrets mercadopago-secrets >/dev/null
+          k -n alexandria get service alexandria-backend alexandria-frontend payment-api >/dev/null
+          services="$(k -n alexandria get service -o json)"
+          jq -e '.items | any(.[]; any(.spec.ports[]?; .port == 3306))' <<< "$services" >/dev/null
+          jq -e '.items | any(.[]; any(.spec.ports[]?; .port == 5432))' <<< "$services" >/dev/null
+          for name in alexandria-backend alexandria-frontend payment-api; do
+            k -n alexandria get deployment "$name" -o json |
+              jq -e --arg name "$name"                 '.spec.template.spec.containers | any(.[]; .name == $name and .imagePullPolicy != "Always")' >/dev/null
+          done
+          for spec in alexandria-backend:CORS_ALLOWED_ORIGINS alexandria-frontend:API_INTERNAL_URL; do
+            name="${spec%%:*}"
+            key="${spec#*:}"
+            k -n alexandria get deployment "$name" -o json |
+              jq -e --arg name "$name" --arg key "$key" '
+                (.spec.template.spec.containers | map(select(.name == $name))[0].env // []) |
+                all(.[]; .name != $key or (has("valueFrom") | not))
+              ' >/dev/null
+          done
+          k -n alexandria get ingress -o json | jq -e '
+            [.items[].spec.rules[]?.host] as $hosts |
+            ($hosts | index("k8s.bibliotecaalexandria.com.br")) != null and
+            ($hosts | index("api.k8s.bibliotecaalexandria.com.br")) != null and
+            any(.items[]; (.spec.tls // [] | length) > 0)
+          ' >/dev/null
+
+          tag="sha-$DEPLOY_SHA"
+          for name in alexandria-backend alexandria-frontend payment-api; do
+            case "$name" in
+              alexandria-backend) digest="$BACKEND_DIGEST" ;;
+              alexandria-frontend) digest="$FRONTEND_DIGEST" ;;
+              payment-api) digest="$PAYMENT_DIGEST" ;;
+            esac
+            image="ghcr.io/$OWNER/$name:$tag"
+            docker pull "ghcr.io/$OWNER/$name@$digest"
+            docker tag "ghcr.io/$OWNER/$name@$digest" "$image"
+            revision="$(docker image inspect --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}' "$image")"
+            [[ "$revision" == "$DEPLOY_SHA" ]]
+            docker save "$image" | k3s ctr -n k8s.io images import -
+            k3s ctr -n k8s.io images list -q | grep -Fx "$image" >/dev/null
+          done
+
+          k -n alexandria set image deployment/payment-api \
+            "payment-api=ghcr.io/$OWNER/payment-api:$tag"
+          k -n alexandria rollout status deployment/payment-api --timeout=5m
+
+          backend_patch="$(jq -nc \
+            --arg image "ghcr.io/$OWNER/alexandria-backend:$tag" \
+            --arg cors 'https://k8s.bibliotecaalexandria.com.br' '
+              {spec: {template: {spec: {containers: [{
+                name: "alexandria-backend", image: $image,
+                env: [{name: "CORS_ALLOWED_ORIGINS", value: $cors}],
+                readinessProbe: {
+                  httpGet: {path: "/actuator/health", port: 8080},
+                  initialDelaySeconds: 45, periodSeconds: 10,
+                  timeoutSeconds: 3, failureThreshold: 3
+                }
+              }]}}}}
+            ')"
+          k -n alexandria patch deployment alexandria-backend --type=strategic -p "$backend_patch"
+          k -n alexandria rollout status deployment/alexandria-backend --timeout=5m
+
+          frontend_patch="$(jq -nc \
+            --arg image "ghcr.io/$OWNER/alexandria-frontend:$tag" \
+            --arg internal_url 'http://alexandria-backend:8080' '
+              {spec: {template: {spec: {containers: [{
+                name: "alexandria-frontend", image: $image,
+                env: [{name: "API_INTERNAL_URL", value: $internal_url}],
+                readinessProbe: {
+                  httpGet: {path: "/", port: 3000},
+                  initialDelaySeconds: 5, periodSeconds: 10,
+                  timeoutSeconds: 3, failureThreshold: 3
+                }
+              }]}}}}
+            ')"
+          k -n alexandria patch deployment alexandria-frontend --type=strategic -p "$frontend_patch"
+          k -n alexandria rollout status deployment/alexandria-frontend --timeout=5m
+          REMOTE_SCRIPT
+          } > remote.sh
+
+          jq -n --rawfile script remote.sh             '{commands: ["bash -euo pipefail <<\u0027ALEXANDRIA_DEPLOY_SCRIPT\u0027\n" + $script + "\nALEXANDRIA_DEPLOY_SCRIPT"], executionTimeout: ["900"]}'             > ssm-parameters.json
+          command_id="$(aws ssm send-command             --document-name AWS-RunShellScript             --instance-ids "$INSTANCE_ID"             --parameters file://ssm-parameters.json             --comment "Alexandria merge $DEPLOY_SHA"             --query 'Command.CommandId' --output text)"
+          echo "SSM CommandId: $command_id"
+
+          for attempt in {1..180}; do
+            if result="$(aws ssm get-command-invocation               --command-id "$command_id" --instance-id "$INSTANCE_ID"               --output json 2>/dev/null)"; then
+              status="$(jq -r '.Status' <<< "$result")"
+              case "$status" in
+                Success)
+                  jq -r '.StandardOutputContent, .StandardErrorContent' <<< "$result"
+                  exit 0
+                  ;;
+                Failed|Cancelled|TimedOut|DeliveryTimedOut|ExecutionTimedOut|Undeliverable|Terminated)
+                  jq -r '.StandardOutputContent, .StandardErrorContent' <<< "$result"
+                  echo "SSM command ended with $status" >&2
+                  exit 1
+                  ;;
+              esac
+            fi
+            sleep 5
+          done
+          echo 'SSM command did not finish within 15 minutes.' >&2
+          exit 1
+
+      - name: Public HTTPS smoke checks
+        if: steps.latest.outputs.deploy == 'true'
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --location --max-time 20             --retry 5 --retry-delay 3 https://k8s.bibliotecaalexandria.com.br/ >/dev/null
+          curl --fail --silent --show-error --location --max-time 20             --retry 5 --retry-delay 3 https://api.k8s.bibliotecaalexandria.com.br/actuator/health |
+            jq -e '.status == "UP"' >/dev/null
