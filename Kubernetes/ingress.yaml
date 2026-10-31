@@ -1,0 +1,65 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: alexandria-k8s
+  namespace: alexandria
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-production
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: k8s.bibliotecaalexandria.com.br
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: alexandria-frontend
+                port:
+                  number: 3000
+    - host: api.k8s.bibliotecaalexandria.com.br
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: alexandria-backend
+                port:
+                  number: 8080
+    - host: bibliotecaalexandria.com.br
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: alexandria-frontend
+                port:
+                  number: 3000
+    - host: www.bibliotecaalexandria.com.br
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: alexandria-frontend
+                port:
+                  number: 3000
+    - host: api.bibliotecaalexandria.com.br
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: alexandria-backend
+                port:
+                  number: 8080
+  tls:
+    - hosts:
+        - k8s.bibliotecaalexandria.com.br
+        - api.k8s.bibliotecaalexandria.com.br
+      secretName: alexandria-k8s-tls
