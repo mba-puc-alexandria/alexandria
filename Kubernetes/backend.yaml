@@ -22,18 +22,20 @@ spec:
             - containerPort: 8080
           env:
             - name: DB_HOST
-              value: mysql
+              value: alexandria-db.c9qs2asg26uk.us-east-2.rds.amazonaws.com
             - name: DB_PORT
               value: "3306"
             - name: DB_NAME
               value: alexandriadb
             - name: DB_USER
-              value: alexandria
+              value: admin
             - name: DB_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: core-secrets
-                  key: mysql-password
+                  name: rds-secrets
+                  key: db-password
+            - name: SPRING_PROFILES_ACTIVE
+              value: rds
             - name: JWT_SECRET
               valueFrom:
                 secretKeyRef:
@@ -47,7 +49,7 @@ spec:
                   name: core-secrets
                   key: callback-secret
             - name: CORS_ALLOWED_ORIGINS
-              value: https://k8s.bibliotecaalexandria.com.br
+              value: https://bibliotecaalexandria.com.br,https://www.bibliotecaalexandria.com.br,https://k8s.bibliotecaalexandria.com.br
           resources:
             requests:
               cpu: 250m

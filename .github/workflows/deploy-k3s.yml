@@ -204,6 +204,19 @@ jobs:
           role-session-name: alexandria-${{ github.run_id }}
           aws-region: us-east-2
 
+      - name: Store RDS password as an encrypted SSM parameter
+        if: steps.latest.outputs.deploy == 'true'
+        env:
+          RDS_PASSWORD: ${{ secrets.DB_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$RDS_PASSWORD"
+          umask 077
+          parameter_file="$(mktemp)"
+          trap 'shred -u "$parameter_file"' EXIT
+          jq -n --arg password "$RDS_PASSWORD" '{Name:"/alexandria/rds/password",Value:$password,Type:"SecureString",Tier:"Standard",Overwrite:true}' > "$parameter_file"
+          aws ssm put-parameter --cli-input-json "file://$parameter_file" >/dev/null
+
       - name: Deploy through SSM and wait for result
         if: steps.latest.outputs.deploy == 'true'
         run: |
@@ -229,11 +242,25 @@ jobs:
           command -v k3s
           command -v docker
           command -v jq
+          command -v aws
           docker info >/dev/null
           nodes="$(k get nodes -o json)"
           jq -e '.items | (length == 1 and .[0].status.nodeInfo.architecture == "amd64")' <<< "$nodes" >/dev/null
           k get namespace alexandria >/dev/null
           k -n alexandria get secret core-secrets mercadopago-secrets >/dev/null
+          rds_password="$(aws ssm get-parameter --name /alexandria/rds/password --with-decryption --query Parameter.Value --output text)"
+          test -n "$rds_password"
+          book_count="$(printf '%s\n' "$rds_password" | k -n alexandria exec -i mysql-0 -- sh -c '
+            IFS= read -r MYSQL_PWD
+            export MYSQL_PWD
+            mysql --connect-timeout=5 -h alexandria-db.c9qs2asg26uk.us-east-2.rds.amazonaws.com \
+              -u admin -D alexandriadb -N -e "SELECT COUNT(*) FROM books"
+          ')"
+          [[ "$book_count" =~ ^[0-9]+$ ]] && (( book_count > 0 ))
+          echo "RDS preflight passed: $book_count books."
+          printf '%s' "$rds_password" | k -n alexandria create secret generic rds-secrets \
+            --from-file=db-password=/dev/stdin --dry-run=client -o yaml | k -n alexandria apply -f - >/dev/null
+          unset rds_password
           k -n alexandria get service alexandria-backend alexandria-frontend payment-api >/dev/null
           services="$(k -n alexandria get service -o json)"
           jq -e '.items | any(.[]; any(.spec.ports[]?; .port == 3306))' <<< "$services" >/dev/null
@@ -253,6 +280,7 @@ jobs:
           done
           k -n alexandria get ingress -o json | jq -e '
             [.items[].spec.rules[]?.host] as $hosts |
+            ($hosts | index("bibliotecaalexandria.com.br")) != null and
             ($hosts | index("k8s.bibliotecaalexandria.com.br")) != null and
             ($hosts | index("api.k8s.bibliotecaalexandria.com.br")) != null and
             any(.items[]; (.spec.tls // [] | length) > 0)
@@ -280,10 +308,17 @@ jobs:
 
           backend_patch="$(jq -nc \
             --arg image "ghcr.io/$OWNER/alexandria-backend:$tag" \
-            --arg cors 'https://k8s.bibliotecaalexandria.com.br' '
+            --arg cors 'https://bibliotecaalexandria.com.br,https://www.bibliotecaalexandria.com.br,https://k8s.bibliotecaalexandria.com.br' \
+            --arg db_host 'alexandria-db.c9qs2asg26uk.us-east-2.rds.amazonaws.com' '
               {spec: {template: {spec: {containers: [{
                 name: "alexandria-backend", image: $image,
-                env: [{name: "CORS_ALLOWED_ORIGINS", value: $cors}],
+                env: [
+                  {name: "CORS_ALLOWED_ORIGINS", value: $cors},
+                  {name: "DB_HOST", value: $db_host},
+                  {name: "DB_USER", value: "admin"},
+                  {name: "SPRING_PROFILES_ACTIVE", value: "rds"},
+                  {name: "DB_PASSWORD", valueFrom: {secretKeyRef: {name: "rds-secrets", key: "db-password"}}}
+                ],
                 readinessProbe: {
                   httpGet: {path: "/actuator/health", port: 8080},
                   initialDelaySeconds: 45, periodSeconds: 10,
@@ -340,6 +375,7 @@ jobs:
         if: steps.latest.outputs.deploy == 'true'
         run: |
           set -euo pipefail
+          curl --fail --silent --show-error --location --max-time 20             --retry 5 --retry-delay 3 https://bibliotecaalexandria.com.br/explorar >/dev/null
           curl --fail --silent --show-error --location --max-time 20             --retry 5 --retry-delay 3 https://k8s.bibliotecaalexandria.com.br/ >/dev/null
           curl --fail --silent --show-error --location --max-time 20             --retry 5 --retry-delay 3 https://api.k8s.bibliotecaalexandria.com.br/actuator/health |
             jq -e '.status == "UP"' >/dev/null
