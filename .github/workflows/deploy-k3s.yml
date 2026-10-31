@@ -98,6 +98,7 @@ jobs:
       - name: Build three images from the tested sources
         run: |
           set -euo pipefail
+          : "${NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY:?Set NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY in GitHub Actions variables before building the frontend}"
           owner="${GITHUB_REPOSITORY_OWNER,,}"
           source="https://github.com/$GITHUB_REPOSITORY"
           tag="sha-$DEPLOY_SHA"
